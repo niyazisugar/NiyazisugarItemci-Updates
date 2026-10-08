@@ -1,4 +1,4 @@
 {
-  "version": "2.7.1",
-  "notes": "DENEME GUNCELLEMESI: Otomatik guncelleme sistemi canli test ediliyor. Bu surumde ana degisiklik surum bilgisinin V2.7.1'e cikmasidir. Kurulumdan sonra sag panelde Desktop V2.7.1 ve Ayarlar > Guncellemeler bolumunde Mevcut surum: V2.7.1 gorunmeli."
+  "version": "2.7.2",
+  "notes": "GUNCELLEME HOTFIX TESTI: V2.7.0/V2.7.1'deki .download dosyasi kilidi hatasi duzeltildi. Bu surum otomatik guncellemenin indirme, SHA-256 dogrulama ve kurulum akisini yeniden test eder."
 }
