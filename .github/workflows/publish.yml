@@ -90,6 +90,90 @@ jobs:
           )
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
+          # V2.7.0'daki indirme dosyasi kilidi hatasini derleme sirasinda duzelt.
+          # Output FileStream SHA-256 ve File.Move'dan once dispose edilmelidir.
+          $updateService = Get-Content "src/UpdateService.cs" -Raw
+          $oldDownload = @'
+        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var output = new FileStream(
+            tempPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 128,
+            useAsync: true
+        );
+
+        var buffer = new byte[1024 * 128];
+        long readTotal = 0;
+
+        while (true)
+        {
+            var read = await input.ReadAsync(buffer, cancellationToken);
+            if (read <= 0)
+                break;
+
+            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            readTotal += read;
+
+            if (total is > 0)
+            {
+                var percent = (int)Math.Clamp(
+                    readTotal * 100L / total.Value,
+                    0,
+                    100
+                );
+
+                progress?.Report(percent);
+            }
+        }
+
+        await output.FlushAsync(cancellationToken);
+'@
+          $newDownload = @'
+        await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var output = new FileStream(
+            tempPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 128,
+            useAsync: true
+        ))
+        {
+            var buffer = new byte[1024 * 128];
+            long readTotal = 0;
+
+            while (true)
+            {
+                var read = await input.ReadAsync(buffer, cancellationToken);
+                if (read <= 0)
+                    break;
+
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                readTotal += read;
+
+                if (total is > 0)
+                {
+                    var percent = (int)Math.Clamp(
+                        readTotal * 100L / total.Value,
+                        0,
+                        100
+                    );
+
+                    progress?.Report(percent);
+                }
+            }
+
+            await output.FlushAsync(cancellationToken);
+        }
+'@
+
+          if ($updateService.Contains($oldDownload)) {
+            $updateService = $updateService.Replace($oldDownload, $newDownload)
+            Set-Content "src/UpdateService.cs" $updateService -Encoding utf8
+          }
+
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
 
