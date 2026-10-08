@@ -46,6 +46,8 @@ jobs:
           # repodaki denetlenebilir metin override'larindan kullan.
           Copy-Item "overrides/UpdateService.cs" "src/UpdateService.cs" -Force
           Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
+          Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
+          Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
             $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
@@ -82,6 +84,17 @@ jobs:
             '_sidebarVersion\.Text = "[^"]*";',
             "_sidebarVersion.Text = `"Desktop V$version`";"
           )
+
+          # Network reklam filtresini genişletilmiş, güvenli kurallara bağla.
+          $adPattern = '(?ms)^    private static bool IsBlockedAdUrl\(string\? value\)\r?\n    \{.*?^    \}\r?\n\r?\n    private async Task InstallAdBlockDomAsync'
+          $adReplacement = "    private static bool IsBlockedAdUrl(string? value)`r`n    {`r`n        return AdBlockRules.ShouldBlock(value);`r`n    }`r`n`r`n    private async Task InstallAdBlockDomAsync"
+          $mainForm = [regex]::Replace(
+            $mainForm,
+            $adPattern,
+            $adReplacement,
+            1
+          )
+
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Restore main app
