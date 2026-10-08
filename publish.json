@@ -1,4 +1,4 @@
 {
-  "version": "2.7.0",
-  "notes": "Otomatik güncelleme altyapısı eklendi. Ayarlar bölümünden güncelleme denetleme ve tek tıkla kurulum geldi. Program dosyaları ile Itemci oturum/veri klasörleri ayrıldı. İlk GitHub Actions derleme düzeltmesi uygulandı."
+  "version": "2.7.1",
+  "notes": "DENEME GUNCELLEMESI: Otomatik guncelleme sistemi canli test ediliyor. Bu surumde ana degisiklik surum bilgisinin V2.7.1'e cikmasidir. Kurulumdan sonra sag panelde Desktop V2.7.1 ve Ayarlar > Guncellemeler bolumunde Mevcut surum: V2.7.1 gorunmeli."
 }
