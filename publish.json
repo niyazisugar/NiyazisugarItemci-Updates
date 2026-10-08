@@ -1,4 +1,4 @@
 {
   "version": "2.7.2",
-  "notes": "GUNCELLEME HOTFIX TESTI: V2.7.0/V2.7.1'deki .download dosyasi kilidi hatasi duzeltildi. Bu surum otomatik guncellemenin indirme, SHA-256 dogrulama ve kurulum akisini yeniden test eder."
+  "notes": "GUNCELLEME HOTFIX TESTI: .download dosyasinin acik FileStream nedeniyle kilitlenmesi duzeltildi. Bu surum otomatik indirme, SHA-256 dogrulama, dosya degistirme ve yeniden baslatma akisini test eder."
 }
