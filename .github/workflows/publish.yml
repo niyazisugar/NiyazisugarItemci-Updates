@@ -47,6 +47,13 @@ jobs:
             [IO.File]::WriteAllBytes("src/app.ico", [Convert]::FromBase64String($b64))
           }
 
+          # Ana WinForms projesi varsayilan olarak alt klasordeki tum .cs dosyalarini da
+          # derlemeye calisiyor. Updater'in Program.cs dosyasini ana EXE'ye dahil etmemek
+          # icin updater projesini ana publish sirasinda src disina tasiyoruz.
+          if (Test-Path "src/NiyazisugarUpdater") {
+            Move-Item "src/NiyazisugarUpdater" "updater-src"
+          }
+
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
 
@@ -61,11 +68,11 @@ jobs:
           -o publish-main
 
       - name: Restore updater
-        run: dotnet restore src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
+        run: dotnet restore updater-src/NiyazisugarUpdater.csproj
 
       - name: Publish updater
         run: >-
-          dotnet publish src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
+          dotnet publish updater-src/NiyazisugarUpdater.csproj
           -c Release
           -r win-x64
           --self-contained true
