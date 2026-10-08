@@ -1,4 +1,4 @@
 {
-  "version": "2.7.3",
-  "notes": "OTOMATIK GUNCELLEME DOGRULAMA TESTI: V2.7.2'den V2.7.3'e uygulama icinden gecis test ediliyor. Bu surumde amac indirme, SHA-256 dogrulama, updater ile dosyalari degistirme ve uygulamayi V2.7.3 olarak yeniden baslatma zincirini dogrulamaktir."
+  "version": "2.7.4",
+  "notes": "GUNCELLEME SISTEMI KOK DUZELTMESI: Release derlemeleri artik eski ZIP icindeki hatali updater kodunu kullanmiyor. GitHub'daki sabit UpdateService override'i kullaniliyor. Indirme gecici dosyasi benzersiz ad aliyor; SHA-256 ve dosya tasima islemlerinde gecici Windows/antivirus kilitlerine karsi tekrar deneme eklendi."
 }
