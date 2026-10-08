@@ -1,4 +1,4 @@
 {
-  "version": "2.7.4",
-  "notes": "GUNCELLEME SISTEMI KOK DUZELTMESI: Release derlemeleri artik eski ZIP icindeki hatali updater kodunu kullanmiyor. GitHub'daki sabit UpdateService override'i kullaniliyor. Indirme gecici dosyasi benzersiz ad aliyor; SHA-256 ve dosya tasima islemlerinde gecici Windows/antivirus kilitlerine karsi tekrar deneme eklendi."
+  "version": "2.7.5",
+  "notes": "REKLAM ENGELLEYICI DUZELTMESI: Itemci'nin kendi banner/kampanya reklamlarini yakalayan yeni DOM filtresi eklendi. Google/DoubleClick ve diger yaygin reklam aglari genisletildi. Gec yuklenen ve sonradan DOM'a eklenen reklamlar da tekrar taraniyor. Login/kayit sayfalari guvenli modda korunmaya devam ediyor."
 }
