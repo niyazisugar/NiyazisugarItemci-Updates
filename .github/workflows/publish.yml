@@ -1,0 +1,120 @@
+name: Niyazisugar Itemci - Build and Publish
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'publish.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Read publish manifest
+        id: manifest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content publish.json -Raw | ConvertFrom-Json
+          "version=$($manifest.version)" >> $env:GITHUB_OUTPUT
+          $notes = ($manifest.notes -replace "`r", "" -replace "`n", " ")
+          "notes=$notes" >> $env:GITHUB_OUTPUT
+
+      - name: Rebuild source archive
+        shell: pwsh
+        run: |
+          $parts = Get-ChildItem "source-parts/*.b64" | Sort-Object Name
+          if (-not $parts) { throw "source-parts bulunamadi." }
+
+          $builder = New-Object System.Text.StringBuilder
+          foreach ($part in $parts) {
+            [void]$builder.Append((Get-Content $part.FullName -Raw).Trim())
+          }
+
+          [IO.File]::WriteAllBytes(
+            "source-current.zip",
+            [Convert]::FromBase64String($builder.ToString())
+          )
+
+          New-Item -ItemType Directory -Force -Path src | Out-Null
+          Expand-Archive -Path "source-current.zip" -DestinationPath "src" -Force
+
+      - name: Restore main app
+        run: dotnet restore src/NiyazisugarItemci.csproj
+
+      - name: Publish main app
+        run: >-
+          dotnet publish src/NiyazisugarItemci.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:PublishReadyToRun=false
+          -o publish-main
+
+      - name: Restore updater
+        run: dotnet restore src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
+
+      - name: Publish updater
+        run: >-
+          dotnet publish src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=false
+          -o publish-updater
+
+      - name: Assemble update package
+        shell: pwsh
+        run: |
+          Copy-Item "publish-updater/NiyazisugarUpdater.exe" "publish-main/NiyazisugarUpdater.exe" -Force
+          Compress-Archive -Path "publish-main/*" -DestinationPath "NiyazisugarItemci-update.zip" -Force
+
+          $version = "${{ steps.manifest.outputs.version }}"
+          $hash = (Get-FileHash "NiyazisugarItemci-update.zip" -Algorithm SHA256).Hash
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/NiyazisugarItemci-update.zip"
+
+          $latest = [ordered]@{
+            version = $version
+            downloadUrl = $downloadUrl
+            sha256 = $hash
+            notes = "${{ steps.manifest.outputs.notes }}"
+            publishedAt = (Get-Date).ToUniversalTime().ToString("o")
+          }
+
+          $latest | ConvertTo-Json -Depth 4 | Set-Content "latest.json" -Encoding utf8
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.manifest.outputs.version }}"
+          $tag = "v$version"
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists. Skipping duplicate publish."
+            exit 0
+          }
+
+          gh release create $tag `
+            "NiyazisugarItemci-update.zip" `
+            "latest.json" `
+            --target "${{ github.sha }}" `
+            --title "Niyazisugar Itemci V$version" `
+            --notes "${{ steps.manifest.outputs.notes }}" `
+            --latest
