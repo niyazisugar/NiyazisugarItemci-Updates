@@ -32,7 +32,7 @@ jobs:
           $notes = ($manifest.notes -replace "`r", "" -replace "`n", " ")
           "notes=$notes" >> $env:GITHUB_OUTPUT
 
-      - name: Extract source package
+      - name: Extract and prepare source
         shell: pwsh
         run: |
           if (-not (Test-Path "source-current.zip")) {
@@ -42,21 +42,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path "source-current.zip" -DestinationPath "src" -Force
 
+          # Baseline ZIP eski olsa bile kritik updater/proje dosyalarini
+          # repodaki denetlenebilir metin override'larindan kullan.
+          Copy-Item "overrides/UpdateService.cs" "src/UpdateService.cs" -Force
+          Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
+
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
             $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
             [IO.File]::WriteAllBytes("src/app.ico", [Convert]::FromBase64String($b64))
           }
 
-          # Ana WinForms projesi varsayilan olarak alt klasordeki tum .cs dosyalarini da
-          # derlemeye calisiyor. Updater'in Program.cs dosyasini ana EXE'ye dahil etmemek
-          # icin updater projesini ana publish sirasinda src disina tasiyoruz.
           if (Test-Path "src/NiyazisugarUpdater") {
             Move-Item "src/NiyazisugarUpdater" "updater-src"
           }
 
-          # Surum numarasini publish.json'dan kaynaklara uygula.
-          # Boylece test/release surumlerinde kaynak ZIP'ini sirf versiyon icin
-          # yeniden yuklemek gerekmiyor.
           $version = "${{ steps.manifest.outputs.version }}"
 
           $csproj = Get-Content "src/NiyazisugarItemci.csproj" -Raw
@@ -80,99 +79,10 @@ jobs:
           $mainForm = Get-Content "src/MainForm.cs" -Raw
           $mainForm = [regex]::Replace(
             $mainForm,
-            '_sidebarVersion\.Text = "2\.7\.0";',
-            "_sidebarVersion.Text = `"$version`";"
-          )
-          $mainForm = [regex]::Replace(
-            $mainForm,
-            '_sidebarVersion\.Text = "Desktop V2\.7\.0";',
+            '_sidebarVersion\.Text = "[^"]*";',
             "_sidebarVersion.Text = `"Desktop V$version`";"
           )
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
-
-          # V2.7.0'daki indirme dosyasi kilidi hatasini derleme sirasinda duzelt.
-          # Output FileStream SHA-256 ve File.Move'dan once dispose edilmelidir.
-          $updateService = Get-Content "src/UpdateService.cs" -Raw
-          $oldDownload = @'
-                  await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-                  await using var output = new FileStream(
-                      tempPath,
-                      FileMode.Create,
-                      FileAccess.Write,
-                      FileShare.None,
-                      1024 * 128,
-                      useAsync: true
-                  );
-          
-                  var buffer = new byte[1024 * 128];
-                  long readTotal = 0;
-          
-                  while (true)
-                  {
-                      var read = await input.ReadAsync(buffer, cancellationToken);
-                      if (read <= 0)
-                          break;
-          
-                      await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                      readTotal += read;
-          
-                      if (total is > 0)
-                      {
-                          var percent = (int)Math.Clamp(
-                              readTotal * 100L / total.Value,
-                              0,
-                              100
-                          );
-          
-                          progress?.Report(percent);
-                      }
-                  }
-          
-                  await output.FlushAsync(cancellationToken);
-          '@
-          $newDownload = @'
-                  await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
-                  await using (var output = new FileStream(
-                      tempPath,
-                      FileMode.Create,
-                      FileAccess.Write,
-                      FileShare.None,
-                      1024 * 128,
-                      useAsync: true
-                  ))
-                  {
-                      var buffer = new byte[1024 * 128];
-                      long readTotal = 0;
-          
-                      while (true)
-                      {
-                          var read = await input.ReadAsync(buffer, cancellationToken);
-                          if (read <= 0)
-                              break;
-          
-                          await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                          readTotal += read;
-          
-                          if (total is > 0)
-                          {
-                              var percent = (int)Math.Clamp(
-                                  readTotal * 100L / total.Value,
-                                  0,
-                                  100
-                              );
-          
-                              progress?.Report(percent);
-                          }
-                      }
-          
-                      await output.FlushAsync(cancellationToken);
-                  }
-          '@
-
-          if ($updateService.Contains($oldDownload)) {
-            $updateService = $updateService.Replace($oldDownload, $newDownload)
-            Set-Content "src/UpdateService.cs" $updateService -Encoding utf8
-          }
 
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
