@@ -1,0 +1,4 @@
+{
+  "version": "2.7.0",
+  "notes": "Otomatik güncelleme altyapısı eklendi. Ayarlar bölümünden güncelleme denetleme ve tek tıkla kurulum geldi. Program dosyaları ile Itemci oturum/veri klasörleri ayrıldı."
+}
