@@ -32,24 +32,20 @@ jobs:
           $notes = ($manifest.notes -replace "`r", "" -replace "`n", " ")
           "notes=$notes" >> $env:GITHUB_OUTPUT
 
-      - name: Rebuild source archive
+      - name: Extract source package
         shell: pwsh
         run: |
-          $parts = Get-ChildItem "source-parts/*.b64" | Sort-Object Name
-          if (-not $parts) { throw "source-parts bulunamadi." }
-
-          $builder = New-Object System.Text.StringBuilder
-          foreach ($part in $parts) {
-            [void]$builder.Append((Get-Content $part.FullName -Raw).Trim())
+          if (-not (Test-Path "source-current.zip")) {
+            throw "source-current.zip bulunamadi."
           }
-
-          [IO.File]::WriteAllBytes(
-            "source-current.zip",
-            [Convert]::FromBase64String($builder.ToString())
-          )
 
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path "source-current.zip" -DestinationPath "src" -Force
+
+          if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
+            $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
+            [IO.File]::WriteAllBytes("src/app.ico", [Convert]::FromBase64String($b64))
+          }
 
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
