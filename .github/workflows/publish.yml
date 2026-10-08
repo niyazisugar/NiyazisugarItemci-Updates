@@ -54,6 +54,42 @@ jobs:
             Move-Item "src/NiyazisugarUpdater" "updater-src"
           }
 
+          # Surum numarasini publish.json'dan kaynaklara uygula.
+          # Boylece test/release surumlerinde kaynak ZIP'ini sirf versiyon icin
+          # yeniden yuklemek gerekmiyor.
+          $version = "${{ steps.manifest.outputs.version }}"
+
+          $csproj = Get-Content "src/NiyazisugarItemci.csproj" -Raw
+          $csproj = [regex]::Replace(
+            $csproj,
+            '<Version>[^<]+</Version>',
+            "<Version>$version</Version>",
+            1
+          )
+          Set-Content "src/NiyazisugarItemci.csproj" $csproj -Encoding utf8
+
+          $updateService = Get-Content "src/UpdateService.cs" -Raw
+          $updateService = [regex]::Replace(
+            $updateService,
+            'public const string CurrentVersion = "[^"]+";',
+            "public const string CurrentVersion = `"$version`";",
+            1
+          )
+          Set-Content "src/UpdateService.cs" $updateService -Encoding utf8
+
+          $mainForm = Get-Content "src/MainForm.cs" -Raw
+          $mainForm = [regex]::Replace(
+            $mainForm,
+            '_sidebarVersion\.Text = "2\.7\.0";',
+            "_sidebarVersion.Text = `"$version`";"
+          )
+          $mainForm = [regex]::Replace(
+            $mainForm,
+            '_sidebarVersion\.Text = "Desktop V2\.7\.0";',
+            "_sidebarVersion.Text = `"Desktop V$version`";"
+          )
+          Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
+
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
 
