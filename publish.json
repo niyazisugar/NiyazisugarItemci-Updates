@@ -1,4 +1,4 @@
 {
-  "version": "2.7.6",
-  "notes": "Reklam engelleyici düzeltildi: Itemci üst ve uzun yan reklamları doğrudan Reklam etiketleriyle yakalanıyor. Sonradan yüklenen reklamlar filtreleniyor. Tekrarlayan DOM taramaları azaltıldı. Ürün ve giriş formları korunuyor."
+  "version": "2.8.0",
+  "notes": "Premium tasarım denemesi: koyu antrasit yüzeyler, sıcak altın vurgular, yuvarlak kart ve butonlar, sade satış tablosu. Windows 11 üzerinde yerel pencere köşeleri yuvarlatılır. Reklam engelleyici düzeltmeleri korunur."
 }

@@ -61,6 +61,7 @@ jobs:
           Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
           Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
+          Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
             $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
@@ -107,6 +108,14 @@ jobs:
             $adReplacement,
             1
           )
+
+          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(216, 180, 106)')
+          $mainForm = $mainForm.Replace('Color.FromArgb(12, 14, 18)', 'Color.FromArgb(17, 19, 24)')
+          $mainForm = $mainForm.Replace('Color.FromArgb(24, 28, 35)', 'Color.FromArgb(26, 29, 36)')
+          # Apply native rounded controls after the UI has been built.
+          $mainForm = $mainForm.Replace("        BuildUi();", "        BuildUi();`r`n        PremiumTheme.Apply(this);")
+          $borderPattern = '(?ms)^    private static void DrawBorder\(Graphics g, Rectangle rect\)\r?\n    \{.*?^    \}'
+          $mainForm = [regex]::Replace($mainForm, $borderPattern, "    private static void DrawBorder(Graphics g, Rectangle rect)`r`n    {`r`n        PremiumTheme.DrawBorder(g, rect);`r`n    }", 1)
 
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
