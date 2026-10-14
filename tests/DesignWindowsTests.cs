@@ -74,7 +74,7 @@ public sealed partial class MainForm
         var reply=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"QuickReplyDock.js"));
         // Only adapt route detection in the test's about:blank fixture.
         reply=reply.Replace("function isMessagesPage(){return /\\/(panel\\/mesaj|messages?|chat)/i.test(location.pathname);}","function isMessagesPage(){return true;}");await _webView.CoreWebView2.ExecuteScriptAsync(reply);await Task.Delay(300);
-        var check=await _webView.CoreWebView2.ExecuteScriptAsync("document.querySelector('#niyazi-quick-replies button').click();document.querySelector('textarea').value.length>0&&window.sent===0");if(check!="true")throw new Exception("Reply chip sent or failed to fill the input.");Capture("messages");
+        var check=await _webView.CoreWebView2.ExecuteScriptAsync("document.querySelector('#niyazi-quick-replies button').click();document.querySelector('textarea').value.length>0&&window.sent===0");if(check!="true")throw new Exception("Reply chip sent or failed to fill the input.");firstTab.RequestedUrl="https://itemci.com/panel/mesajlar";SelectTopSection(_browserPanel);if(_topMessages!.ForeColor!=PremiumTheme.Gold)throw new Exception("Messages menu did not become active.");Capture("messages");
         await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);ShowPanel(_marketPanel);
         _marketWebView.CoreWebView2.NavigateToString("<html><body></body></html>");await Task.Delay(300);
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));

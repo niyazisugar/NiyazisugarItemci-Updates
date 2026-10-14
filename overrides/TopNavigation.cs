@@ -38,16 +38,17 @@ public sealed partial class MainForm
             menu.Controls.Add(button);
             return button;
         }
-        Section("Itemci", 72, _browserPanel, () => ShowPanel(_browserPanel));
+        Section("Itemci", 72, _browserPanel, () => { ShowPanel(_browserPanel); var siteTab=_browserTabs.FirstOrDefault(t=>BrowserTabRules.Family(TabLocation(t))!="messages");if(siteTab is not null)SelectBrowserTab(siteTab); });
         _topMessages = TopButton("Mesajlar", 105, () =>
         {
             ShowPanel(_browserPanel);
             _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
         });
+        _topSections.Add(_topMessages,_browserPanel);
         menu.Controls.Add(_topMessages);
         Section("İlanlarım", 85, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
         Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
-        Section("Piyasa Analiz", 116, _marketPanel, () =>
+        Section("Piyasa Analizi", 124, _marketPanel, () =>
         {
             ShowPanel(_marketPanel);
             _ = OpenEmbeddedMarketAnalyzerAsync();
@@ -72,7 +73,7 @@ public sealed partial class MainForm
             if (_topMessages is not null)
             {
                 var value = _unreadLabel.Text;
-                _topMessages.Text = value is "0" or "—" or "-" or "" ? "✉ Mesajlar" : "✉ " + value;
+                _topMessages.Text = value is "0" or "—" or "-" or "" ? "Mesajlar" : "Mesajlar · " + value;
                 _sidebarToolTip.SetToolTip(_topMessages, "Mesajlar · " + value);
             }
         };
@@ -94,7 +95,7 @@ public sealed partial class MainForm
     {
         var button = new Button { Text = text, Width = width, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(26, 29, 36), ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 0, 4, 0), AutoEllipsis = true };
         button.FlatAppearance.BorderSize = 0;
-        button.Paint += (_, e) => { if (_topSections.TryGetValue(button, out var target) && ReferenceEquals(target, _activeTopPanel)) { using var line = new Pen(PremiumTheme.Gold, 2); e.Graphics.DrawLine(line, 8, button.Height-2, button.Width-8, button.Height-2); } };
+        button.Paint += (_, e) => { if (_topSections.TryGetValue(button, out var target) && ReferenceEquals(target, _activeTopPanel) && button.ForeColor==PremiumTheme.Gold) { using var line = new Pen(PremiumTheme.Gold, 2); e.Graphics.DrawLine(line, 8, button.Height-2, button.Width-8, button.Height-2); } };
         button.Click += (_, _) => click();
         return button;
     }
@@ -102,9 +103,11 @@ public sealed partial class MainForm
     private void SelectTopSection(Panel panel)
     {
         _activeTopPanel = panel;
+        var currentTab=_browserTabs.FirstOrDefault(t=>ReferenceEquals(t.WebView,_webView));
+        var messageActive=ReferenceEquals(panel,_browserPanel) && BrowserTabRules.Family(currentTab is null ? (_webView.Source?.ToString()??"") : TabLocation(currentTab))=="messages";
         foreach (var entry in _topSections)
         {
-            bool selected = ReferenceEquals(entry.Value, panel);
+            bool selected = ReferenceEquals(entry.Value, panel) && (!ReferenceEquals(panel,_browserPanel) || ReferenceEquals(entry.Key,_topMessages)==messageActive);
             entry.Key.BackColor = Color.FromArgb(26, 29, 36);
             entry.Key.ForeColor = selected ? PremiumTheme.Gold : TextMain;
             entry.Key.Invalidate();
