@@ -2918,6 +2918,18 @@ ${categorySectionsHtml}
     window.__NiyazisugarRunServerById = desktopRunServer;
 
     window.__NiyazisugarOpenMarket = openServerMenu;
+    function liveListingRow(row, server) {
+        const match = categoriesForServer(server)
+            .map(category => ({ category, parsed: analyzeCategoryRow(row, category) }))
+            .find(result => result.parsed && Number.isFinite(result.parsed.unit) && result.parsed.amount > 0);
+        return { ...row,
+            quantity: match?.parsed.amount ?? null,
+            unitPrice: match?.parsed.unit ?? null,
+            unitLabel: match?.category.unitLabel || '',
+            categoryName: match?.category.name || ''
+        };
+    }
+
     window.__NiyazisugarLiveListings = async serverId => {
         const server = loadServers().find(s => s.id === serverId) || getActiveServer();
         const base = await resolveItemYangCategory(server.url);
@@ -2928,7 +2940,7 @@ ${categorySectionsHtml}
             for (const card of cards) {
                 card.href = new URL(card.getAttribute('href'), data.url).href;
                 const row = parseCard(card);
-                if (row) rows.set(row.url, row);
+                if (row) rows.set(row.url, liveListingRow(row, server));
             }
             if (!cards.length) break;
             await sleep(PAGE_DELAY);

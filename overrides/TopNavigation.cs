@@ -43,6 +43,11 @@ public sealed partial class MainForm
         menu.Controls.Add(_topMessages);
         Section("İlanlarım", 85, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
         Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
+        Section("Piyasa Analiz", 116, _marketPanel, () =>
+        {
+            ShowPanel(_marketPanel);
+            _ = OpenEmbeddedMarketAnalyzerAsync();
+        });
         Button? create = null;
         create = TopButton("İlan Oluştur ▾", 117, () => _topCreateMenu.Show(create!, new Point(0, create!.Height + 6)));
         create.ForeColor = Accent;

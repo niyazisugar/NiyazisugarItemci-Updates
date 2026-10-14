@@ -1,4 +1,4 @@
 {
-  "version": "2.8.4",
-  "notes": "Itemci tam ekran karşılama reklamı engellendi ve reklamın sayfa kaydırma kilidi kaldırıldı. Menü İtemci, Mesajlar, İlanlarım sırasına alındı; Ana Panel Ayarlar içine taşındı. Sol altta seçili sunucunun güncel ilanlarını 2 dakikada bir yenileyen küçük piyasa paneli eklendi."
+  "version": "2.8.5",
+  "notes": "Üst menüye geniş Piyasa Analiz ekranı geri eklendi. Sol piyasa radarı Itemci menüsünün gerçek sınırına göre boş alana yerleşir. İlan kısa adı, toplam fiyat ve ürün miktarına göre hesaplanan birim fiyat (TL/KT, TL/OT, TL/M) renkli satırlarda gösterilir. Dar ekranlarda menüyü örtmemek için küçük radar gizlenir."
 }

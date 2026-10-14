@@ -23,6 +23,7 @@ jobs:
       - run: node --check overrides/AdBlock.js
       - run: node tests/adblock.cjs
       - run: node tests/sales.cjs
+      - run: node tests/live-market.cjs
 
   publish:
     needs: adblock-test
@@ -153,6 +154,7 @@ jobs:
           $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`r`n    {", "    private void ConfigureAdBlocking(WebView2 view)`r`n    {`r`n" + $cookieHook)
           $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`n    {", "    private void ConfigureAdBlocking(WebView2 view)`n    {`n" + $cookieHook)
           $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")
+          $mainForm = $mainForm.Replace('                await InstallAdBlockDomAsync(view);', "                await InstallAdBlockDomAsync(view);`r`n                PositionLiveMarket();")
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test browser page routing
