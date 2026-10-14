@@ -58,6 +58,19 @@
         }
         return null;
     }
+    function serverFromRow(row) {
+        const explicit=clean(row.getAttribute('data-server'));
+        if(explicit)return explicit;
+        const headings=[...row.closest('table')?.querySelectorAll('thead th') || []];
+        const index=headings.findIndex(el=>/^(sunucu|server)$/.test(norm(el.textContent)));
+        if(index>=0&&row.cells?.[index])return clean(row.cells[index].textContent)||'Bilinmeyen sunucu';
+        for(const label of row.querySelectorAll('span,dt,label')) {
+            if(/^(sunucu|server)\s*:?$/.test(norm(label.textContent))) {
+                const value=clean(label.nextElementSibling?.textContent);if(value&&value.length<100)return value;
+            }
+        }
+        return 'Bilinmeyen sunucu';
+    }
     function parseDetail(text, row) {
         const normalized = norm(text);
         const order = normalized.match(/siparis\s*(?:id|no)\s*:?\s*([\w-]+)/)?.[1]?.toUpperCase();
@@ -67,7 +80,7 @@
         const title = clean(row.el.querySelector('h3,h4,h2,a[href*="/product/"]')?.innerText || product || '');
         if (!order || !date || !price || !title) throw new Error(`İlan ${row.id}: sipariş ayrıntısında ürün, tarih veya fiyat okunamadı.`);
         if (/iptal|iade/.test(normalized.match(/durum\s*(.*?)\s*(?:teslimat|alici|siparis\s*tarihi)/)?.[1] || '')) return null;
-        return {OrderId:order, ListingId:row.id, ItemTitle:title, Server:clean(row.el.getAttribute("data-server") || text.match(/Sunucu\s*:\s*([^\n]+)/i)?.[1] || "Bilinmeyen sunucu"), Date:date[1], Time:date[2], Price:price, IsDelivered:/tamamlandi/.test(normalized)};
+        return {OrderId:order, ListingId:row.id, ItemTitle:title, ImageUrl:row.el.querySelector("img")?.getAttribute("data-src") || row.el.querySelector("img")?.getAttribute("src") || "", Server:serverFromRow(row.el), Date:date[1], Time:date[2], Price:price, IsDelivered:/tamamlandi/.test(normalized)};
     }
     async function closeDialog(el) {
         const button = [...el.querySelectorAll('button')].find(b => /^kapat$/i.test(clean(b.innerText))) ||

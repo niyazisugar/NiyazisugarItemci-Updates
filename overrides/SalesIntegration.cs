@@ -75,6 +75,7 @@ public sealed partial class MainForm
         _salesGrid.DefaultCellStyle.Font = new Font("Segoe UI", 9);
         _salesGrid.ColumnHeadersHeight = 42;
         _salesGrid.Columns.Clear();
+        _salesGrid.Columns.Add(new DataGridViewImageColumn { Name="Cover",HeaderText="",ImageLayout=DataGridViewImageCellLayout.Zoom,DefaultCellStyle=new DataGridViewCellStyle {NullValue=null},FillWeight=65 });
         _salesGrid.Columns.Add("Item", "SATILAN ÜRÜN");
         _salesGrid.Columns.Add("Server", "SUNUCU");
         _salesGrid.Columns.Add("Commission", "KOMİSYON");
@@ -118,15 +119,23 @@ public sealed partial class MainForm
         _salesNetLabel.Text = FormatTl(net);
         _salesCountLabel.Text = sales.Count.ToString();
         _salesTotals.Text = $"TOPLAM   ·   {sales.Count} satış   ·   Satış: {FormatTl(gross)}   ·   Komisyon: {FormatTl(gross-net)}   ·   Net: {FormatTl(net)}";
+        foreach(DataGridViewRow old in _salesGrid.Rows) (old.Cells["Cover"].Value as Image)?.Dispose();
         _salesGrid.Rows.Clear();
         foreach (var sale in sales)
         {
-            int row = _salesGrid.Rows.Add(sale.ItemTitle, sale.Server, FormatTl(sale.CommissionAmount), sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.NetAmount));
-            _salesGrid.Rows[row].Height = 48;
+            int row = _salesGrid.Rows.Add(null, sale.ItemTitle, sale.Server, FormatTl(sale.CommissionAmount), sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.NetAmount));
+            _salesGrid.Rows[row].Height = 58;
+            if(row<30) _=LoadSaleThumbnailAsync(_salesGrid.Rows[row],sale.ImageUrl);
             _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = Color.FromArgb(255,140,135);
             _salesGrid.Rows[row].Cells["Gross"].Style.ForeColor = Accent;
             _salesGrid.Rows[row].Cells["Net"].Style.ForeColor = PremiumTheme.Turquoise;
         }
+    }
+
+    private async Task LoadSaleThumbnailAsync(DataGridViewRow row,string address)
+    {
+        var bitmap=await ListingThumbnails.LoadAsync(address,()=>!IsDisposed&&row.DataGridView==_salesGrid);
+        if(bitmap is null)return;if(IsDisposed||row.DataGridView!=_salesGrid){bitmap.Dispose();return;}row.Cells["Cover"].Value=bitmap;
     }
 
     private async Task EnsureSoldScanViewAsync()
@@ -233,7 +242,10 @@ public sealed partial class MainForm
                         !decimal.TryParse(data.Price, NumberStyles.Number, CultureInfo.GetCultureInfo("tr-TR"), out var gross) || gross <= 0 || string.IsNullOrWhiteSpace(data.OrderId))
                     { failed++; continue; }
                     // Replace by order ID. Refreshes cannot double-count a sale.
-                    _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Server = data.Server, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
+                    _salesHistory.TryGetValue(data.OrderId,out var previous);
+                    if(data.Server=="Bilinmeyen sunucu" && !string.IsNullOrWhiteSpace(previous?.Server)) data.Server=previous.Server;
+                    if(string.IsNullOrWhiteSpace(data.ImageUrl))data.ImageUrl=previous?.ImageUrl??"";
+                    _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Server = data.Server, ImageUrl = data.ImageUrl, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
                 }
                 SaveSalesHistory();
                 RenderSoldSalesPanel();
@@ -278,6 +290,7 @@ public sealed partial class MainForm
         public string OrderId { get; set; } = "";
         public string ListingId { get; set; } = "";
         public string ItemTitle { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
         public string Server { get; set; } = "Bilinmeyen sunucu";
         public string Date { get; set; } = "";
         public string Time { get; set; } = "";

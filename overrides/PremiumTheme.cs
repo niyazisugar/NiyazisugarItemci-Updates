@@ -56,6 +56,14 @@ internal static class PremiumTheme
             button.FlatAppearance.MouseDownBackColor = Color.FromArgb(68, 57, 38);
             Round(control, 11);
         }
+        else if(control is TextBox input)
+        {
+            input.BackColor=Color.FromArgb(21,24,30);input.ForeColor=Color.FromArgb(241,242,244);input.BorderStyle=BorderStyle.FixedSingle;
+        }
+        else if(control is ComboBox select)
+        {
+            select.BackColor=Color.FromArgb(21,24,30);select.ForeColor=Color.FromArgb(241,242,244);select.FlatStyle=FlatStyle.Flat;
+        }
         else if (control is Panel panel && panel.BackColor == Surface)
         {
             Round(panel, 16);

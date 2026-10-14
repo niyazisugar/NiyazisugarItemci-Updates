@@ -23,7 +23,7 @@ public sealed partial class MainForm
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
-        var brand = new Label { Text = "NiyaziSUGAR\nITEMCI  V" + UpdateService.CurrentVersion, Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
+        var brand = new Label { Text = "NiyaziSUGAR", Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 12, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
         brand.Click += (_, _) => ShowPanel(_browserPanel);
         var branding = new Panel { Dock = DockStyle.Fill, Padding = new Padding(44,0,0,0) };
         branding.Controls.Add(brand);

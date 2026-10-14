@@ -73,6 +73,7 @@ jobs:
           Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
           Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
+          Copy-Item "overrides/ListingThumbnails.cs" "src/ListingThumbnails.cs" -Force
           Copy-Item "overrides/BrandMark.cs" "src/BrandMark.cs" -Force
           Copy-Item "overrides/ListingsDesign.cs" "src/ListingsDesign.cs" -Force
           Copy-Item "overrides/QuickReplyDock.js" "src/QuickReplyDock.js" -Force
@@ -199,8 +200,10 @@ jobs:
           $mainForm = $mainForm.Replace('private void RenderCurrentListings(List<ListingInfo> listings)', 'private void LegacyRenderCurrentListings(List<ListingInfo> listings)')
           $mainForm = $mainForm.Replace('public string Status { get; set; } = "AKTİF";', 'public string Status { get; set; } = "AKTİF"; public string ImageUrl { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
           $mainForm = $mainForm.Replace('Status = "AKTİF"', 'Status = "AKTİF", ImageUrl = ReadListingImage(container), Server = ReadListingServer(container)')
-          $mainForm = $mainForm.Replace('public string ItemTitle { get; set; } = "";', 'public string ItemTitle { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
+          $mainForm = $mainForm.Replace('public string ItemTitle { get; set; } = "";', 'public string ItemTitle { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu"; public string ImageUrl { get; set; } = "";')
+          $mainForm = $mainForm.Replace('await _marketWebView.CoreWebView2.ExecuteScriptAsync(script);', 'await _marketWebView.CoreWebView2.ExecuteScriptAsync(script); if (!string.IsNullOrWhiteSpace(_settings.OwnStoreUrl)) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(_settings.OwnStoreUrl));')
           $mainForm = $mainForm.Replace('_settings.OwnStoreUrl = url;', '_settings.OwnStoreUrl = url; if (_marketWebView.CoreWebView2 is not null) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(url));')
+          $mainForm = $mainForm.Replace("        BuildUi();", "        AutoScaleMode = AutoScaleMode.Dpi;`r`n        BuildUi();")
           $mainForm = $mainForm.Replace('NIYAZISUGAR', 'NiyaziSUGAR').Replace('Niyazisugar Itemci', 'NiyaziSUGAR · Itemci')
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 

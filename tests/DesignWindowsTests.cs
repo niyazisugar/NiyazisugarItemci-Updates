@@ -18,14 +18,34 @@ namespace NiyazisugarItemci
 {
 public sealed partial class MainForm
 {
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern bool EnumDisplaySettings(string? device,int mode,ref DisplayMode value);
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int ChangeDisplaySettings(ref DisplayMode value,int flags);
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential,CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    private struct DisplayMode {
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr,SizeConst=32)] public string DeviceName;
+        public ushort SpecVersion,DriverVersion,Size,DriverExtra;public uint Fields;
+        public int PositionX,PositionY;public uint Orientation,FixedOutput;
+        public short Color,Duplex,YResolution,TTOption,Collate;
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr,SizeConst=32)] public string FormName;
+        public ushort LogPixels;public uint BitsPerPel,PelsWidth,PelsHeight,DisplayFlags,Frequency,ICMMethod,ICMIntent,MediaType,DitherType,Reserved1,Reserved2,PanningWidth,PanningHeight;
+    }
+    private static void TrySetTestDesktop() {
+        var mode=new DisplayMode { Size=(ushort)System.Runtime.InteropServices.Marshal.SizeOf<DisplayMode>() };
+        if(EnumDisplaySettings(null,-1,ref mode)) {mode.PelsWidth=1920;mode.PelsHeight=1080;mode.Fields=0x80000|0x100000;Console.WriteLine("Test desktop resolution result: "+ChangeDisplaySettings(ref mode,0));}
+    }
     internal async Task TestDesignAsync()
     {
+        TrySetTestDesktop();
         _monitorTimer.Stop();_salesTimer.Stop();_liveTimer.Stop();_autoBumpTimer.Stop();
         var output=Path.Combine(Environment.CurrentDirectory,"test-results");Directory.CreateDirectory(output);
         _browserEnvironment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Path.GetTempPath(),"niyazi-design-test-"+Guid.NewGuid().ToString("N")));
         await _webView.EnsureCoreWebView2Async(_browserEnvironment);
         _webView.CoreWebView2.NavigateToString("<html lang='tr'><body style='background:#181818;color:#ddd;font:16px Segoe UI;padding:32px'><h2>Itemci</h2><p>Yalıtılmış arayüz testi · Hesap oturumu ve ilan verisi kullanılmıyor.</p></body></html>");
-        ClientSize=new Size(1440,900);
+        MinimumSize=new Size(900,600);
+        Location=new Point(10,10);
+        ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));
         await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);Capture("main");
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
         RenderCurrentListings(new List<ListingInfo>());ShowPanel(_listingsPanel);await Task.Delay(100);Capture("listings");
@@ -39,11 +59,11 @@ public sealed partial class MainForm
             ClientSize=size;await Task.Delay(100);
             foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel}) {
                 ShowPanel(panel);PerformLayout();
-                if(panel.Bounds.Top<_topNavigation!.Bottom)throw new Exception("Content overlaps top menu.");
+                if(panel.PointToScreen(Point.Empty).Y<_topNavigation!.PointToScreen(new Point(0,_topNavigation.Height)).Y)throw new Exception("Content overlaps top menu.");
                 if(panel.Width<=0||panel.Height<=0)throw new Exception("Panel lost usable space.");
             }
         }
-        ClientSize=new Size(1440,900);ShowPanel(_browserPanel);
+        ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));ShowPanel(_browserPanel);
         // Real WebView2 message page, empty isolated test. Native Itemci sections are left alone.
         var loaded=new TaskCompletionSource<bool>();_webView.CoreWebView2.NavigationCompleted+=(_,_)=>loaded.TrySetResult(true);
         _webView.CoreWebView2.NavigateToString("<html><body style='margin:0;background:#17191e;color:#ddd;font:14px Segoe UI'><div style='display:grid;grid-template-columns:260px 1fr;height:760px'><aside style='border-right:1px solid #333;padding:25px'>Mesajlar<br><p>Henüz konuşma yok</p></aside><main style='display:flex;flex-direction:column;padding:30px'><h2>Mesajlar</h2><div style='flex:1'>Yalıtılmış arayüz testi</div><div><textarea placeholder='Mesajınızı yazın' style='box-sizing:border-box;width:100%;height:85px;background:#24272e;color:white;border:1px solid #444'></textarea><button id='send'>Gönder</button></div></main></div><script>window.sent=0;document.getElementById('send').onclick=()=>sent++;</script></body></html>");await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -57,7 +77,7 @@ public sealed partial class MainForm
         analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:[]});\n    window.__NiyazisugarRunMarket = runAnalysis;");
         await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);Capture("market");
         Console.WriteLine("PASS: actual MainForm screens, filters, commission math, rail layout, viewport sizes and no-send quick replies.");
-        void Capture(string name) { using var bitmap=new Bitmap(Width,Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }
+        void Capture(string name) { using var bitmap=new Bitmap(ClientSize.Width,ClientSize.Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }
     }
 }
 }

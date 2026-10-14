@@ -23,7 +23,7 @@ const assert = require('assert/strict');
  await page.addScriptTag({content:fs.readFileSync('overrides/SoldListings.js','utf8')});
  const result=await page.evaluate(()=>window.__niyaziScanSoldListings());
  assert.equal(result.Sales.length,2);
- assert.deepEqual(result.Sales[0],{OrderId:'01A1380A',ListingId:'29902744045',ItemTitle:'250KT YANG',Server:'Bilinmeyen sunucu',Date:'14.10.2026',Time:'04:50',Price:'500,00',IsDelivered:true});
+ assert.deepEqual(result.Sales[0],{OrderId:'01A1380A',ListingId:'29902744045',ItemTitle:'250KT YANG',ImageUrl:'',Server:'Bilinmeyen sunucu',Date:'14.10.2026',Time:'04:50',Price:'500,00',IsDelivered:true});
  assert.equal(result.Sales[1].Price,'1.250,50');
  assert.equal(result.Sales[1].Date,'13.10.2026');
  assert.equal(result.Errors.length,1);
