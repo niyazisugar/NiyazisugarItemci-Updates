@@ -1,4 +1,4 @@
 {
-  "version": "2.8.3",
-  "notes": "Üst menünün sekme ve adres çubuğunu örtmesi düzeltildi. Mesajlar ve ilan oluşturma sayfaları açık sekmeleri yeniden kullanır; hızlı tekrarlı tıklamalar sıraya alınır. Farklı konuşma bağlantıları aynı mesaj sekmesinde açılır. Arka plandaki tarayıcı sekmeleri askıya alınır, seçilince devam eder."
+  "version": "2.8.4",
+  "notes": "Itemci tam ekran karşılama reklamı engellendi ve reklamın sayfa kaydırma kilidi kaldırıldı. Menü İtemci, Mesajlar, İlanlarım sırasına alındı; Ana Panel Ayarlar içine taşındı. Sol altta seçili sunucunun güncel ilanlarını 2 dakikada bir yenileyen küçük piyasa paneli eklendi."
 }

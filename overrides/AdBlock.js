@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "276";
+    const VERSION = "284";
     const FLAG = `__niyazisugarAdBlockInstalledV${VERSION}`;
     const REFRESH = `__niyazisugarAdBlockRefreshV${VERSION}`;
 
@@ -11,6 +11,9 @@
     }
 
     window[FLAG] = true;
+    if (location.hostname === "itemci.com" || location.hostname.endsWith(".itemci.com")) {
+        document.cookie = "site_login_advert=1; Path=/; Max-Age=31536000; SameSite=Lax; Secure";
+    }
 
     const path = String(location.pathname || "").toLocaleLowerCase("tr-TR");
 
@@ -33,6 +36,7 @@
     const style = document.createElement("style");
     style.id = `niyazisugar-adblock-style-v${VERSION}`;
     style.textContent = `
+        [role="dialog"][aria-label="itemci karşılama reklamı"],
         .top-ad-bleed,
         a[title="Reklam" i]:has(img),
         a[aria-label="Reklam" i]:has(img),
@@ -414,7 +418,19 @@
         }
     }
 
+    function hideWelcomePopup() {
+        const popup = document.querySelector('[role="dialog"][aria-label="itemci karşılama reklamı"]');
+        if (!popup) return;
+        popup.querySelector('button[aria-label="Reklamı kapat"]')?.click();
+        // This is Itemci's own advertisement scroll lock, not a login or order dialog.
+        if (document.body.classList.contains('splash-open')) {
+            document.body.classList.remove('splash-open');
+            document.body.style.overflow = '';
+        }
+    }
+
     function scan() {
+        try { hideWelcomePopup(); } catch { }
         try { hideExplicitItemciAds(); } catch { }
         try { hideKnownNetworkFrames(); } catch { }
         try { hideItemciImageAds(); } catch { }

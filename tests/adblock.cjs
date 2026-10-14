@@ -4,11 +4,12 @@ const assert = require('assert/strict');
 (async () => {
  const browser = await chromium.launch({headless:true});
  const page = await browser.newPage({viewport:{width:1800,height:1000}});
- await page.route('**/*', r => r.abort());
- await page.setContent(fs.readFileSync('tests/itemci-banners.html','utf8'));
+ await page.route('**/*', r => r.request().isNavigationRequest() ? r.fulfill({contentType:'text/html',body:fs.readFileSync('tests/itemci-banners.html','utf8')}) : r.abort());
+ await page.goto('https://itemci.com/');
  const before = await page.locator('a[title="Reklam"]').count();
  assert(before >= 3, 'Live HTML must contain top and side advertisements');
  await page.addScriptTag({content:fs.readFileSync('overrides/AdBlock.js','utf8')});
+ assert(await page.evaluate(()=>document.cookie.includes('site_login_advert=1')), 'Welcome advertisement cookie must be set');
  assert.equal(await page.locator('a[title="Reklam"]').evaluateAll(els => els.filter(e => e.getBoundingClientRect().height > 0).length),0);
  await page.evaluate(() => {
  const host=document.createElement('div');
@@ -19,10 +20,21 @@ const assert = require('assert/strict');
  assert.equal(await page.locator('#late').evaluate(e=>getComputedStyle(e).display),'none');
  assert.notEqual(await page.locator('#product').evaluate(e=>getComputedStyle(e).display),'none');
  assert.notEqual(await page.locator('#login').evaluate(e=>getComputedStyle(e).display),'none');
+ await page.evaluate(() => {
+ document.body.classList.add('splash-open'); document.body.style.overflow='hidden';
+ const popup=document.createElement('div');popup.setAttribute('role','dialog');popup.setAttribute('aria-label','itemci karşılama reklamı');
+ popup.innerHTML='<button aria-label="Reklamı kapat">Siteye Git</button>';
+ popup.querySelector('button').onclick=()=>popup.remove();document.body.append(popup);
+ const order=document.createElement('div');order.id='safe-order';order.setAttribute('role','dialog');order.textContent='Sipariş Detayı';document.body.append(order);
+ });
+ await page.waitForTimeout(500);
+ assert.equal(await page.locator('[aria-label="itemci karşılama reklamı"]').count(),0);
+ assert.notEqual(await page.locator('#safe-order').evaluate(e=>getComputedStyle(e).display),'none');
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('splash-open')),false);
  const writes = await page.evaluate(async()=>{
  let count=0; const observer=new MutationObserver(rs=>count+=rs.length);
  observer.observe(document.documentElement,{attributes:true,subtree:true});
- window.__niyazisugarAdBlockRefreshV276();
+ window.__niyazisugarAdBlockRefreshV284();
  await new Promise(r=>setTimeout(r,500)); observer.disconnect();return count;
  });
  assert.equal(writes,0,'Repeated scan must not rewrite blocked elements');

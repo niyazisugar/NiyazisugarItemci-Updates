@@ -67,6 +67,8 @@ jobs:
           Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
           Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
           Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
+          Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force
+          Copy-Item "overrides/MarketAnalyzer.js" "src/MarketAnalyzer.js" -Force
           Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
@@ -145,6 +147,12 @@ jobs:
           $mainForm = $mainForm.Replace('            item.WebView.Visible = false;', "            item.WebView.Visible = false;`r`n            if (!ReferenceEquals(item, tab)) _ = SuspendHiddenTabAsync(item);")
           $mainForm = $mainForm.Replace('        tab.WebView.Visible = true;', "        tab.WebView.Visible = true;`r`n        try { tab.WebView.CoreWebView2?.Resume(); } catch { }")
           $mainForm = $mainForm.Replace('        tab.WebView.Dispose();', "        tab.TabPanel?.Dispose();`r`n        tab.WebView.Dispose();")
+          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallLiveMarket();`r`n        PremiumTheme.Apply(this);")
+          # Itemci itself checks this cookie before showing its full-screen welcome ad.
+          $cookieHook = "        if (_settings.AdBlockEnabled)`r`n        {`r`n            var adCookie = view.CoreWebView2.CookieManager.CreateCookie(`"site_login_advert`", `"1`", `"itemci.com`", `"/`");`r`n            adCookie.Expires = DateTime.Now.AddYears(1);`r`n            adCookie.IsSecure = true;`r`n            view.CoreWebView2.CookieManager.AddOrUpdateCookie(adCookie);`r`n        }`r`n"
+          $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`r`n    {", "    private void ConfigureAdBlocking(WebView2 view)`r`n    {`r`n" + $cookieHook)
+          $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`n    {", "    private void ConfigureAdBlocking(WebView2 view)`n    {`n" + $cookieHook)
+          $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test browser page routing

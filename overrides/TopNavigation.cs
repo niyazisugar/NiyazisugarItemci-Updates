@@ -22,9 +22,9 @@ public sealed partial class MainForm
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 176));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
         var brand = new Label { Text = "NIYAZISUGAR\nITEMCI  V" + UpdateService.CurrentVersion, Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
-        brand.Click += (_, _) => ShowPanel(_homePanel);
+        brand.Click += (_, _) => ShowPanel(_browserPanel);
         layout.Controls.Add(brand, 0, 0);
         var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         Button Section(string text, int width, Panel panel, Action click)
@@ -34,12 +34,15 @@ public sealed partial class MainForm
             menu.Controls.Add(button);
             return button;
         }
-        Section("Ana Sayfa", 87, _homePanel, () => ShowPanel(_homePanel));
         Section("Itemci", 72, _browserPanel, () => ShowPanel(_browserPanel));
-        Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
+        _topMessages = TopButton("Mesajlar", 105, () =>
+        {
+            ShowPanel(_browserPanel);
+            _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
+        });
+        menu.Controls.Add(_topMessages);
         Section("İlanlarım", 85, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
-        Button? market = null;
-        market = Section("Piyasa Analizi ▾", 131, _marketPanel, () => _topMarketMenu.Show(market!, new Point(0, market!.Height + 6)));
+        Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
         Button? create = null;
         create = TopButton("İlan Oluştur ▾", 117, () => _topCreateMenu.Show(create!, new Point(0, create!.Height + 6)));
         create.ForeColor = Accent;
@@ -47,16 +50,9 @@ public sealed partial class MainForm
         menu.Controls.Add(create);
         layout.Controls.Add(menu, 1, 0);
         var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
-        _topMessages = TopButton("✉ Mesajlar", 122, () =>
-        {
-            ShowPanel(_browserPanel);
-            _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
-        });
-        _sidebarToolTip.SetToolTip(_topMessages, "Itemci mesaj kutusunu aç");
         var settings = TopButton("⚙", 42, () => ShowPanel(_settingsPanel));
         _topSections.Add(settings, _settingsPanel);
         _sidebarToolTip.SetToolTip(settings, "Ayarlar ve güncellemeler");
-        utility.Controls.Add(_topMessages);
         utility.Controls.Add(settings);
         layout.Controls.Add(utility, 2, 0);
         _topNavigation.Controls.Add(layout);
@@ -81,7 +77,8 @@ public sealed partial class MainForm
         }
         FormClosed += (_, _) => { _topMarketMenu.Dispose(); _topCreateMenu.Dispose(); };
         RebuildSidebarNavigation();
-        SelectTopSection(_homePanel);
+        SelectTopSection(_browserPanel);
+        ShowPanel(_browserPanel);
     }
 
     private Button TopButton(string text, int width, Action click)
@@ -124,6 +121,7 @@ public sealed partial class MainForm
             _topMarketMenu.Items.Add(group);
             _topCreateMenu.Items.Add(server.Name + " · İlan oluştur", null, (_, _) => _ = OpenServerListingCreateAsync(server));
         }
+        RefreshLiveMarketServers();
         if (_activeTopPanel is not null) SelectTopSection(_activeTopPanel);
     }
 
