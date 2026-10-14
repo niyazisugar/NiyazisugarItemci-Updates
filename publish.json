@@ -1,4 +1,4 @@
 {
-  "version": "2.13.5",
-  "notes": "NiyaziSUGAR arayüzü antrasit, şampanya altını ve turkuaz renklerle yenilendi. Altın N simgesi, aktif menü çizgisi, sağda daraltılabilir satış takibi, canlı önizlemeli hızlı ilan penceresi ve mesaj alanının üstünde düzenlenebilir hızlı cevaplar eklendi. İlanlarım arama ve sunucu filtresiyle; satışlar komisyon, net ve toplam satırıyla; piyasa analizi okunaklı tablolarla yenilendi. Oturum, kayıtlar, taslaklar, hazır görseller ve ücretsiz yukarı çıkarma otomasyonu korundu. Küçük görseller sınırlı önbellekte tutulur; ek tarama zamanlayıcısı eklenmez. Ayrı Sunucu Seç penceresi korunur."
+  "version": "2.14.0",
+  "notes": "Arayüz tasarım referansındaki yerleşime göre yeniden kuruldu. İkonlu özet kartları, yuvarlatılmış giriş alanları, sade üst menü, yatay ilan tablosu, hizalı satış toplamları ve daraltılabilir satış takibi paneli özel Windows bileşenleriyle oluşturuldu. Mevcut veriler, oturum, taslaklar, yayınlama, hazır görseller ve otomasyonlar korunur. Ayrı Sunucu Seç penceresi değişmez."
 }

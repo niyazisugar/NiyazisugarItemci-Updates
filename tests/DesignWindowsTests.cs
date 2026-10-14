@@ -38,6 +38,7 @@ public sealed partial class MainForm
     internal async Task TestDesignAsync()
     {
         TrySetTestDesktop();
+        var brand=_topNavigation!.Controls[0].Controls.OfType<ReferenceBrand>().First();brand.Subtitle="Yalıtılmış test ortamı";
         _monitorTimer.Stop();_salesTimer.Stop();_liveTimer.Stop();_autoBumpTimer.Stop();
         var output=Path.Combine(Environment.CurrentDirectory,"test-results");Directory.CreateDirectory(output);
         _browserEnvironment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Path.GetTempPath(),"niyazi-design-test-"+Guid.NewGuid().ToString("N")));
@@ -51,12 +52,23 @@ public sealed partial class MainForm
         ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));
         await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);await CaptureAsync("main");
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
-        RenderCurrentListings(new List<ListingInfo>());ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
+        RenderCurrentListings(new List<ListingInfo> {
+            new() {Title="Test ilanı 01 · başlık ve görsel yerleşimi",Server="Test Sunucusu A",PriceText="100,05 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-01"},
+            new() {Title="Test ilanı 02 · uzun başlığın okunurluk kontrolü",Server="Test Sunucusu B",PriceText="175,55 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-02"},
+            new() {Title="Test ilanı 03 · yatay işlem butonları",Server="Test Sunucusu A",PriceText="320,00 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-03"}
+        });
+        var photos=Descendants(_listingsList).OfType<PictureBox>().ToArray();for(int i=0;i<photos.Length;i++)photos[i].Image=TestThumbnail(i+1);
+        _listingSearch.Text="02";if(_listingsList.Controls.OfType<ReferenceRow>().Count()!=1)throw new Exception("Listing title filter failed.");_listingSearch.Clear();
+        photos=Descendants(_listingsList).OfType<PictureBox>().ToArray();for(int i=0;i<photos.Length;i++)photos[i].Image=TestThumbnail(i+1);
+        ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};
         RenderSoldSalesPanel();if(_salesGrid.Rows.Count!=1||_salesHistory["test-order"].NetAmount!=90.04m)throw new Exception("Commission or data binding changed.");
-        _salesSearch.Text="eşleşmeyen";if(_salesGrid.Rows.Count!=0)throw new Exception("Sales search filter failed.");_salesSearch.Clear();_salesHistory.Clear();RenderSoldSalesPanel();
+        _salesSearch.Text="eşleşmeyen";if(_salesGrid.Rows.Count!=0)throw new Exception("Sales search filter failed.");_salesSearch.Clear();
+        _salesHistory["test-order-2"]=new SaleRecord {OrderId="test-order-2",ItemTitle="Test satış kaydı 02",Server="Test Sunucusu B",Timestamp=TurkeyToday.AddHours(11),GrossAmount=175.55m};
+        _salesHistory["test-order-3"]=new SaleRecord {OrderId="test-order-3",ItemTitle="Test satış kaydı 03",Server="Test Sunucusu A",Timestamp=TurkeyToday.AddHours(10),GrossAmount=320m};
+        RenderSoldSalesPanel();for(int i=0;i<_salesGrid.Rows.Count;i++)_salesGrid.Rows[i].Cells["Cover"].Value=TestThumbnail(i+1);
         ShowPanel(_salesPanel);await Task.Delay(100);await CaptureAsync("sales");
         foreach(var size in new[]{new Size(1050,680),new Size(1280,720),new Size(1440,900)}) {
             ClientSize=size;await Task.Delay(100);
@@ -81,6 +93,8 @@ public sealed partial class MainForm
         analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
         await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);await CaptureAsync("market");
         Console.WriteLine("PASS: actual MainForm screens, filters, commission math, rail layout, viewport sizes and no-send quick replies.");
+        static IEnumerable<Control> Descendants(Control root) {foreach(Control child in root.Controls){yield return child;foreach(var nested in Descendants(child))yield return nested;}}
+        static Bitmap TestThumbnail(int n) {var image=new Bitmap(100,76);using var g=Graphics.FromImage(image);g.Clear(Color.FromArgb(22,33,42));ReferenceUi.Icon(g,"list",new RectangleF(34,8,30,30),ReferenceUi.Gold);TextRenderer.DrawText(g,"TEST "+n,ReferenceUi.Font(9),new Rectangle(0,42,100,24),ReferenceUi.Text,TextFormatFlags.HorizontalCenter);return image;}
         async Task CaptureAsync(string name) { Refresh();await Task.Delay(180); using var bitmap=new Bitmap(ClientSize.Width,ClientSize.Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }
     }
 }

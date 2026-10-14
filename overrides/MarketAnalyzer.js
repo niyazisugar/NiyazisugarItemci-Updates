@@ -1966,12 +1966,32 @@
 
 #itemci-v17 .stat{border-radius:13px;padding:15px;background:#1a1d24;min-height:90px}#itemci-v17 .stat strong{font-size:23px}#itemci-v17 .tableCard{border-radius:13px}#itemci-v17 td{padding-top:14px;padding-bottom:14px;font-size:12px}#itemci-v17 .scanServer{color:#09272a;background:#2edbd3;border-color:#2edbd3}#itemci-v17 .topbar{background:#15181e}#itemci-v17 .lowest-unit{background:#163532}#itemci-v17 .lowest-unit .unit:after{content:" EN DÜŞÜK";font-size:9px;display:block;color:#2edbd3}#itemci-v17 .own-label{display:inline-block;margin-left:8px;border:1px solid #665b43;border-radius:5px;padding:2px 5px;color:#d3be8f;font-size:10px}#itemci-v17 .own-listing{box-shadow:inset 3px 0 #d3be8f}
 @media(max-width:700px){#itemci-v17 .toprow{flex-wrap:wrap}#itemci-v17 .stat strong{font-size:18px}#itemci-v17 .stats{gap:6px}#itemci-v17 .topbar{position:static}}
+
+#itemci-v17{--bg:#0d1217;--panel:#13191f;--panel3:#161d24;--line:#2d3842;--orange:#e1c188;--green:#24d6c5;font-size:13px}
+#itemci-v17 .topbar{padding:24px 28px 14px;background:#0d1217}
+#itemci-v17 .title{font-size:28px;line-height:1.3;color:#f0f2f6;font-weight:750}
+#itemci-v17 .sub{font-size:12px;line-height:1.7;margin-top:8px}
+#itemci-v17 .serverbar{padding-top:15px;padding-bottom:12px;gap:12px}
+#itemci-v17 .tabs{padding-top:12px;gap:10px}#itemci-v17 .tab{height:40px;font-size:12px;padding:0 18px;border-radius:8px}
+#itemci-v17 button{height:40px;font-size:12px;font-weight:600;border-radius:8px}
+#itemci-v17 .serverSelect{height:42px;min-width:240px;font-size:13px;border-radius:8px}
+#itemci-v17 .stats{gap:14px;padding:18px 28px 0}#itemci-v17 .stat{min-height:106px;padding:20px;border-radius:10px;background:#13191f}
+#itemci-v17 .stat span{font-size:12px;letter-spacing:.02em;font-weight:500;color:#9ba7b4;margin-bottom:12px}
+#itemci-v17 .stat strong{font-size:25px;font-weight:700}#itemci-v17 .workspace{padding:18px 28px 24px}
+#itemci-v17 .toolbar{margin:0 0 16px;gap:16px}#itemci-v17 .search{height:44px;font-size:13px;background:#161d24;border-color:#2d3842;padding-left:16px}
+#itemci-v17 .tableCard{border-radius:10px;background:#13191f}#itemci-v17 th{padding:15px 14px;font-size:12px;font-weight:600;color:#9ba7b4;background:#19212a}
+#itemci-v17 td{height:64px;padding:16px 14px;font-size:13px}#itemci-v17 .listingTitle{font-size:13px;font-weight:600}#itemci-v17 .seller{font-weight:600}
+#itemci-v17 .miniBtn{height:32px;font-size:11px;padding:0 12px}#itemci-v17 .timeBadge{font-size:11px;height:30px;font-weight:500}
+#itemci-v17 .addServer,#itemci-v17 .categoriesBtn{color:#e1c188;border-color:#65563d;background:#161d24}
+#itemci-v17 .scanServer{color:#062b28;background:#24d6c5;border-color:#24d6c5}#itemci-v17 .footnote{font-size:11px;margin-top:14px}
+#itemci-v17 .tableWrap{max-height:calc(100vh - 410px);min-height:170px}
+@media(max-width:950px){#itemci-v17 .stats{padding:14px 16px 0}#itemci-v17 .topbar{padding:18px 16px 12px}#itemci-v17 .workspace{padding:14px 16px}#itemci-v17 .title{font-size:24px}#itemci-v17 .stat strong{font-size:21px}#itemci-v17 .serverbar{flex-wrap:wrap}}
 </style>
 
 <div class="topbar">
     <div class="toprow">
         <div>
-            <div class="title">ITEMCI PİYASA ANALİZİ</div>
+            <div class="title">Piyasa Analizi</div>
             <div class="sub">
                 ${esc(activeServer.name)} · ${categories.length} özel kategori ·
                 ${scannedPages} sayfa · ${totalCards} kart ·

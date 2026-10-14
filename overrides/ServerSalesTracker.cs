@@ -35,7 +35,7 @@ public sealed partial class MainForm
         _serverWatch.TryGetValue(server.Id, out var state);
         var rows = state?.sales.Where(s => s.detectedAt.Date == TurkeyToday).OrderByDescending(s => s.detectedAt).ToList() ?? new();
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
-        _liveCount.Text=$"Bugün\n{rows.Count} tespit"; _liveLast.Text="Son tespit\n"+(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
+        _liveCount.Text=rows.Count.ToString(); _liveLast.Text=(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
         _liveStatus.Text = $"Bugün tespit: {rows.Count} · {state?.status ?? "Takip hazırlanıyor"}";
         var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks));
         if(key==_serverWatchRenderedKey)return;
@@ -44,12 +44,12 @@ public sealed partial class MainForm
         foreach(Control old in _liveRows.Controls.Cast<Control>().ToArray())old.Dispose();
         if (rows.Count == 0)
         {
-            _liveRows.Controls.Add(new Label { Width = _liveMarket.Width - 28, Height = 112, ForeColor = TextMuted, Font = Font, Text = "Henüz doğrulanmış satış yok.\n\nBu panel takip sırasında satış işareti bulunan ilanları kaydeder. Önceki satışların tamamına erişim yok." });
+            _liveRows.Controls.Add(new ReferenceEmptySale {Width=_liveRows.ClientSize.Width-4,Height=Math.Max(240,_liveRows.ClientSize.Height-22)});
         }
         foreach (var sale in rows.Take(_serverWatchVisibleCount))
         {
             var row = sale.listing;
-            var card = new Panel { Width = _liveMarket.Width - 26, Height = 65, BackColor = Color.FromArgb(21,25,33), Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
+            var card = new ReferencePanel { Width = _liveRows.ClientSize.Width - 4, Height = 65, BackColor = ReferenceUi.Surface, Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
             var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
             var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
             var info = new Label { Dock = DockStyle.Fill, Text = $"{row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = PremiumTheme.Turquoise, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };

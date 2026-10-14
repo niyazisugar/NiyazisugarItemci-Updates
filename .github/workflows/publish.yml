@@ -75,6 +75,7 @@ jobs:
           Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
           Copy-Item "overrides/ListingThumbnails.cs" "src/ListingThumbnails.cs" -Force
+          Copy-Item "overrides/ReferenceUi.cs" "src/ReferenceUi.cs" -Force
           Copy-Item "overrides/BrandMark.cs" "src/BrandMark.cs" -Force
           Copy-Item "overrides/ListingsDesign.cs" "src/ListingsDesign.cs" -Force
           Copy-Item "overrides/QuickReplyDock.js" "src/QuickReplyDock.js" -Force
@@ -152,7 +153,7 @@ jobs:
             1
           )
 
-          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(211, 190, 143)')
+          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(225, 193, 136)')
           $mainForm = $mainForm.Replace('Color.FromArgb(12, 14, 18)', 'Color.FromArgb(17, 19, 24)')
           $mainForm = $mainForm.Replace('Color.FromArgb(24, 28, 35)', 'Color.FromArgb(26, 29, 36)')
           # Apply native rounded controls after the UI has been built.
@@ -197,6 +198,9 @@ jobs:
             $pattern = '(private async Task[^\r\n]*' + $escaped + '[^\{]*\{)'
             $mainForm = [regex]::Replace($mainForm, $pattern, '$1' + "`r`n        _marketWebView.CoreWebView2?.Resume();", 1)
           }
+          $mainForm = $mainForm.Replace('private Button BrowserToolButton(string text, string tooltip)', 'private Button LegacyBrowserToolButton(string text, string tooltip)')
+          $mainForm = $mainForm.Replace('private Panel CreateBrowserTabControl(', 'private Panel LegacyCreateBrowserTabControl(')
+          $mainForm = $mainForm.Replace('var newTab = new Button', 'var newTab = new ReferenceButton')
           $mainForm = $mainForm.Replace('private void BuildListingsPanel()', 'private void LegacyBuildListingsPanel()')
           $mainForm = $mainForm.Replace('private void RenderCurrentListings(List<ListingInfo> listings)', 'private void LegacyRenderCurrentListings(List<ListingInfo> listings)')
           $mainForm = $mainForm.Replace('public string Status { get; set; } = "AKTİF";', 'public string Status { get; set; } = "AKTİF"; public string ImageUrl { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')

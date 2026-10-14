@@ -5,11 +5,11 @@ namespace NiyazisugarItemci;
 
 internal static class PremiumTheme
 {
-    internal static readonly Color Background = Color.FromArgb(17, 19, 24);
-    internal static readonly Color Surface = Color.FromArgb(26, 29, 36);
-    internal static readonly Color Outline = Color.FromArgb(48, 52, 62);
-    internal static readonly Color Turquoise = Color.FromArgb(46, 219, 211);
-    internal static readonly Color Gold = Color.FromArgb(211, 190, 143);
+    internal static readonly Color Background = Color.FromArgb(13, 18, 23);
+    internal static readonly Color Surface = Color.FromArgb(19, 25, 31);
+    internal static readonly Color Outline = Color.FromArgb(45, 56, 66);
+    internal static readonly Color Turquoise = Color.FromArgb(36, 214, 197);
+    internal static readonly Color Gold = Color.FromArgb(225, 193, 136);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -30,8 +30,8 @@ internal static class PremiumTheme
 
     private static Color Palette(Color color)
     {
-        if (color == Color.FromArgb(12, 14, 18)) return Background;
-        if (color == Color.FromArgb(24, 28, 35)) return Surface;
+        if (color == Color.FromArgb(12, 14, 18) || color == Color.FromArgb(17, 19, 24)) return Background;
+        if (color == Color.FromArgb(24, 28, 35) || color == Color.FromArgb(26, 29, 36)) return Surface;
         if (color == Color.FromArgb(255, 173, 10)) return Gold;
         if (color == Color.FromArgb(242, 244, 247)) return Color.FromArgb(241, 242, 244);
         if (color == Color.FromArgb(145, 154, 168)) return Color.FromArgb(150, 157, 170);
@@ -46,6 +46,7 @@ internal static class PremiumTheme
     {
         if (Styled.TryGetValue(control, out _)) return;
         Styled.Add(control, new object());
+        if(control is ReferencePanel or ReferenceButton or ReferenceSelect or ReferenceBadge or ReferenceRow or ReferenceBrand) return;
         control.BackColor = Palette(control.BackColor);
         control.ForeColor = Palette(control.ForeColor);
         if (control is Button button)

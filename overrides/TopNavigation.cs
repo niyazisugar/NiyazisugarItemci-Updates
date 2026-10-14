@@ -13,23 +13,19 @@ public sealed partial class MainForm
     {
         Controls.Remove(_sidebar);
         _sidebar.Visible = false;
-        _topNavigation = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Color.FromArgb(21, 24, 30), Padding = new Padding(16, 10, 16, 10) };
+        _topNavigation = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = ReferenceUi.Background, Padding = new Padding(24, 8, 24, 6) };
         _topNavigation.Paint += (_, e) =>
         {
             using var pen = new Pen(Color.FromArgb(48, 52, 62));
             e.Graphics.DrawLine(pen, 0, _topNavigation.Height - 1, _topNavigation.Width, _topNavigation.Height - 1);
         };
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
-        var brand = new Label { Text = "NiyaziSUGAR", Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 12, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
-        brand.Click += (_, _) => ShowPanel(_browserPanel);
-        var branding = new Panel { Dock = DockStyle.Fill, Padding = new Padding(44,0,0,0) };
-        branding.Controls.Add(brand);
-        branding.Controls.Add(new BrandMark { Location = new Point(0,7), Size = new Size(36,36) });
-        layout.Controls.Add(branding, 0, 0);
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,56));
+        var branding=new ReferenceBrand {Dock=DockStyle.Fill,Cursor=Cursors.Hand};branding.Click+=(_,_)=>ShowPanel(_browserPanel);layout.Controls.Add(branding,0,0);
         var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         Button Section(string text, int width, Panel panel, Action click)
         {
@@ -38,17 +34,17 @@ public sealed partial class MainForm
             menu.Controls.Add(button);
             return button;
         }
-        Section("Itemci", 72, _browserPanel, () => { ShowPanel(_browserPanel); var siteTab=_browserTabs.FirstOrDefault(t=>BrowserTabRules.Family(TabLocation(t))!="messages");if(siteTab is not null)SelectBrowserTab(siteTab); });
-        _topMessages = TopButton("Mesajlar", 105, () =>
+        Section("Itemci", 102, _browserPanel, () => { ShowPanel(_browserPanel); var siteTab=_browserTabs.FirstOrDefault(t=>BrowserTabRules.Family(TabLocation(t))!="messages");if(siteTab is not null)SelectBrowserTab(siteTab); });
+        _topMessages = TopButton("Mesajlar", 120, () =>
         {
             ShowPanel(_browserPanel);
             _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
         });
         _topSections.Add(_topMessages,_browserPanel);
         menu.Controls.Add(_topMessages);
-        Section("İlanlarım", 85, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
-        Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
-        Section("Piyasa Analizi", 124, _marketPanel, () =>
+        Section("İlanlarım", 120, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
+        Section("Satışlar", 108, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
+        Section("Piyasa Analizi", 156, _marketPanel, () =>
         {
             ShowPanel(_marketPanel);
             _ = OpenEmbeddedMarketAnalyzerAsync();
@@ -56,15 +52,23 @@ public sealed partial class MainForm
         var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowListingComposerAsync());
         create.ForeColor = Color.FromArgb(10,38,38);
         create.BackColor = PremiumTheme.Turquoise;
-        menu.Controls.Add(create);
+        ((ReferenceButton)create).Navigation=false;((ReferenceButton)create).Primary=true;((ReferenceButton)create).Icon="plus";create.Height=44;create.Width=178;create.Margin=new Padding(0,7,8,0);
+        layout.Controls.Add(create,2,0);
         layout.Controls.Add(menu, 1, 0);
         var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         var settings = TopButton("⚙", 42, () => ShowPanel(_settingsPanel));
-        settings.Text="\uE713";settings.Font=new Font("Segoe MDL2 Assets",14);
+        settings.Text="";((ReferenceButton)settings).Navigation=false;((ReferenceButton)settings).Icon="gear";settings.Height=44;settings.Width=44;
         _topSections.Add(settings, _settingsPanel);
         _sidebarToolTip.SetToolTip(settings, "Ayarlar ve güncellemeler");
         utility.Controls.Add(settings);
-        layout.Controls.Add(utility, 2, 0);
+        layout.Controls.Add(utility, 3, 0);
+        void SizeMenu() {
+            var compact=ClientSize.Width<1250;
+            layout.ColumnStyles[0].Width=LogicalToDeviceUnits(compact?220:270);
+            int[] widths=compact?new[]{80,96,98,88,148}:new[]{102,120,120,108,156};
+            for(int i=0;i<5;i++)menu.Controls[i].Width=LogicalToDeviceUnits(widths[i]);
+        }
+        SizeChanged+=(_,_)=>SizeMenu();SizeMenu();
         _topNavigation.Controls.Add(layout);
         Controls.Add(_topNavigation);
         _topNavigation.BringToFront();
@@ -93,9 +97,8 @@ public sealed partial class MainForm
 
     private Button TopButton(string text, int width, Action click)
     {
-        var button = new Button { Text = text, Width = width, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(26, 29, 36), ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 0, 4, 0), AutoEllipsis = true };
-        button.FlatAppearance.BorderSize = 0;
-        button.Paint += (_, e) => { if (_topSections.TryGetValue(button, out var target) && ReferenceEquals(target, _activeTopPanel) && button.ForeColor==PremiumTheme.Gold) { using var line = new Pen(PremiumTheme.Gold, 2); e.Graphics.DrawLine(line, 8, button.Height-2, button.Width-8, button.Height-2); } };
+        var icon=text switch {"Itemci"=>"store","Mesajlar"=>"message","İlanlarım"=>"list","Satışlar"=>"cart","Piyasa Analizi"=>"chart",_=>""};
+        var button=new ReferenceButton {Text=text,Icon=icon,Navigation=true,Width=width,Height=52,ForeColor=ReferenceUi.Muted,Margin=new Padding(0,0,2,0),Font=ReferenceUi.Font(10)};
         button.Click += (_, _) => click();
         return button;
     }
@@ -108,8 +111,9 @@ public sealed partial class MainForm
         foreach (var entry in _topSections)
         {
             bool selected = ReferenceEquals(entry.Value, panel) && (!ReferenceEquals(panel,_browserPanel) || ReferenceEquals(entry.Key,_topMessages)==messageActive);
-            entry.Key.BackColor = Color.FromArgb(26, 29, 36);
-            entry.Key.ForeColor = selected ? PremiumTheme.Gold : TextMain;
+            entry.Key.BackColor = ReferenceUi.Background;
+            ((ReferenceButton)entry.Key).Selected=selected;
+            entry.Key.ForeColor = selected ? PremiumTheme.Gold : ReferenceUi.Muted;
             entry.Key.Invalidate();
         }
     }
