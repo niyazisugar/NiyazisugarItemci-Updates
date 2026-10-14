@@ -96,7 +96,7 @@ public sealed partial class MainForm
     }
     private async Task ScanAllServerSalesAsync()
     {
-        if (_liveBusy || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
+        if (_liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
         _liveBusy = true;
         _marketWebView.CoreWebView2.Resume();
         try

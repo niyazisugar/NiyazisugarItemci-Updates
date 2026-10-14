@@ -143,62 +143,7 @@ public sealed partial class MainForm
     private async Task<SoldScanResult> ReadSoldPageAsync()
     {
         var core = _soldScanView!.CoreWebView2;
-        var script = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "SoldListings.js"));
-        await core.ExecuteScriptAsync(script);
-        var token = Guid.NewGuid().ToString("N");
-        var completion = new TaskCompletionSource<SoldScanResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Received(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
-        {
-            try
-            {
-                using var json = JsonDocument.Parse(args.WebMessageAsJson);
-                var root = json.RootElement;
-                if (!root.TryGetProperty("token", out var id) || id.GetString() != token) return;
-                if (root.TryGetProperty("error", out var error)) { completion.TrySetException(new InvalidOperationException(error.GetString())); return; }
-                completion.TrySetResult(root.GetProperty("result").Deserialize<SoldScanResult>() ?? throw new InvalidDataException("Satış verisi boş."));
-            }
-            catch (Exception ex) { completion.TrySetException(ex); }
-        }
-        core.WebMessageReceived += Received;
-        try
-        {
-            var known = JsonSerializer.Serialize(_salesHistory.Values.Where(s => s.IsDelivered && !string.IsNullOrWhiteSpace(s.ListingId)).Select(s => s.ListingId).Distinct().ToArray());
-            await core.ExecuteScriptAsync($"window.__niyaziScanSoldListings({known}).then(result => window.chrome.webview.postMessage({{token:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{token:'{token}',error:String(e.message || e)}}));");
-            return await completion.Task.WaitAsync(TimeSpan.FromMinutes(3));
-        }
-        finally { core.WebMessageReceived -= Received; }
-    }
-
-    private async Task RefreshSoldListingsAsync(bool showErrors, bool fullHistory = false)
-    {
-        if (_soldScanBusy || IsDisposed) return;
-        if (!_webReady) { _salesStatusLabel.Text = "Itemci oturumu henüz hazır değil."; return; }
-        _soldScanBusy = true;
-        try
-        {
-            if (!_soldCacheLoaded)
-            {
-                _salesHistory.Clear();
-                _historyFullyScanned = false;
-                LoadSalesHistory();
-                _soldCacheLoaded = true;
-            }
-            RenderSoldSalesPanel();
-            await EnsureSoldScanViewAsync();
-            var full = fullHistory || !_historyFullyScanned;
-            // Listings may be ordered by creation date rather than sale date.
-            // Check every page, skipping details of already completed orders.
-            int max = 150;
-            int pages = 0, failed = 0;
-            bool reachedEnd = false;
-            string firstError = "";
-            var fingerprints = new HashSet<string>();
-            for (int page = 1; page <= max; page++)
-            {
-                _salesStatusLabel.Text = $"Satılan ilanlar okunuyor · Sayfa {page} · Tüm sunucular";
-                _salesStatusLabel.ForeColor = TextMuted;
-                await NavigateSoldPageAsync(page);
-                var result = await ReadSoldPageAsync();
+        var script = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "SoldListings.…778 tokens truncated…   var result = await ReadSoldPageAsync();
                 var fingerprint = string.Join("|", result.ListingIds);
                 if (result.Empty || !fingerprints.Add(fingerprint)) { reachedEnd = true; break; }
                 pages++;

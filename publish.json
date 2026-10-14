@@ -1,4 +1,4 @@
 {
-  "version": "2.11.0",
-  "notes": "Hızlı ilan açılışı piyasa taramasını beklemez. Sezar dahil sunucu kategori bağlantıları korunur; belirsiz taslak kilidi nedenini gösteren ve taslağı silmeden kaldırabilen işlem eklendi. Önizleme ve galeri gereksiz yeniden yüklenmez. İşlem bittiğinde satış tarayıcısı kapatılır; boşta piyasa tarayıcısı askıya alınır. Satış paneli yalnızca değişen veride yeniden çizilir, kayıtlar sayfalı gösterilir. Reklam engelleyicinin pahalı DOM taramaları sınırlandı."
+  "version": "2.12.0",
+  "notes": "Süresi gelen aktif ilanlar için otomatik ücretsiz yukarı taşıma eklendi. Yalnızca ücretsiz düğme aktifken işlem yapılır; saatlik kayıtlar ve tekrar gönderim koruması bilgisayarda saklanır. Ayarlardan açılıp kapatılabilir, sonuç görülebilir ve hemen kontrol başlatılabilir. Kontrol tarayıcısı iş bitince kapatılır; boşta yeniden taramalar azaltılır."
 }

@@ -50,4 +50,5 @@
 <ItemGroup><Content Include="QuickListing.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
 <ItemGroup><Content Include="ListingComposer.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
 <ItemGroup><Content Include="ComposerView.html"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
+<ItemGroup><Content Include="AutoBump.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
 </Project>
