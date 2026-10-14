@@ -49,7 +49,6 @@ public sealed partial class MainForm
             _ = OpenEmbeddedMarketAnalyzerAsync();
         });
         var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowListingComposerAsync());
-        _topSections.Add(create, _composerPanel);
         create.ForeColor = Accent;
         create.BackColor = Color.FromArgb(49, 42, 30);
         menu.Controls.Add(create);

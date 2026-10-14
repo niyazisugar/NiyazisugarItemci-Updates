@@ -40,10 +40,13 @@
     const fields=data?.data||data;
     if(method.toUpperCase()==='POST'&&fields&&(fields.title===p.title||fields.name===p.title)&&Number(fields.price)===p.price){
      sent=true;const json=await response.clone().json();
-     if(!response.ok||json.status===false||json.success===false)outcome={ok:false,message:json.message||'Itemci ilanı kabul etmedi.'};
+     if(!response.ok||json.status===false||json.success===false)outcome={ok:false,message:json.message||'Itemci ilanı kabul etmedi.',retryAfterSeconds:Math.max(0,Math.ceil(Number(response.headers.get('Retry-After')||json.retryAfterSeconds||json.retry_after||json.retryAfter)||0))};
      else if(json.status===true||json.success===true){
       const product=json.data?.product||json.data||json.product||{};
-      const url=product.url||product.link||'';
+      let url='';
+      const category=product.category?.slug||new URL(p.categoryUrl||location.href).pathname.match(/^\/categories\/([^/]+)/)?.[1];
+      const candidate=product.url||product.link||(product.slug&&category?'/product/'+encodeURIComponent(category)+'/'+encodeURIComponent(product.slug):'');
+      try{if(candidate){const parsed=new URL(candidate,location.origin);if(parsed.protocol==='https:'&&parsed.hostname==='itemci.com'&&parsed.pathname.startsWith('/product/'))url=parsed.href;}}catch{}
       outcome={ok:true,id:String(product.id||product.product_id||''),url:/^https:\/\/itemci\.com\/product\//.test(url)?url:'',message:json.message||'İlan oluşturuldu.'};
      }
     }

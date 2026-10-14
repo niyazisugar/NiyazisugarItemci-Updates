@@ -1,4 +1,4 @@
 {
-  "version": "2.8.9",
-  "notes": "Hızlı ilan aktarımında sunucu ve Item&Yang kartlarının iç başlıklarından seçim yapma düzeltildi. Arka plan formu ekran dışında gerçek boyutla hazırlanır; işlem bitince tarayıcı kapatılır. Takılan adım ve görünen seçenekler hata bilgisinde belirtilir; kopyalama düğmesi eklendi. Canlı Itemci aktarımı kullanıcı testi gerektirir."
+  "version": "2.9.0",
+  "notes": "Hızlı İlan Ekle artık mevcut sayfayı değiştirmeden popup olarak açılır. Hazır görsel galerisi ve bilgisayara kaydedilen görseller, yeni açıklama, ilan linki kopyalama, başarılı gönderimden sonra 60 saniye geri sayım eklendi. Itemci bekleme bildirirse uygulanır; belirsiz gönderim koruması sürer."
 }

@@ -77,6 +77,7 @@ jobs:
           Copy-Item "overrides/QuickListing.cs" "src/QuickListing.cs" -Force
           Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
           Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
+          Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
           Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
           $settingsSource = $settingsSource.Replace('public bool NotificationsEnabled', 'public string LastQuickListingServer { get; set; } = ""; public bool NotificationsEnabled')

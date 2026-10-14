@@ -11,13 +11,23 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  document.querySelector('form').onsubmit=e=>{e.preventDefault();window.sent++;fetch('/api/auth/product',{method:'POST',body:JSON.stringify({name:document.querySelector('input[type=text]').value,price:Number(document.querySelector('input[type=number]').value)})});};
  });
  await page.addScriptTag({content:fs.readFileSync('overrides/ListingComposer.js','utf8')});
- const payload={server:'Sezar2',title:'250 KT YANG',description:'İlan açıklaması.',price:500,delivery:2,validity:30,stock:true,orders:false};
+ const payload={server:'Sezar2',title:'250 KT YANG',categoryUrl:'https://itemci.com/categories/sezar2',description:'İlan açıklaması.',price:500,delivery:2,validity:30,stock:true,orders:false};
  const prepared=await page.evaluate(p=>window.__NiyaziPrepareOwnListing(p),payload);
  assert(prepared.ok);assert.equal(await page.evaluate(()=>window.sent),0);
  assert.equal(await page.locator('.ql-editor').innerText(),payload.description);
  assert.equal(await page.locator('#sellByUs').getAttribute('aria-checked'),'false');
  const result=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);
  assert(result.ok);assert.equal(result.id,'test-listing');assert.equal(await page.evaluate(()=>window.sent),1);
+ for(const [response,expected] of [
+  [{status:true,data:{url:'/product/sezar2/new'}},'https://itemci.com/product/sezar2/new'],
+  [{status:true,data:{slug:'250-kt'}},'https://itemci.com/product/sezar2/250-kt'],
+  [{status:true,data:{url:'https://evil.example/product/a'}},'']
+ ]){
+  await page.evaluate(json=>window.fetch=async()=>new Response(JSON.stringify(json),{headers:{'Content-Type':'application/json'}}),response);
+  const next=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);assert(next.ok);assert.equal(next.url,expected);
+ }
+ await page.evaluate(()=>window.fetch=async()=>new Response(JSON.stringify({status:false,message:'Lütfen bekleyiniz.'}),{status:429,headers:{'Content-Type':'application/json','Retry-After':'90'}}));
+ const limited=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);assert.equal(limited.ok,false);assert.equal(limited.retryAfterSeconds,90);
  await assert.rejects(page.evaluate(p=>window.__NiyaziPrepareOwnListing({...p,title:'a'.repeat(151)}),payload));
  console.log('PASS: real-form selectors, Quill-compatible editing, stock picture, durations/order toggle, separate prepare/submit and confirmed response.');
  await browser.close();
