@@ -135,7 +135,7 @@ public sealed partial class MainForm
         {
             int row = _salesGrid.Rows.Add(null, sale.ItemTitle, sale.Server, sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.CommissionAmount), FormatTl(sale.NetAmount));
             _salesGrid.Rows[row].Height = 58;
-            if(row<30) _=LoadSaleThumbnailAsync(_salesGrid.Rows[row],sale.ImageUrl);
+            if(row<30 && !_soldScanBusy) _=LoadSaleThumbnailAsync(_salesGrid.Rows[row],sale.ImageUrl);
             _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = Color.FromArgb(255,140,135);
             _salesGrid.Rows[row].Cells["Gross"].Style.ForeColor = Accent;
             _salesGrid.Rows[row].Cells["Net"].Style.ForeColor = PremiumTheme.Turquoise;
@@ -285,7 +285,7 @@ public sealed partial class MainForm
             if (_soldScanView is not null) { Controls.Remove(_soldScanView); _soldScanView.Dispose(); _soldScanView = null; }
             if (showErrors) MessageBox.Show(ex.Message, "Satış takibi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-        finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; }
+        finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; if(_salesPanel.Visible&&!IsDisposed)RenderSoldSalesPanel(); }
     }
 
     private sealed class SoldScanResult
