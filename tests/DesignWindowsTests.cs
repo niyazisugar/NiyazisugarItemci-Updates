@@ -76,6 +76,10 @@ public sealed partial class MainForm
                 ShowPanel(panel);PerformLayout();
                 if(panel.PointToScreen(Point.Empty).Y<_topNavigation!.PointToScreen(new Point(0,_topNavigation.Height)).Y)throw new Exception("Content overlaps top menu.");
                 if(ReferenceEquals(panel,_browserPanel) && _browserHost.PointToScreen(new Point(_browserHost.Width,0)).X>_liveMarket!.PointToScreen(Point.Empty).X)throw new Exception("Sales rail overlays Itemci instead of reserving width.");
+                foreach(var field in Descendants(panel).Where(c=>c.Visible&&(c is ReferenceSearch||c is ReferenceSelect))) {
+                    if(field.Parent is null)continue;
+                    if(field.Bottom>field.Parent.ClientSize.Height+1)throw new Exception("A reference filter was clipped in a small window.");
+                }
                 if(panel.Width<=0||panel.Height<=0)throw new Exception("Panel lost usable space.");
             }
         }

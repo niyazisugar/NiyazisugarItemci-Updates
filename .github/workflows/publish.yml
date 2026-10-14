@@ -204,7 +204,7 @@ jobs:
           $mainForm = $mainForm.Replace('private void BuildListingsPanel()', 'private void LegacyBuildListingsPanel()')
           $mainForm = $mainForm.Replace('private void RenderCurrentListings(List<ListingInfo> listings)', 'private void LegacyRenderCurrentListings(List<ListingInfo> listings)')
           $mainForm = $mainForm.Replace('public string Status { get; set; } = "AKTİF";', 'public string Status { get; set; } = "AKTİF"; public string ImageUrl { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
-          $mainForm = $mainForm.Replace('Status = "AKTİF"', 'Status = "AKTİF", ImageUrl = ReadListingImage(container), Server = ReadListingServer(container)')
+          $mainForm = $mainForm.Replace('Status = "AKTİF"', 'Status = "AKTİF", ImageUrl = ReadListingImage(link), Server = ReadListingServer(container)')
           $mainForm = $mainForm.Replace('public string ItemTitle { get; set; } = "";', 'public string ItemTitle { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu"; public string ImageUrl { get; set; } = "";')
           $mainForm = $mainForm.Replace('await _marketWebView.CoreWebView2.ExecuteScriptAsync(script);', 'await _marketWebView.CoreWebView2.ExecuteScriptAsync(script); if (!string.IsNullOrWhiteSpace(_settings.OwnStoreUrl)) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(_settings.OwnStoreUrl));')
           $mainForm = $mainForm.Replace('_settings.OwnStoreUrl = url;', '_settings.OwnStoreUrl = url; if (_marketWebView.CoreWebView2 is not null) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(url));')

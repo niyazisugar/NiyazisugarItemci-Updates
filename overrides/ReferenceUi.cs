@@ -41,7 +41,7 @@ internal static class ReferenceUi
             case "plus":Line(12,4,12,20);Line(4,12,20,12);break;
             case "back":Line(18,12,4,12);Line(4,12,10,6);Line(4,12,10,18);break;
             case "next":Line(4,12,20,12);Line(20,12,14,6);Line(20,12,14,18);break;
-            case "gear":Circle(7,7,10);Circle(10,10,4);for(int i=0;i<8;i++){float t=i*(float)Math.PI/4;Line(12+8*(float)Math.Cos(t),12+8*(float)Math.Sin(t),12+10*(float)Math.Cos(t),12+10*(float)Math.Sin(t));}break;
+            case "gear":var teeth=new PointF[32];for(int i=0;i<32;i++){float t=i*(float)Math.PI/16;float radius=i%4<2?10:8;teeth[i]=new PointF(12+radius*(float)Math.Cos(t),12+radius*(float)Math.Sin(t));}g.DrawPolygon(p,teeth);Circle(8,8,8);break;
             case "grid":Rect(3,3,7,7);Rect(14,3,7,7);Rect(3,14,7,7);Rect(14,14,7,7);break;
             case "close":Line(6,6,18,18);Line(18,6,6,18);break;
             case "shield":g.DrawPolygon(p,new PointF[]{new(12,2),new(21,6),new(20,15),new(12,22),new(4,15),new(3,6)});break;
@@ -56,9 +56,9 @@ internal sealed class ReferenceButton : Button
     protected override void OnMouseEnter(EventArgs e){base.OnMouseEnter(e);_hover=true;Invalidate();}protected override void OnMouseLeave(EventArgs e){base.OnMouseLeave(e);_hover=false;Invalidate();}
     protected override void OnPaint(PaintEventArgs e){var g=e.Graphics;g.Clear(ReferenceUi.Host(this));float s=DeviceDpi/96f;var tone=Enabled?(Primary?Color.FromArgb(8,35,34):Selected||GoldOutline?ReferenceUi.Gold:ForeColor):ReferenceUi.Muted;
         if(!Navigation){ReferenceUi.SurfacePaint(g,ClientRectangle,Primary?ReferenceUi.Aqua:_hover?Color.FromArgb(30,38,45):ReferenceUi.Field,true,8*s);if(GoldOutline){using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),8*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}}else if(_hover){using var fill=new SolidBrush(Color.FromArgb(26,33,39));g.FillRectangle(fill,ClientRectangle);}
-        int iconWidth=string.IsNullOrEmpty(Icon)?0:(int)(24*s),gap=iconWidth==0?0:(int)(10*s);var display=IconOnly?"":Text;var measured=TextRenderer.MeasureText(display,Font);int total=measured.Width+iconWidth+gap;int left=IconOnly?(int)((Width-22*s)/2):Math.Max((int)(10*s),(Width-total)/2);
+        int iconWidth=string.IsNullOrEmpty(Icon)?0:(int)((Navigation?22:24)*s),gap=iconWidth==0?0:(int)((Navigation?8:10)*s);var display=IconOnly?"":Text;var measured=TextRenderer.MeasureText(display,Font,Size.Empty,TextFormatFlags.NoPadding);int total=measured.Width+iconWidth+gap;int left=IconOnly?(int)((Width-22*s)/2):Math.Max((int)((Navigation?6:10)*s),(Width-total)/2);
         if(iconWidth>0)ReferenceUi.Icon(g,Icon,new RectangleF(left,(Height-22*s)/2,22*s,22*s),tone);
-        TextRenderer.DrawText(g,display,Font,new Rectangle(left+iconWidth+gap,0,Math.Max(0,Width-left-iconWidth-gap-6),Height),tone,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix|TextFormatFlags.SingleLine);
+        TextRenderer.DrawText(g,display,Font,new Rectangle(left+iconWidth+gap,0,Math.Max(0,Width-left-iconWidth-gap-6),Height),tone,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix|TextFormatFlags.SingleLine|TextFormatFlags.NoPadding);
         if(Navigation&&Selected){using var pen=new Pen(ReferenceUi.Gold,2*s);g.DrawLine(pen,5*s,Height-2*s,Width-5*s,Height-2*s);}if(Focused&&!Navigation){using var path=ReferenceUi.Shape(new RectangleF(3,3,Width-6,Height-6),6*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}
     }
 }

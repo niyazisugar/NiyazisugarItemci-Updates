@@ -17,7 +17,7 @@ public sealed partial class MainForm
 
     private void InstallLiveMarket()
     {
-        _liveMarket=new ReferencePanel {Dock=DockStyle.Right,Width=340,Padding=new Padding(18),BackColor=ReferenceUi.Background};
+        _liveMarket=new ReferencePanel {Dock=DockStyle.Right,Width=360,Padding=new Padding(18),BackColor=ReferenceUi.Background};
         var header=new Panel {Dock=DockStyle.Top,Height=228,BackColor=ReferenceUi.Background};
         var titleRow=new Panel {Dock=DockStyle.Top,Height=42,BackColor=ReferenceUi.Background};var title=ReferenceUi.Label("Satış Takibi",16,true);title.Dock=DockStyle.Fill;title.Padding=new Padding(42,0,0,0);title.TextAlign=ContentAlignment.MiddleLeft;titleRow.Paint+=(_,e)=>{if(!_liveCollapsed)ReferenceUi.Icon(e.Graphics,"chart",new RectangleF(4,9,26,26),ReferenceUi.Gold);};titleRow.Controls.Add(title);
         var collapse=ReferenceUi.Button("","chevron",()=>{},28);collapse.Dock=DockStyle.Right;collapse.Navigation=true;collapse.Margin=new Padding(0);titleRow.Controls.Add(collapse);
@@ -30,7 +30,7 @@ public sealed partial class MainForm
         var disclaimer=ReferenceUi.Label("ⓘ  Yalnızca takip sırasında tespit edilen satışlar gösterilir. Kesin satış fiyatı site tarafından doğrulanmaz.",8);disclaimer.Dock=DockStyle.Bottom;disclaimer.Height=48;disclaimer.ForeColor=ReferenceUi.Muted;disclaimer.TextAlign=ContentAlignment.MiddleLeft;
         _liveStatus.Dock=DockStyle.Bottom;_liveStatus.Height=46;_liveStatus.ForeColor=Color.FromArgb(57,214,151);_liveStatus.Font=ReferenceUi.Font(9);_liveStatus.BackColor=ReferenceUi.Background;
         _liveRows.BackColor=ReferenceUi.Background;_liveRows.Padding=new Padding(0,14,0,4);
-        collapse.Click+=(_,_)=>{_liveCollapsed=!_liveCollapsed;_liveMarket.Width=LogicalToDeviceUnits(_liveCollapsed?52:340);_liveMarket.Padding=new Padding(LogicalToDeviceUnits(_liveCollapsed?4:18));_liveRows.Visible=_liveStatus.Visible=refresh.Visible=disclaimer.Visible=metrics.Visible=selector.Visible=subtitle.Visible=title.Visible=!_liveCollapsed;header.Height=LogicalToDeviceUnits(_liveCollapsed?42:228);};
+        collapse.Click+=(_,_)=>{_liveCollapsed=!_liveCollapsed;_liveMarket.Width=LogicalToDeviceUnits(_liveCollapsed?52:360);_liveMarket.Padding=new Padding(LogicalToDeviceUnits(_liveCollapsed?4:18));_liveRows.Visible=_liveStatus.Visible=refresh.Visible=disclaimer.Visible=metrics.Visible=selector.Visible=subtitle.Visible=title.Visible=!_liveCollapsed;header.Height=LogicalToDeviceUnits(_liveCollapsed?42:228);};
         _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(disclaimer);_liveMarket.Controls.Add(header);
         _browserPanel.Controls.Add(_liveMarket);_browserPanel.Controls.SetChildIndex(_liveMarket,_browserPanel.Controls.Count-1);
         _liveRows.SizeChanged+=(_,_)=>{foreach(Control row in _liveRows.Controls)row.Width=Math.Max(40,_liveRows.ClientSize.Width-4);};

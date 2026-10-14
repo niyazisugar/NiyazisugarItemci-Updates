@@ -1,4 +1,4 @@
 {
-  "version": "2.14.1",
+  "version": "2.14.2",
   "notes": "Arayüz tasarım referansındaki yerleşime göre yeniden kuruldu. İkonlu özet kartları, yuvarlatılmış giriş alanları, sade üst menü, yatay ilan tablosu, hizalı satış toplamları ve daraltılabilir satış takibi paneli özel Windows bileşenleriyle oluşturuldu. Mevcut veriler, oturum, taslaklar, yayınlama, hazır görseller ve otomasyonlar korunur. Ayrı Sunucu Seç penceresi değişmez."
 }

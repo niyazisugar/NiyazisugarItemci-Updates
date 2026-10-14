@@ -52,7 +52,7 @@ public sealed partial class MainForm
         var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowListingComposerAsync());
         create.ForeColor = Color.FromArgb(10,38,38);
         create.BackColor = PremiumTheme.Turquoise;
-        ((ReferenceButton)create).Navigation=false;((ReferenceButton)create).Primary=true;((ReferenceButton)create).Icon="plus";create.Height=44;create.Width=178;create.Margin=new Padding(0,7,8,0);
+        ((ReferenceButton)create).Navigation=false;((ReferenceButton)create).Primary=true;create.Font=ReferenceUi.Bold(11);((ReferenceButton)create).Icon="plus";create.Height=44;create.Width=178;create.Margin=new Padding(0,7,8,0);
         layout.Controls.Add(create,2,0);
         layout.Controls.Add(menu, 1, 0);
         var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
