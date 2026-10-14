@@ -16,4 +16,5 @@ AutoBumpSchedule.Complete(record,now,false,false,false,7200);
 Check(record.nextAllowedUtc==now.AddHours(2),"Longer platform wait must be honored.");
 Check(AutoBumpSchedule.NextScan(new[]{restored},now,now.AddMinutes(10))==now.AddMinutes(10),"Idle tracking should avoid constant page reloads while waiting.");
 Check(AutoBumpSchedule.NextScan(new[]{new AutoBumpRecord{nextAllowedUtc=now}},now,now.AddMinutes(10))==now.AddMinutes(1),"Due actions should check within the next minute.");
+Check(AutoBumpSchedule.NextScan(Array.Empty<AutoBumpRecord>(),now,now.AddMinutes(10))==now.AddMinutes(10),"Sold/inactive listings must not cause a permanent minute-by-minute reload loop.");
 Console.WriteLine("PASS: hour boundary, durable pre-click reservation, unknown outcomes, platform limits and bounded idle polling.");

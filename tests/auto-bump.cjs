@@ -23,6 +23,12 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const parallel=await page.evaluate(()=>Promise.all([window.__niyaziBumpOne('101'),window.__niyaziBumpOne('101')]));assert(parallel[0].ok);assert(parallel[1].notSent);
  await page.evaluate(()=>{const button=document.querySelector('button[data-id="101"]');button.disabled=false;button.onclick=()=>{window.clicked.push('101');fetch('/api/auth/product/101/up',{method:'POST',body:'{"id":"101"}'}).catch(()=>{});};window.fetch=async()=>{throw new Error('offline');};});
  const uncertain=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert(uncertain.uncertain);assert.equal(await page.evaluate(()=>window.paidClicks),0);
+ await page.evaluate(()=>{
+ const button=document.querySelector('button[data-id="101"]');button.disabled=false;
+ window.fetch=async()=>new Response(JSON.stringify({status:true}),{headers:{'Content-Type':'application/json'}});
+ button.onclick=()=>{const dialog=document.createElement('div');dialog.setAttribute('role','dialog');dialog.innerHTML='<p>İlanı ücretsiz yukarı taşımak istiyor musunuz?</p><button>Evet</button>';dialog.querySelector('button').onclick=async()=>{await fetch('/api/auth/product/101/up',{method:'POST',body:'{"id":"101"}'});dialog.remove();};document.body.append(dialog);};
+ });
+ const confirmed=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert(confirmed.ok);assert.equal(await page.locator('[role="dialog"]').count(),0);
  await page.goto('https://itemci.com/product/another');await page.addScriptTag({content:fs.readFileSync('overrides/AutoBump.js','utf8')});await assert.rejects(page.evaluate(()=>window.__niyaziReadBumpPage()));
  console.log('PASS: own active listings only, exact free-action label, sold/inactive/disabled/paid exclusions, pagination, verified success, hourly cooldown, duplicate request guard and uncertain network outcome.');await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

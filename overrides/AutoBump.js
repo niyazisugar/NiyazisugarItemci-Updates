@@ -30,7 +30,7 @@
  function nextPage(){
   const current=Number(new URL(location.href).searchParams.get('page')||1);
   for(const link of document.querySelectorAll('a[href]')){try{const u=new URL(link.href);if(u.hostname==='itemci.com'&&u.pathname==='/panel/ilanlarim'&&Number(u.searchParams.get('page'))===current+1)return true;}catch{}}
-  return [...document.querySelectorAll('button')].some(b=>enabled(b)&&/^(?:sonraki(?: sayfa)?|next(?: page)?)$/.test(norm([b.textContent,b.getAttribute('aria-label'),b.title].join(' '))));
+  return [...document.querySelectorAll('button')].some(b=>enabled(b)&&[b.textContent,b.getAttribute('aria-label'),b.title].some(value=>/^(?:sonraki(?: sayfa)?|next(?: page)?)$/.test(norm(value))));
  }
  window.__niyaziReadBumpPage=async()=>{
   ownPage();
@@ -74,8 +74,14 @@
    // paid boost, delete/edit button, or a guessed endpoint.
    const fresh=rows().find(r=>r.id===String(id));if(!fresh||!enabled(fresh.button))return {ok:false,notSent:true,message:'Ücretsiz düğme aktif değil.'};
    fresh.button.click();
+   let confirmedDialog=false;
    for(let attempt=0;attempt<100;attempt++){
     if(outcome)return outcome;
+    if(!confirmedDialog){
+     const dialog=[...document.querySelectorAll('[role="dialog"]')].find(el=>{const t=norm(el.innerText);return visible(el)&&t.includes('ilan')&&t.includes('yukari')&&!/ucret(?!siz)|vip|vitrin|bakiye|\d[\d.,]*\s*(?:tl|₺)/.test(t);});
+     const confirm=dialog&&[...dialog.querySelectorAll('button')].find(b=>enabled(b)&&/^(?:evet|onayla|(?:ucretsiz )?(?:ilani )?yukari tasi)$/.test(norm(b.textContent)));
+     if(confirm){confirmedDialog=true;confirm.click();}
+    }
     if(notices().some(el=>!existing.has(el)&&/(?:ilan(?:iniz)?(?: basariyla)? yukari (?:tasindi|cikarildi)|yukari tasima basarili)/.test(norm(el.textContent))))return {ok:true,message:'Itemci yukarı taşımayı doğruladı.'};
     const current=rows().find(r=>r.id===String(id));if(attempt>=10&&current&&!enabled(current.button)&&waitSeconds(current.button)>=60)return {ok:true,message:'Itemci yeni bekleme süresini gösterdi.'};
     await sleep(100);

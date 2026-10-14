@@ -10,6 +10,7 @@ public sealed partial class MainForm
     private DateTime _autoBumpDiscoverUtc;
     private bool _autoBumpBusy;
     private bool _autoBumpInstalled;
+    private string? _autoBumpConfirmId;
     private bool AutoBumpDue=>_autoBumpInstalled&&_settings.AutoFreeBumpEnabled&&_webReady&&DateTime.UtcNow>=_autoBumpNextScanUtc;
     private WebView2? _autoBumpView;
     private readonly Label _autoBumpStatus=new(){Dock=DockStyle.Top,Height=50,ForeColor=Color.FromArgb(150,157,170)};
@@ -103,6 +104,13 @@ public sealed partial class MainForm
             Controls.Add(_autoBumpView);await _autoBumpView.EnsureCoreWebView2Async(_browserEnvironment);
             _autoBumpView.CoreWebView2.Settings.AreDevToolsEnabled=false;_autoBumpView.CoreWebView2.Settings.AreDefaultContextMenusEnabled=false;
             _autoBumpView.CoreWebView2.NewWindowRequested+=(_,e)=>e.Handled=true;
+            _autoBumpView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled=false;
+            _autoBumpView.CoreWebView2.ScriptDialogOpening+=(_,e)=>
+            {
+                var message=e.Message.ToLowerInvariant().Replace('ı','i').Replace('ü','u').Replace('ş','s');
+                var fee=System.Text.RegularExpressions.Regex.IsMatch(message,@"ucret(?!siz)|vip|vitrin|bakiye|\d[\d.,]*\s*(?:tl|₺)");
+                if(_autoBumpConfirmId is not null&&!fee&&e.Kind==CoreWebView2ScriptDialogKind.Confirm&&message.Contains("ilan")&&message.Contains("yukari"))e.Accept();
+            };
             ConfigureAdBlocking(_autoBumpView);
             for(var page=1;page<=40;page++)
             {
@@ -122,8 +130,9 @@ public sealed partial class MainForm
                     // immediately send the same free bump twice.
                     AutoBumpSchedule.Reserve(record,now);SaveAutoBumpState();
                     AutoBumpResult result;
-                    try{result=await ReadAutoBumpResultAsync<AutoBumpResult>($"window.__niyaziBumpOne({JsonSerializer.Serialize(listing.id)})");}
+                    try{_autoBumpConfirmId=listing.id;result=await ReadAutoBumpResultAsync<AutoBumpResult>($"window.__niyaziBumpOne({JsonSerializer.Serialize(listing.id)})");}
                     catch(Exception ex){result=new AutoBumpResult{uncertain=true,message="İşlem sonucu doğrulanamadı: "+ex.Message};}
+                    finally{_autoBumpConfirmId=null;}
                     AutoBumpSchedule.Complete(record,DateTime.UtcNow,result.ok,result.uncertain,result.notSent,result.retryAfterSeconds);SaveAutoBumpState();
                     if(result.ok)successes++;if(result.uncertain)uncertain++;
                     LogAutoBump("İlan "+listing.id+" · "+record.status+" · "+result.message);
@@ -137,7 +146,7 @@ public sealed partial class MainForm
             foreach(var id in _autoBumpRecords.Where(k=>!interrupted).Where(k=>!seen.Contains(k.Key)&&k.Value.lastAttemptUtc<nowEnd.AddDays(-14)&&k.Value.nextAllowedUtc<nowEnd).Select(k=>k.Key).ToArray())_autoBumpRecords.Remove(id);
             SaveAutoBumpState();
             _autoBumpDiscoverUtc=nowEnd.AddMinutes(10);
-            _autoBumpNextScanUtc=interrupted?nowEnd.AddMinutes(1):AutoBumpSchedule.NextScan(_autoBumpRecords.Values,nowEnd,_autoBumpDiscoverUtc);
+            _autoBumpNextScanUtc=interrupted?nowEnd.AddMinutes(1):AutoBumpSchedule.NextScan(_autoBumpRecords.Where(k=>seen.Contains(k.Key)).Select(k=>k.Value),nowEnd,_autoBumpDiscoverUtc);
             _autoBumpStatus.Text=$"{checkedCount} ilan kontrol edildi · {successes} ücretsiz yukarı taşındı · {DateTime.Now:HH:mm}"+
                 (uncertain>0?$" · {uncertain} sonuç belirsiz; aynı saat içinde tekrar denenmez":"")+(unsupported>0?" · Bazı ücretsiz düğmeler okunamadı":"");
         }
