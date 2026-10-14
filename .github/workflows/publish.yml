@@ -22,6 +22,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node --check overrides/AdBlock.js
       - run: node tests/adblock.cjs
+      - run: node tests/sales.cjs
 
   publish:
     needs: adblock-test
@@ -62,6 +63,8 @@ jobs:
           Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
+          Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
+          Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
             $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
@@ -117,6 +120,15 @@ jobs:
           $borderPattern = '(?ms)^    private static void DrawBorder\(Graphics g, Rectangle rect\)\r?\n    \{.*?^    \}'
           $mainForm = [regex]::Replace($mainForm, $borderPattern, "    private static void DrawBorder(Graphics g, Rectangle rect)`r`n    {`r`n        PremiumTheme.DrawBorder(g, rect);`r`n    }", 1)
 
+          $mainForm = $mainForm.Replace('public sealed class MainForm : Form', 'public sealed partial class MainForm : Form')
+          $mainForm = $mainForm.Replace('BuildSalesPanel();', 'BuildSoldSalesPanel();')
+          $mainForm = $mainForm.Replace('RefreshSalesAsync(', 'RefreshSoldListingsAsync(')
+          # Keep the obsolete notification reader unused; all callers use sold orders.
+          $mainForm = $mainForm.Replace('private async Task RefreshSoldListingsAsync(', 'private async Task LegacyRefreshSalesAsync(')
+          $mainForm = $mainForm.Replace('RenderSalesPanel();', 'RenderSoldSalesPanel();')
+          $mainForm = $mainForm.Replace('public string OrderId { get; set; } = "";', 'public string OrderId { get; set; } = ""; public string ListingId { get; set; } = "";')
+          $mainForm = $mainForm.Replace('GrossAmount * 0.10m', 'decimal.Round(GrossAmount * 0.10m, 2, MidpointRounding.AwayFromZero)')
+          $mainForm = $mainForm.Replace('sales_history.json', 'sold-sales-history-v2.json')
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Restore main app
