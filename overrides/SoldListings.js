@@ -9,12 +9,21 @@
         do { const result = find(); if (result) return result; await sleep(150); } while (Date.now() < end);
         return null;
     }
+    function listingId(el) {
+        // Read the ID label itself, not concatenated row text (which can
+        // append the listing date directly to the number).
+        for (const node of [el, ...el.querySelectorAll('span,p,div,small')]) {
+            const match = norm(node.innerText).match(/^ilan\s*no\s*:?\s*(\d+)$/);
+            if (match) return match[1];
+        }
+        return null;
+    }
     function rows() {
         const result = [];
         const seen = new Set();
         const add = el => {
             const text = clean(el.innerText);
-            const id = norm(text).match(/ilan\s*no\s*:?\s*(\d+)/)?.[1];
+            const id = listingId(el);
             if (!id || seen.has(id) || !/satildi/.test(norm(text)) || !/\d[\d.,]*\s*(?:TL|₺)/i.test(text)) return;
             seen.add(id); result.push({el, id});
         };
