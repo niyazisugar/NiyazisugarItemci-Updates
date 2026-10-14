@@ -27,6 +27,12 @@ jobs:
       - run: node tests/server-sales.cjs
       - run: node tests/quick-listing.cjs
       - run: node tests/listing-composer.cjs
+      - run: node tests/composer-view.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-listing-screenshots
+          path: test-results/*.png
 
   publish:
     needs: adblock-test
@@ -78,6 +84,7 @@ jobs:
           Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
           Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
           Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
+          Copy-Item "overrides/ComposerView.html" "src/ComposerView.html" -Force
           Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
           $settingsSource = $settingsSource.Replace('public bool NotificationsEnabled', 'public string LastQuickListingServer { get; set; } = ""; public bool NotificationsEnabled')
@@ -200,6 +207,11 @@ jobs:
           -p:PublishTrimmed=false
           -o publish-updater
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: quick-listing-screenshots
+          path: screenshots
+
       - name: Assemble update package
         shell: pwsh
         run: |
@@ -237,6 +249,8 @@ jobs:
           gh release create $tag `
             "NiyazisugarItemci-update.zip" `
             "latest.json" `
+            "screenshots/quick-listing-desktop.png" `
+            "screenshots/quick-listing-small.png" `
             --target "${{ github.sha }}" `
             --title "Niyazisugar Itemci V$version" `
             --notes "${{ steps.manifest.outputs.notes }}" `

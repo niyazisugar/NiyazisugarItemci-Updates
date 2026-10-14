@@ -28,6 +28,12 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  }
  await page.evaluate(()=>window.fetch=async()=>new Response(JSON.stringify({status:false,message:'Lütfen bekleyiniz.'}),{status:429,headers:{'Content-Type':'application/json','Retry-After':'90'}}));
  const limited=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);assert.equal(limited.ok,false);assert.equal(limited.retryAfterSeconds,90);
+ await page.evaluate(()=>window.fetch=async()=>new Response(JSON.stringify({status:false,message:'2 dakika bekleyiniz.'}),{status:429,headers:{'Content-Type':'application/json'}}));
+ const timed=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);assert.equal(timed.retryAfterSeconds,120);
+ await page.evaluate(()=>window.fetch=async()=>new Response('Sunucu hatası',{status:500}));
+ const failed=await page.evaluate(p=>window.__NiyaziSubmitOwnListing(p),payload);assert.equal(failed.ok,false);assert.match(failed.message,/Itemci sunucusu/);
+ await page.evaluate(()=>window.fetch=async()=>{await new Promise(r=>setTimeout(r,200));return new Response(JSON.stringify({status:true,data:{url:'/product/sezar2/verified'}}),{headers:{'Content-Type':'application/json'}});});
+ const double=await page.evaluate(p=>Promise.all([window.__NiyaziSubmitOwnListing(p),window.__NiyaziSubmitOwnListing(p)]),payload);assert.equal(double[0].ok,true);assert.equal(double[1].ok,false);assert.match(double[1].message,/zaten gönderiliyor/);
  await assert.rejects(page.evaluate(p=>window.__NiyaziPrepareOwnListing({...p,title:'a'.repeat(151)}),payload));
  console.log('PASS: real-form selectors, Quill-compatible editing, stock picture, durations/order toggle, separate prepare/submit and confirmed response.');
  await browser.close();

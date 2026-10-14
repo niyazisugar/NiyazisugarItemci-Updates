@@ -28,39 +28,64 @@
   if(c.title.value!==p.title||Number(c.price.value)!==p.price||c.delivery.value!==String(p.delivery)||c.validity.value!==String(p.validity)||(c.toggle.getAttribute('aria-checked')==='true')!==p.orders||norm(c.editor.innerText)!==norm(p.description))throw new Error('Form alanları doğrulanamadı; ilan gönderilmedi.');
   return {ok:true};
  };
+ function safeProductLink(product,p){
+  let candidate=product.url||product.link||'';
+  if(!candidate&&product.slug){const category=product.category?.slug||new URL(p.categoryUrl||location.href).pathname.match(/^\/categories\/([^/]+)/)?.[1];if(category)candidate='/product/'+encodeURIComponent(decodeURIComponent(category))+'/'+encodeURIComponent(product.slug);}
+  try{const u=new URL(candidate,location.origin);return candidate&&u.protocol==='https:'&&u.hostname==='itemci.com'&&!u.username&&!u.password&&!u.port&&u.pathname.startsWith('/product/')?u.href:'';}catch{return '';}
+ }
+ function retrySeconds(response,json){
+  const raw=response.headers.get('Retry-After');const number=Number(raw||json.retryAfterSeconds||json.retry_after||json.retryAfter);
+  if(Number.isFinite(number)&&number>0)return Math.min(86400,Math.ceil(number));
+  const date=raw?Date.parse(raw):NaN;if(Number.isFinite(date))return Math.min(86400,Math.max(0,Math.ceil((date-Date.now())/1000)));
+  const match=String(json.message||'').match(/(\d+)\s*(saniye|dakika)/i);if(match)return Math.min(86400,Number(match[1])*(match[2].toLowerCase()==='dakika'?60:1));
+  return response.status===429?60:0;
+ }
+ function platformMessage(json,status){
+  let message=typeof json.message==='string'?json.message:typeof json.error==='string'?json.error:'';
+  if(!message&&json.errors){message=Object.values(json.errors).flat().filter(x=>typeof x==='string').join(' ');}
+  const normalized=norm(message);
+  if(status===429||/too many|rate limit|please wait|once.*minute/.test(normalized))return 'Itemci yayınlama sınırına ulaşıldı. Bekleme süresi bittikten sonra tekrar deneyebilirsin.';
+  if(status===401||/unauthenticated|unauthorized/.test(normalized))return 'Itemci oturumun sona ermiş. Itemci bölümünden giriş yapıp tekrar dene.';
+  if(status===403)return 'Itemci bu işlemi kabul etmedi. Hesap izinlerini ve oturumunu kontrol et.';
+  if(status>=500)return 'Itemci sunucusu şu anda yanıt veremiyor. Biraz sonra tekrar deneyebilirsin.';
+  return message||'Itemci ilanı kabul etmedi. Form alanlarını kontrol et.';
+ }
+ let publishing=false;
  window.__NiyaziSubmitOwnListing=async p=>{
+  if(publishing)return {ok:false,message:'Bu ilan zaten gönderiliyor. Sonucu bekle.'};
   const c=controls();if(!c.form.reportValidity())throw new Error('Itemci formunda eksik zorunlu alan var.');
+  publishing=true;
   const original=window.fetch;let outcome=null;let sent=false;
   window.fetch=async function(input,options){
-   const response=await original.apply(this,arguments);
-   try{
-    const method=options?.method||input?.method||'GET';const body=options?.body;
-    let data=null;if(typeof body==='string')try{data=JSON.parse(body)}catch{}
-    if(body instanceof FormData)data=Object.fromEntries(body.entries());
-    const fields=data?.data||data;
-    if(method.toUpperCase()==='POST'&&fields&&(fields.title===p.title||fields.name===p.title)&&Number(fields.price)===p.price){
-     sent=true;const json=await response.clone().json();
-     if(!response.ok||json.status===false||json.success===false)outcome={ok:false,message:json.message||'Itemci ilanı kabul etmedi.',retryAfterSeconds:Math.max(0,Math.ceil(Number(response.headers.get('Retry-After')||json.retryAfterSeconds||json.retry_after||json.retryAfter)||0))};
-     else if(json.status===true||json.success===true){
-      const product=json.data?.product||json.data||json.product||{};
-      let url='';
-      const category=product.category?.slug||new URL(p.categoryUrl||location.href).pathname.match(/^\/categories\/([^/]+)/)?.[1];
-      const candidate=product.url||product.link||(product.slug&&category?'/product/'+encodeURIComponent(category)+'/'+encodeURIComponent(product.slug):'');
-      try{if(candidate){const parsed=new URL(candidate,location.origin);if(parsed.protocol==='https:'&&parsed.hostname==='itemci.com'&&parsed.pathname.startsWith('/product/'))url=parsed.href;}}catch{}
-      outcome={ok:true,id:String(product.id||product.product_id||''),url:/^https:\/\/itemci\.com\/product\//.test(url)?url:'',message:json.message||'İlan oluşturuldu.'};
-     }
-    }
-   }catch{}return response;
+   const method=options?.method||input?.method||'GET',body=options?.body;
+   let data=null;if(typeof body==='string')try{data=JSON.parse(body)}catch{}
+   if(body instanceof FormData)data=Object.fromEntries(body.entries());
+   const fields=data?.data||data;
+   const matched=method.toUpperCase()==='POST'&&fields&&(fields.title===p.title||fields.name===p.title)&&Number(fields.price)===p.price;
+   if(matched)sent=true;
+   let response;
+   try{response=await original.apply(this,arguments);}catch(error){if(matched)outcome={ok:false,uncertain:true,message:'Bağlantı kesildi; gönderimin sonucu doğrulanamadı. Tekrar yayınlamadan önce İlanlarım bölümünü kontrol et.'};throw error;}
+   if(matched){
+    try{
+     let json={};try{json=await response.clone().json();}catch{}
+     if(!response.ok||json.status===false||json.success===false)outcome={ok:false,message:platformMessage(json,response.status),retryAfterSeconds:retrySeconds(response,json)};
+     else if(json.status===true||json.success===true){const product=json.data?.product||json.data||json.product||{};outcome={ok:true,id:String(product.id||product.product_id||''),url:safeProductLink(product,p),message:'İlan yayınlandı.'};}
+    }catch{}
+   }
+   return response;
   };
   try{
    c.form.requestSubmit(c.submit);
    for(let attempt=0;attempt<300;attempt++){
     if(outcome)return outcome;
     const body=norm(document.body.innerText);
-    if(/ilan(?:iniz)? basariyla (?:olusturuldu|eklendi|yayinlandi)/.test(body))return {ok:true,message:'Itemci ilanın oluşturulduğunu bildirdi.',id:'',url:''};
+    if(/ilan(?:iniz)? basariyla (?:olusturuldu|eklendi|yayinlandi)/.test(body)){
+     const link=[...document.querySelectorAll('a[href]')].find(a=>/ilani (?:gor|incele|ac)/.test(norm(a.textContent))&&safeProductLink({url:a.href},p));
+     return {ok:true,message:'İlan yayınlandı.',id:'',url:link?.href||''};
+    }
     await sleep(200);
    }
    return {ok:false,uncertain:true,message:sent?'Gönderim sonucu doğrulanamadı. Tekrar yayınlamadan önce İlanlarım bölümünü kontrol et.':'Yayınlama sonucu doğrulanamadı. Tekrar yayınlamadan önce İlanlarım bölümünü kontrol et.'};
-  }finally{window.fetch=original;}
+  }finally{window.fetch=original;publishing=false;}
  };
 })();

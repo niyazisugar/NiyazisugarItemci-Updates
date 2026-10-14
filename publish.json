@@ -1,4 +1,4 @@
 {
-  "version": "2.9.0",
-  "notes": "Hızlı İlan Ekle artık mevcut sayfayı değiştirmeden popup olarak açılır. Hazır görsel galerisi ve bilgisayara kaydedilen görseller, yeni açıklama, ilan linki kopyalama, başarılı gönderimden sonra 60 saniye geri sayım eklendi. Itemci bekleme bildirirse uygulanır; belirsiz gönderim koruması sürer."
+  "version": "2.10.0",
+  "notes": "Hızlı İlan Ekle antrasit/turkuaz tasarımla yenilendi: canlı önizleme, kapak seçimi, sürüklenebilir görsel kartları, kalıcı hazır görsel galerisi, sabit işlem çubuğu ve küçük ekran desteği. Gerçek ilan bağlantısı kopyalama/açma, net kazanç özeti, güvenli yayınlama ve bekleme sayacı geliştirildi."
 }

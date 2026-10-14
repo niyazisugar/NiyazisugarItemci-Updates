@@ -28,75 +28,99 @@ public sealed partial class MainForm
 
     private void InstallListingComposer()
     {
-        _composerPanel.BackColor=Bg;
-        var column=new FlowLayoutPanel{Dock=DockStyle.Top,AutoSize=true,FlowDirection=FlowDirection.TopDown,WrapContents=false,Padding=new Padding(0)};
-        column.Controls.Add(new Label{Text="Hızlı İlan Ekle",AutoSize=true,Font=new Font("Segoe UI",22,FontStyle.Bold),ForeColor=Accent,Margin=new Padding(0,0,0,8)});
-        column.Controls.Add(new Label{Text="Item&Yang · Formu burada doldur; Yayınla ile Itemci'ye aktar.",AutoSize=true,ForeColor=TextMuted,Margin=new Padding(0,0,0,18)});
-        void Field(string caption,Control control){column.Controls.Add(new Label{Text=caption,AutoSize=true,ForeColor=TextMuted,Margin=new Padding(0,8,0,5)});control.Margin=new Padding(0,0,0,5);column.Controls.Add(control);}
-        var serverRow=new FlowLayoutPanel{Width=720,Height=45,WrapContents=false};
-        serverRow.Controls.Add(_composerServer);serverRow.Controls.Add(ActionButton("＋ SUNUCU EKLE",()=>_=AddComposerServerAsync()));
-        Field("SUNUCU · KATEGORİ HER ZAMAN ITEM&YANG",serverRow);
-        Field("İLAN BAŞLIĞI · EN FAZLA 150 KARAKTER",_composerTitle);
-        var prices=new FlowLayoutPanel{Width=720,Height=64,WrapContents=false};
-        foreach(var pair in new[]{("FİYAT (TL)",(Control)_composerPrice),("TESLİM (SAAT)",(Control)_composerDelivery),("GEÇERLİLİK (GÜN)",(Control)_composerValidity)}){
-            var box=new FlowLayoutPanel{Width=190,Height=60,FlowDirection=FlowDirection.TopDown,WrapContents=false};box.Controls.Add(new Label{Text=pair.Item1,AutoSize=true,ForeColor=TextMuted});box.Controls.Add(pair.Item2);prices.Controls.Add(box);
-        }
+        // Native draft model retained; the popup uses a local WebView2 view.
         _composerDelivery.Items.AddRange(new object[]{1,2,6,12});_composerDelivery.SelectedItem=1;
         _composerValidity.Items.AddRange(new object[]{15,30});_composerValidity.SelectedItem=15;
-        column.Controls.Add(prices);column.Controls.Add(_composerNet);
-        Field("AÇIKLAMA · EN FAZLA 1.200 KARAKTER",_composerDescription);
-        Field("GÖRSELLER · EN FAZLA 4 PNG/JPG · HER BİRİ EN FAZLA 5 MB",_composerStock);
-        column.Controls.Add(_composerImages);
-        var pictures=new FlowLayoutPanel{Width=720,Height=46,WrapContents=false};
-        pictures.Controls.Add(ActionButton("GÖRSEL SEÇ",SelectComposerPictures));pictures.Controls.Add(ActionButton("SEÇİLENİ KALDIR",()=>{if(_composerImages.SelectedIndex>=0)_composerImages.Items.RemoveAt(_composerImages.SelectedIndex);QueueComposerSave();}));column.Controls.Add(pictures);
-        column.Controls.Add(_composerOrders);
-        var actions=new FlowLayoutPanel{Width=760,Height=52,WrapContents=false};
-        _composerPublish=ActionButton("İLANI YAYINLA",()=>_=PublishComposerAsync());_composerPublish.Width=180;_composerPublish.ForeColor=Accent;
-        actions.Controls.Add(_composerPublish);
-        actions.Controls.Add(ActionButton("TASLAĞI KAYDET",()=>{SaveComposerDrafts();_composerStatus.Text="Taslak kaydedildi.";}));
-        actions.Controls.Add(ActionButton("İLANLARIM",()=>{ShowPanel(_listingsPanel);_=RefreshCurrentListingsAsync(true);}));
-        actions.Controls.Add(ActionButton("YENİ TASLAK",()=>{_composerLoading=true;_composerTitle.Clear();_composerPrice.Value=1;_composerImages.Items.Clear();_composerDescription.Text=DefaultComposerDescription;_composerLoading=false;_composerUncertain=false;UpdateComposerPublishAvailability();QueueComposerSave();_composerStatus.Text="Yeni taslak hazır.";}));
-        InstallComposerPopupExtras(actions,pictures);
-        column.Controls.Add(actions);column.Controls.Add(_composerStatus);
-        column.Controls.Add(ActionButton("HATA BİLGİSİNİ KOPYALA",()=>{if(!string.IsNullOrWhiteSpace(_composerStatus.Text))Clipboard.SetText(_composerStatus.Text);}));_composerPanel.Controls.Add(column);_content.Controls.Add(_composerPanel);
-        foreach(var input in new TextBox[]{_composerTitle,_composerDescription}){input.BackColor=Card;input.ForeColor=TextMain;input.Font=new Font("Segoe UI",11);input.TextChanged+=(_,_)=>QueueComposerSave();}
-        _composerPrice.ValueChanged+=(_,_)=>{UpdateComposerNet();QueueComposerSave();};
-        _composerDelivery.SelectedIndexChanged+=(_,_)=>QueueComposerSave();_composerValidity.SelectedIndexChanged+=(_,_)=>QueueComposerSave();
-        _composerStock.CheckedChanged+=(_,_)=>{_composerImages.Enabled=!_composerStock.Checked;QueueComposerSave();};_composerOrders.CheckedChanged+=(_,_)=>QueueComposerSave();
+        _composerPublish=new Button();
         _composerServer.SelectedIndexChanged+=(_,_)=>LoadComposerServerDraft();
-        _composerSaveTimer.Tick+=(_,_)=>{_composerSaveTimer.Stop();SaveComposerDrafts();};
-        try{if(File.Exists(ComposerDraftPath)){var drafts=JsonSerializer.Deserialize<Dictionary<string,ComposerDraft>>(File.ReadAllText(ComposerDraftPath));foreach(var d in drafts??new())_composerDrafts[d.Key]=d.Value;}}catch{}
-        _composerDescription.Text=DefaultComposerDescription;_composerImages.Enabled=false;UpdateComposerNet();
-        FormClosed+=(_,_)=>{SaveComposerDrafts();_composerSaveTimer.Dispose();_composerTransport?.Dispose();};
+        _composerSaveTimer.Tick+=async(_,_)=>
+        {
+            _composerSaveTimer.Stop();
+            if(_composerBusy)return;
+            if(SaveComposerDrafts()&&_composerStatusKind=="idle")_composerStatus.Text="Taslak kaydedildi.";
+            await PushComposerStateAsync();
+        };
+        try
+        {
+            if(File.Exists(ComposerDraftPath))
+            {
+                var drafts=JsonSerializer.Deserialize<Dictionary<string,ComposerDraft>>(File.ReadAllText(ComposerDraftPath));
+                foreach(var draft in drafts??new())_composerDrafts[draft.Key]=draft.Value;
+            }
+        }
+        catch{_composerStatus.Text="Eski taslak okunamadı. Yeni bir taslak oluşturabilirsin.";}
+        _composerDescription.Text=DefaultComposerDescription;
+        InstallComposerPopupExtras();UpdateComposerNet();
+        FormClosed+=(_,_)=>{SaveComposerDrafts();_composerSaveTimer.Dispose();_composerTransport?.Dispose();_composerPublish.Dispose();};
     }
-    private const string DefaultComposerDescription="Ürün hakkında daha detaylı bilgi almak için mesaj gönderebilirsiniz. Farklı bir ihtiyacınız varsa yine mesaj yoluyla iletebilirsiniz. Hayırlı olsun.";
+    private const string DefaultComposerDescription="Ürün hakkında detaylı bilgi almak için mesaj gönderebilirsiniz. Farklı ihtiyaçlarınızı da mesaj yoluyla iletebilirsiniz. Hayırlı olsun.";
     private Task ShowListingComposerAsync()=>ShowListingComposerPopupAsync();
     private void UpdateComposerNet(){var price=_composerPrice.Value;var commission=price>=10&&price<=50?5:decimal.Round(price*0.10m,2);_composerNet.Text=$"Komisyon: {commission:N2} TL · Net: {price-commission:N2} TL";}
     private void QueueComposerSave(){if(_composerLoading||_composerBusy)return;_composerSaveTimer.Stop();_composerSaveTimer.Start();}
     private ComposerDraft CurrentComposerDraft()=>new(){title=_composerTitle.Text.Trim(),description=_composerDescription.Text,price=_composerPrice.Value,delivery=Convert.ToInt32(_composerDelivery.SelectedItem??1),validity=Convert.ToInt32(_composerValidity.SelectedItem??15),stock=_composerStock.Checked,orders=_composerOrders.Checked,paths=_composerImages.Items.Cast<string>().ToList(),blocked=_composerUncertain};
-    private void SaveComposerDrafts(){try{if(_composerDraftServer is not null)_composerDrafts[_composerDraftServer]=CurrentComposerDraft();Directory.CreateDirectory(Path.GetDirectoryName(ComposerDraftPath)!);File.WriteAllText(ComposerDraftPath+".tmp",JsonSerializer.Serialize(_composerDrafts));File.Move(ComposerDraftPath+".tmp",ComposerDraftPath,true);}catch{_composerStatus.Text="Taslak kaydı başarısız oldu.";}}
-    private void LoadComposerServerDraft(){if(_composerLoading||_composerServer.SelectedItem is not MarketServerInfo server)return;SaveComposerDrafts();_composerDraftServer=server.Id;_composerLoading=true;var d=_composerDrafts.GetValueOrDefault(server.Id)??new ComposerDraft();if(d.description=="Ürün bilgisi ilan başlığında belirtilmiştir. Detaylar için Itemci mesaj kutusundan iletişime geçebilirsiniz.")d.description=DefaultComposerDescription;_composerTitle.Text=d.title;_composerDescription.Text=d.description;_composerPrice.Value=Math.Clamp(d.price,1,_composerPrice.Maximum);_composerDelivery.SelectedItem=d.delivery;_composerValidity.SelectedItem=d.validity;_composerStock.Checked=d.stock;_composerOrders.Checked=d.orders;_composerImages.Items.Clear();foreach(var p in d.paths){try{_composerImages.Items.Add(SaveComposerLibraryImage(p));}catch{_composerImages.Items.Add(p);}}_composerLoading=false;_composerUncertain=d.blocked;UpdateComposerPublishAvailability();_composerStatus.Text=server.Name+" · Item&Yang · Taslak otomatik kaydedilir.";UpdateComposerNet();}
-    private void SelectComposerPictures(){using var dialog=new OpenFileDialog{Filter="PNG/JPG|*.png;*.jpg;*.jpeg",Multiselect=true};if(dialog.ShowDialog(_composerPopup??this)!=DialogResult.OK)return;foreach(var path in dialog.FileNames){if(_composerImages.Items.Count>=4)break;if(new FileInfo(path).Length>5*1024*1024){_composerStatus.Text="5 MB üzerindeki görsel eklenmedi.";continue;}var saved=SaveComposerLibraryImage(path);if(!_composerImages.Items.Contains(saved))_composerImages.Items.Add(saved);}_composerStock.Checked=false;QueueComposerSave();}
-
-    private async Task AddComposerServerAsync()
+    private bool SaveComposerDrafts()
     {
-        using var dialog=new Form{Text="Sunucu Ekle",Size=new Size(560,270),StartPosition=FormStartPosition.CenterParent,BackColor=Bg,ForeColor=TextMain,Padding=new Padding(20),MinimizeBox=false,MaximizeBox=false};
-        var name=new TextBox{Dock=DockStyle.Top,PlaceholderText="Sunucu adı · Örn: Sezar2"};var url=new TextBox{Dock=DockStyle.Top,PlaceholderText="Itemci Item&Yang kategori bağlantısı"};
-        var save=ActionButton("KAYDET",()=>dialog.DialogResult=DialogResult.OK);save.Dock=DockStyle.Bottom;dialog.Controls.Add(url);dialog.Controls.Add(name);dialog.Controls.Add(save);PremiumTheme.Apply(dialog);
+        try
+        {
+            if(_composerDraftServer is not null)_composerDrafts[_composerDraftServer]=CurrentComposerDraft();
+            Directory.CreateDirectory(Path.GetDirectoryName(ComposerDraftPath)!);
+            File.WriteAllText(ComposerDraftPath+".tmp",JsonSerializer.Serialize(_composerDrafts));File.Move(ComposerDraftPath+".tmp",ComposerDraftPath,true);
+            return true;
+        }
+        catch{_composerStatusKind="error";_composerStatus.Text="Taslak kaydedilemedi. Disk alanını ve uygulama klasörünün izinlerini kontrol et.";return false;}
+    }
+    private void LoadComposerServerDraft()
+    {
+        if(_composerLoading||_composerServer.SelectedItem is not MarketServerInfo server)return;
+        SaveComposerDrafts();_composerDraftServer=server.Id;_composerLoading=true;
+        var draft=_composerDrafts.GetValueOrDefault(server.Id)??new ComposerDraft();
+        if(draft.description=="Ürün bilgisi ilan başlığında belirtilmiştir. Detaylar için Itemci mesaj kutusundan iletişime geçebilirsiniz."||
+           draft.description=="Ürün hakkında daha detaylı bilgi almak için mesaj gönderebilirsiniz. Farklı bir ihtiyacınız varsa yine mesaj yoluyla iletebilirsiniz. Hayırlı olsun.")draft.description=DefaultComposerDescription;
+        _composerTitle.Text=draft.title;_composerDescription.Text=draft.description;_composerPrice.Value=Math.Clamp(draft.price,1,_composerPrice.Maximum);
+        _composerDelivery.SelectedItem=new[]{1,2,6,12}.Contains(draft.delivery)?draft.delivery:1;
+        _composerValidity.SelectedItem=new[]{15,30}.Contains(draft.validity)?draft.validity:15;
+        _composerStock.Checked=draft.stock;_composerOrders.Checked=draft.orders;_composerImages.Items.Clear();
+        var missing=false;
+        foreach(var path in draft.paths.Take(4))
+        {
+            try{var saved=SaveComposerLibraryImage(path);if(!_composerImages.Items.Contains(saved))_composerImages.Items.Add(saved);}
+            catch{missing=true;}
+        }
+        _composerLoading=false;_composerUncertain=draft.blocked;
+        _composerStatusKind=_composerUncertain?"error":"idle";
+        _composerStatus.Text=_composerUncertain?"Önceki gönderim sonucu belirsiz. Tekrar yayınlamadan önce İlanlarım bölümünü kontrol et.":
+            missing?"Bazı taslak görselleri bulunamadı. Hazır Görseller bölümünden yeniden seçebilirsin.":"Taslak hazır · Değişiklikler otomatik kaydedilir.";
+        UpdateComposerNet();
+    }
+    private void SelectComposerPictures(bool addToListing)
+    {
+        using var dialog=new OpenFileDialog{Filter="PNG/JPG|*.png;*.jpg;*.jpeg",Multiselect=true};
         if(dialog.ShowDialog(_composerPopup??this)!=DialogResult.OK)return;
-        if(string.IsNullOrWhiteSpace(name.Text)||!Uri.TryCreate(url.Text.Trim(),UriKind.Absolute,out var uri)||uri.Scheme!="https"||uri.Host!="itemci.com"||!uri.AbsolutePath.StartsWith("/categories/")){_composerStatus.Text="Sunucu adı ve geçerli Itemci kategori bağlantısı gerekli.";return;}
-        if(!_marketAnalyzerInjected){_composerStatus.Text="Analiz sistemi henüz hazır değil.";return;}
-        await _marketWebView.CoreWebView2.ExecuteScriptAsync($"window.__NiyazisugarSaveQuickServer({JsonSerializer.Serialize(name.Text.Trim())},{JsonSerializer.Serialize(uri.ToString())})");
-        await RefreshMarketServersAsync();RefreshComposerServerChoices();_composerServer.SelectedItem=_marketServers.FirstOrDefault(s=>s.Name==name.Text.Trim());
+        var savedCount=0;
+        foreach(var path in dialog.FileNames)
+        {
+            try
+            {
+                var saved=SaveComposerLibraryImage(path);savedCount++;
+                if(addToListing&&!_composerImages.Items.Contains(saved)&&_composerImages.Items.Count<4)_composerImages.Items.Add(saved);
+            }
+            catch(Exception ex){ComposerToast(Path.GetFileName(path)+": "+ex.Message);}
+        }
+        if(addToListing&&savedCount>0)_composerStock.Checked=false;
+        QueueComposerSave();
+        _composerStatus.Text=savedCount+" görsel Hazır Görseller’e kaydedildi.";
+        if(addToListing&&dialog.FileNames.Length>4)ComposerToast("İlana en fazla 4 görsel eklenir. Diğer görseller galeride saklandı.");
     }
     private async Task PublishComposerAsync()
     {
-        if(_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc||_composerServer.SelectedItem is not MarketServerInfo server)return;
-        var draft=CurrentComposerDraft();if(string.IsNullOrWhiteSpace(draft.title)||string.IsNullOrWhiteSpace(draft.description)||(!draft.stock&&draft.paths.Count==0)){_composerStatus.Text="Başlık, açıklama ve en az bir görsel gerekli.";return;}
-        _composerBusy=true;_composerPublish!.Enabled=false;_composerPanel.Enabled=false;SaveComposerDrafts();
+        if(_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc||_composerServer.SelectedItem is not MarketServerInfo server){await PushComposerStateAsync();return;}
+        var draft=CurrentComposerDraft();if(string.IsNullOrWhiteSpace(draft.title)||string.IsNullOrWhiteSpace(draft.description)||(!draft.stock&&draft.paths.Count==0)){_composerStatusKind="error";_composerStatus.Text="Başlık, açıklama ve en az bir görsel gerekli.";await PushComposerStateAsync();return;}
+        _composerSaveTimer.Stop();_composerBusy=true;_composerPublish!.Enabled=false;_composerPanel.Enabled=false;SaveComposerDrafts();
+        var submissionStarted=false;
         try
         {
-            _composerStatus.Text="İlan Itemci'ye aktarılıyor…";
+            _composerStatusKind="idle";_composerStatus.Text="İlan Itemci’ye aktarılıyor…";await PushComposerStateAsync();
+            var before=await ReadComposerStoreSnapshotAsync();
             var images=new List<object>();if(!draft.stock)foreach(var path in draft.paths){if(!File.Exists(path)||new FileInfo(path).Length>5*1024*1024)throw new IOException("Görsel dosyası bulunamadı veya 5 MB sınırını aşıyor.");images.Add(new{name=Path.GetFileName(path),type=Path.GetExtension(path).ToLowerInvariant()==".png"?"image/png":"image/jpeg",base64=Convert.ToBase64String(await File.ReadAllBytesAsync(path))});}
             if(_browserEnvironment is null)throw new IOException("Itemci oturumu hazır değil.");
             if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();}
@@ -104,17 +128,45 @@ public sealed partial class MainForm
             var core=_composerTransport.CoreWebView2;core.NewWindowRequested+=(_,e)=>e.Handled=true;
             var loaded=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);core.NavigationCompleted+=(_,e)=>{if(e.IsSuccess)loaded.TrySetResult(true);else loaded.TrySetException(new IOException("Itemci formu yüklenemedi."));};core.Navigate("https://itemci.com/panel/ilan-ekle");await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30));
             var resultTask=new TaskCompletionSource<ComposerResult>(TaskCreationOptions.RunContinuationsAsynchronously);var token=Guid.NewGuid().ToString("N");
-            core.WebMessageReceived+=(_,e)=>{try{using var json=JsonDocument.Parse(e.WebMessageAsJson);var root=json.RootElement;if(!root.TryGetProperty("composerToken",out var t)||t.GetString()!=token)return;if(root.TryGetProperty("error",out var error))resultTask.TrySetException(new IOException(error.GetString()));else resultTask.TrySetResult(root.GetProperty("result").Deserialize<ComposerResult>()??new());}catch(Exception ex){resultTask.TrySetException(ex);}};
+            core.WebMessageReceived+=(_,e)=>{try{using var json=JsonDocument.Parse(e.WebMessageAsJson);var root=json.RootElement;if(!root.TryGetProperty("composerToken",out var t)||t.GetString()!=token)return;if(root.TryGetProperty("stage",out var stage)&&stage.GetString()=="sending"){submissionStarted=true;_composerUncertain=true;SaveComposerDrafts();return;}if(root.TryGetProperty("error",out var error))resultTask.TrySetException(new IOException(error.GetString()));else resultTask.TrySetResult(root.GetProperty("result").Deserialize<ComposerResult>()??new());}catch(Exception ex){resultTask.TrySetException(ex);}};
             await core.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"QuickListing.js")));await core.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"ListingComposer.js")));
             var payload=JsonSerializer.Serialize(new{server=server.Name,categoryUrl=server.Url,draft.title,draft.description,draft.price,draft.delivery,draft.validity,draft.stock,draft.orders,images});
-            await core.ExecuteScriptAsync($"(async()=>{{try{{const p={payload};await window.__NiyaziPrepareOwnListing(p);const result=await window.__NiyaziSubmitOwnListing(p);chrome.webview.postMessage({{composerToken:'{token}',result}});}}catch(e){{chrome.webview.postMessage({{composerToken:'{token}',error:String(e.message||e)}});}}}})();");
+            await core.ExecuteScriptAsync($"(async()=>{{try{{const p={payload};await window.__NiyaziPrepareOwnListing(p);chrome.webview.postMessage({{composerToken:'{token}',stage:'sending'}});const result=await window.__NiyaziSubmitOwnListing(p);chrome.webview.postMessage({{composerToken:'{token}',result}});}}catch(e){{chrome.webview.postMessage({{composerToken:'{token}',error:String(e.message||e)}});}}}})();");
             var result=await resultTask.Task.WaitAsync(TimeSpan.FromSeconds(130));_composerUncertain=result.uncertain;
-            if(result.ok){_composerStatus.Text=result.message+(result.id.Length>0?" · İlan: "+result.id:"")+" · İlanlarım bölümünden görebilirsin.";_composerStatus.ForeColor=Green;_composerUncertain=false;_composerCooldownUntilUtc=DateTime.UtcNow.AddSeconds(60);_composerLastLink=IsComposerListingLink(result.url)?result.url:"";SaveComposerPopupState();}
-            else{_composerStatus.Text=result.message;_composerStatus.ForeColor=Accent;ApplyComposerServerWait(result);}
+            if(result.ok)
+            {
+                _composerStatusKind="success";_composerStatus.Text="İlan yayınlandı. Yeni ilan için geri sayım başladı.";
+                _composerUncertain=false;_composerCooldownUntilUtc=DateTime.UtcNow.AddSeconds(60);
+                _composerLastLink=IsComposerListingLink(result.url)?result.url:"";SaveComposerPopupState();SaveComposerDrafts();
+                if(_composerLastLink.Length==0)
+                {
+                    _composerResolvingLink=true;await PushComposerStateAsync();
+                    _composerLastLink=await ResolveComposerPublishedLinkAsync(before,draft);
+                    _composerResolvingLink=false;SaveComposerPopupState();
+                }
+            }
+            else
+            {
+                _composerStatusKind="error";_composerStatus.Text=result.message;
+                ApplyComposerServerWait(result);
+            }
         }
-        catch(TimeoutException){_composerUncertain=true;_composerStatus.Text="Sonuç doğrulanamadı. Tekrar göndermeden önce İlanlarım bölümünü kontrol et.";}
-        catch(Exception ex){_composerStatus.Text=ex.Message;_composerStatus.ForeColor=Accent;}
-        finally{if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();_composerTransport=null;}_composerBusy=false;_composerPanel.Enabled=true;UpdateComposerPublishAvailability();SaveComposerDrafts();}
+        catch(TimeoutException)
+        {
+            _composerUncertain=submissionStarted;_composerStatusKind="error";
+            _composerStatus.Text=submissionStarted?"Gönderim sonucu doğrulanamadı. Tekrar göndermeden önce İlanlarım bölümünü kontrol et.":"Itemci formu zamanında yüklenemedi. Bağlantını kontrol edip tekrar deneyebilirsin.";
+        }
+        catch(Exception ex)
+        {
+            _composerUncertain=submissionStarted;_composerStatusKind="error";
+            _composerStatus.Text=ex.Message+(submissionStarted?" Tekrar yayınlamadan önce İlanlarım bölümünü kontrol et.":"");
+        }
+        finally
+        {
+            if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();_composerTransport=null;}
+            _composerResolvingLink=false;_composerBusy=false;_composerPanel.Enabled=true;
+            SaveComposerDrafts();await PushComposerStateAsync();
+        }
     }
     private sealed class ComposerDraft{public string title{get;set;}="";public string description{get;set;}=DefaultComposerDescription;public decimal price{get;set;}=1;public int delivery{get;set;}=1;public int validity{get;set;}=15;public bool stock{get;set;}=true;public bool orders{get;set;}=true;public List<string> paths{get;set;}=new();public bool blocked{get;set;}}
     private sealed class ComposerResult{public bool ok{get;set;}public bool uncertain{get;set;}public int retryAfterSeconds{get;set;}public string message{get;set;}="";public string id{get;set;}="";public string url{get;set;}="";}
