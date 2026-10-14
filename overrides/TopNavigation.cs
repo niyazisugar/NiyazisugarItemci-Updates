@@ -1,0 +1,139 @@
+namespace NiyazisugarItemci;
+
+public sealed partial class MainForm
+{
+    private Panel? _topNavigation;
+    private Panel? _activeTopPanel;
+    private readonly Dictionary<Button, Panel> _topSections = new();
+    private readonly ContextMenuStrip _topMarketMenu = new();
+    private readonly ContextMenuStrip _topCreateMenu = new();
+    private Button? _topMessages;
+
+    private void InstallTopNavigation()
+    {
+        Controls.Remove(_sidebar);
+        _sidebar.Visible = false;
+        _topNavigation = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(21, 24, 30), Padding = new Padding(16, 10, 16, 10) };
+        _topNavigation.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(48, 52, 62));
+            e.Graphics.DrawLine(pen, 0, _topNavigation.Height - 1, _topNavigation.Width, _topNavigation.Height - 1);
+        };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 176));
+        var brand = new Label { Text = "NIYAZISUGAR\nITEMCI  V" + UpdateService.CurrentVersion, Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
+        brand.Click += (_, _) => ShowPanel(_homePanel);
+        layout.Controls.Add(brand, 0, 0);
+        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
+        Button Section(string text, int width, Panel panel, Action click)
+        {
+            var button = TopButton(text, width, click);
+            _topSections.Add(button, panel);
+            menu.Controls.Add(button);
+            return button;
+        }
+        Section("Ana Sayfa", 87, _homePanel, () => ShowPanel(_homePanel));
+        Section("Itemci", 72, _browserPanel, () => ShowPanel(_browserPanel));
+        Section("Satışlar", 78, _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
+        Section("İlanlarım", 85, _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
+        Button? market = null;
+        market = Section("Piyasa Analizi ▾", 131, _marketPanel, () => _topMarketMenu.Show(market!, new Point(0, market!.Height + 6)));
+        Button? create = null;
+        create = TopButton("İlan Oluştur ▾", 117, () => _topCreateMenu.Show(create!, new Point(0, create!.Height + 6)));
+        create.ForeColor = Accent;
+        create.BackColor = Color.FromArgb(49, 42, 30);
+        menu.Controls.Add(create);
+        layout.Controls.Add(menu, 1, 0);
+        var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
+        _topMessages = TopButton("✉ Mesajlar", 122, () =>
+        {
+            ShowPanel(_browserPanel);
+            _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
+        });
+        _sidebarToolTip.SetToolTip(_topMessages, "Itemci mesaj kutusunu aç");
+        var settings = TopButton("⚙", 42, () => ShowPanel(_settingsPanel));
+        _topSections.Add(settings, _settingsPanel);
+        _sidebarToolTip.SetToolTip(settings, "Ayarlar ve güncellemeler");
+        utility.Controls.Add(_topMessages);
+        utility.Controls.Add(settings);
+        layout.Controls.Add(utility, 2, 0);
+        _topNavigation.Controls.Add(layout);
+        Controls.Add(_topNavigation);
+        _topNavigation.BringToFront();
+        _unreadLabel.TextChanged += (_, _) =>
+        {
+            if (_topMessages is not null)
+            {
+                var value = _unreadLabel.Text;
+                _topMessages.Text = value is "0" or "—" or "-" or "" ? "✉ Mesajlar" : "✉ " + value;
+                _sidebarToolTip.SetToolTip(_topMessages, "Mesajlar · " + value);
+            }
+        };
+        foreach (var popup in new[] { _topMarketMenu, _topCreateMenu })
+        {
+            popup.BackColor = Color.FromArgb(26, 29, 36);
+            popup.ForeColor = Color.FromArgb(241, 242, 244);
+            popup.ShowImageMargin = false;
+            popup.Font = new Font("Segoe UI", 10);
+            popup.Renderer = new ToolStripProfessionalRenderer(new TopMenuColors());
+        }
+        FormClosed += (_, _) => { _topMarketMenu.Dispose(); _topCreateMenu.Dispose(); };
+        RebuildSidebarNavigation();
+        SelectTopSection(_homePanel);
+    }
+
+    private Button TopButton(string text, int width, Action click)
+    {
+        var button = new Button { Text = text, Width = width, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(26, 29, 36), ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 0, 4, 0), AutoEllipsis = true };
+        button.FlatAppearance.BorderSize = 0;
+        button.Click += (_, _) => click();
+        return button;
+    }
+
+    private void SelectTopSection(Panel panel)
+    {
+        _activeTopPanel = panel;
+        foreach (var entry in _topSections)
+        {
+            bool selected = ReferenceEquals(entry.Value, panel);
+            entry.Key.BackColor = selected ? Color.FromArgb(59, 49, 32) : Color.FromArgb(26, 29, 36);
+            entry.Key.ForeColor = selected ? Accent : TextMain;
+        }
+    }
+
+    private void RebuildSidebarNavigation()
+    {
+        if (_topNavigation is null) { LegacyRebuildSidebarNavigation(); return; }
+        foreach (var popup in new[] { _topMarketMenu, _topCreateMenu })
+        {
+            while (popup.Items.Count > 0) { var old = popup.Items[0]; popup.Items.RemoveAt(0); old.Dispose(); }
+        }
+        _topMarketMenu.Items.Add("Analiz ve sunucu yönetimi", null, (_, _) => { ShowPanel(_marketPanel); _ = OpenEmbeddedMarketAnalyzerAsync(); });
+        _topMarketMenu.Items.Add("＋ Sunucu ekle", null, (_, _) => { ShowPanel(_marketPanel); _ = OpenMarketAddServerAsync(); });
+        _topMarketMenu.Items.Add(new ToolStripSeparator());
+        foreach (var server in _marketServers.OrderByDescending(s => s.IsDefault).ThenBy(s => s.Name))
+        {
+            var group = new ToolStripMenuItem(server.Name);
+            group.DropDownItems.Add("Analizi çalıştır", null, (_, _) => { ShowPanel(_marketPanel); _ = RunMarketServerAsync(server.Id, server.Name); });
+            group.DropDownItems.Add("Sunucuyu düzenle", null, (_, _) => { ShowPanel(_marketPanel); _ = EditMarketServerAsync(server.Id); });
+            if (!server.IsDefault) group.DropDownItems.Add("Sunucuyu sil", null, (_, _) => _ = DeleteMarketServerAsync(server.Id, server.Name));
+            group.DropDown.BackColor = Color.FromArgb(26, 29, 36);
+            group.DropDown.ForeColor = TextMain;
+            _topMarketMenu.Items.Add(group);
+            _topCreateMenu.Items.Add(server.Name + " · İlan oluştur", null, (_, _) => _ = OpenServerListingCreateAsync(server));
+        }
+        if (_activeTopPanel is not null) SelectTopSection(_activeTopPanel);
+    }
+
+    private sealed class TopMenuColors : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground => Color.FromArgb(26, 29, 36);
+        public override Color MenuItemSelected => Color.FromArgb(59, 49, 32);
+        public override Color MenuItemBorder => Color.FromArgb(216, 180, 106);
+        public override Color MenuBorder => Color.FromArgb(48, 52, 62);
+        public override Color SeparatorDark => Color.FromArgb(48, 52, 62);
+        public override Color SeparatorLight => Color.FromArgb(48, 52, 62);
+    }
+}

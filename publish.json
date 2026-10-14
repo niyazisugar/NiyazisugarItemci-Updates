@@ -1,4 +1,4 @@
 {
-  "version": "2.8.1",
-  "notes": "Satış takibi artık İlanlarım > Satılanlar listesindeki gerçek sipariş ayrıntılarını okur. Tüm sunucular için ürün, sipariş tarihi, saat, satış fiyatı ve %10 düşülmüş net fiyat gösterilir. Gün seçimi, geçmiş taraması, kalıcı kayıt ve sipariş kimliğiyle yinelenen satış koruması eklendi."
+  "version": "2.8.2",
+  "notes": "Sağ panel yerine yatay üst menü eklendi: Ana Sayfa, Itemci, Satışlar, İlanlarım, Piyasa Analizi ve İlan Oluştur. Sunucu analiz/düzenleme/silme ve ilan oluşturma seçenekleri açılır menülerde. Mesaj sayacı ve Ayarlar üst sağda; aktif bölüm altın renkle belirtilir."
 }

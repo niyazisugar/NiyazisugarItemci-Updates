@@ -64,6 +64,7 @@ jobs:
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
           Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
+          Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
           Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
@@ -129,6 +130,9 @@ jobs:
           $mainForm = $mainForm.Replace('public string OrderId { get; set; } = "";', 'public string OrderId { get; set; } = ""; public string ListingId { get; set; } = "";')
           $mainForm = $mainForm.Replace('GrossAmount * 0.10m', 'decimal.Round(GrossAmount * 0.10m, 2, MidpointRounding.AwayFromZero)')
           $mainForm = $mainForm.Replace('sales_history.json', 'sold-sales-history-v2.json')
+          $mainForm = $mainForm.Replace('private void RebuildSidebarNavigation()', 'private void LegacyRebuildSidebarNavigation()')
+          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallTopNavigation();`r`n        PremiumTheme.Apply(this);")
+          $mainForm = $mainForm.Replace('        panel.BringToFront();', "        panel.BringToFront();`r`n        SelectTopSection(panel);")
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Restore main app
