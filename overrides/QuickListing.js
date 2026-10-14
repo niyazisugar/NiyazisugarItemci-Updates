@@ -4,7 +4,7 @@
  const sleep = ms => new Promise(r=>setTimeout(r,ms));
  const visible = el => {const r=el.getBoundingClientRect();return r.width>0 && r.height>0 && getComputedStyle(el).visibility!=='hidden';};
  const safe = el => !el.closest('header,nav,aside') && !el.matches('[type="submit"]');
- const titleInput = () => [...document.querySelectorAll('input,textarea')].find(el=>visible(el)&&/ilan basligi|baslik|title/.test(norm([el.name,el.placeholder,el.getAttribute('aria-label')].join(' '))));
+ const titleInput = () => document.querySelector('form input[type="text"][required][maxlength="150"]') || [...document.querySelectorAll('input,textarea')].find(el=>visible(el)&&/ilan basligi|baslik|title/.test(norm([el.name,el.placeholder,el.getAttribute('aria-label')].join(' '))));
  async function choose(names, timeout=6500) {
   const wanted=names.map(norm);const end=Date.now()+timeout;
   do {

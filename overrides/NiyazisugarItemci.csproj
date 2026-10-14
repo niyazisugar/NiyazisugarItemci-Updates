@@ -48,4 +48,5 @@
   </ItemGroup>
 <ItemGroup><Content Include="ServerSales.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
 <ItemGroup><Content Include="QuickListing.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
+<ItemGroup><Content Include="ListingComposer.js"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
 </Project>

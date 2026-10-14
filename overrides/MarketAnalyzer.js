@@ -2988,6 +2988,16 @@ ${categorySectionsHtml}
         }
         return {rows:[...active.values()],sold,complete,nextCursor:cursor+12,checked};
     };
+    window.__NiyazisugarSaveQuickServer = (name, url) => {
+        const normalized = normalizeServerCategoryUrl(url);
+        if (!name.trim() || !normalized) throw new Error('Sunucu bilgisi geçersiz.');
+        const servers = loadServers();
+        const existing = servers.find(s => normalizeSearchText(s.name) === normalizeSearchText(name));
+        if (existing) existing.url = normalized;
+        else servers.push({id:serverIdFromName(name),name:name.trim(),url:normalized,categories:defaultCategoriesClone()});
+        saveServers(servers);
+        return true;
+    };
     window.__NiyazisugarRunMarket = runAnalysis;
     window.__NiyazisugarMarketVersion = 'V17.1-Desktop';
 

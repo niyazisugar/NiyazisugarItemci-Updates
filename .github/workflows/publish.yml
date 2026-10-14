@@ -26,6 +26,7 @@ jobs:
       - run: node tests/live-market.cjs
       - run: node tests/server-sales.cjs
       - run: node tests/quick-listing.cjs
+      - run: node tests/listing-composer.cjs
 
   publish:
     needs: adblock-test
@@ -75,6 +76,8 @@ jobs:
           Copy-Item "overrides/ServerSales.js" "src/ServerSales.js" -Force
           Copy-Item "overrides/QuickListing.cs" "src/QuickListing.cs" -Force
           Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
+          Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
+          Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
           $settingsSource = $settingsSource.Replace('public bool NotificationsEnabled', 'public string LastQuickListingServer { get; set; } = ""; public bool NotificationsEnabled')
           Set-Content "src/AppSettings.cs" $settingsSource -Encoding utf8
@@ -164,6 +167,7 @@ jobs:
           $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`n    {", "    private void ConfigureAdBlocking(WebView2 view)`n    {`n" + $cookieHook)
           $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")
           $mainForm = $mainForm.Replace('                await InstallAdBlockDomAsync(view);', "                await InstallAdBlockDomAsync(view);`r`n                PositionLiveMarket();")
+          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallListingComposer();`r`n        PremiumTheme.Apply(this);")
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test browser page routing
