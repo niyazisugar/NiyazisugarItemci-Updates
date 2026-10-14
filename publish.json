@@ -1,4 +1,4 @@
 {
-  "version": "2.10.3",
-  "notes": "Hızlı İlan Ekle boş/siyah pencere sorunu düzeltildi: arayüz pencere açıldıktan sonra yerel HTTPS kaynağından başlatılır. Yükleniyor, yeniden dene ve açıklayıcı hata durumları eklendi. Gerçek Windows/WebView2 açılışı, yerel görseller, mesaj köprüsü ve yeniden açma entegrasyon testine alındı."
+  "version": "2.10.4",
+  "notes": "Hızlı İlan Ekle hazırlanıyor durumunda takılma düzeltildi. Popup, WebView2 piyasa yenileme dönüşü tamamlandıktan sonra ayrı bir UI işleminde açılır. Ortak tarayıcı oturumunda gerçek WebView2 callback akışından popup açma ve yeniden açma Windows entegrasyon testleri eklendi."
 }

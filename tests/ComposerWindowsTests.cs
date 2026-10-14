@@ -12,22 +12,41 @@ internal static class ComposerWindowsTests
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         using var owner=new Form{Text="Mesajlar · Windows integration test",Size=new Size(500,400)};
-        owner.Shown+=(_,_)=>
+        using var browser=new WebView2{Dock=DockStyle.Fill};owner.Controls.Add(browser);
+        using var deadline=new System.Windows.Forms.Timer{Interval=90000};
+        deadline.Tick+=(_,_)=>{_failure=new TimeoutException("Modal popup did not finish from a WebView2 callback.");foreach(Form form in Application.OpenForms.Cast<Form>().ToArray())if(!ReferenceEquals(form,owner))form.Close();owner.Close();};
+        owner.Shown+=async(_,_)=>
         {
             try
             {
+                deadline.Start();
                 Console.WriteLine("WebView2 runtime: "+CoreWebView2Environment.GetAvailableBrowserVersionString());
-                for(var cycle=0;cycle<2;cycle++)TestPopup(owner,cycle);
-                Console.WriteLine("PASS: actual modal WinForms/WebView2 popup loads on Shown, receives native draft, renders mapped image, sends save message, captures rendered pixels and reopens.");
+                var profile=Path.Combine(Path.GetTempPath(),"itemci-modal-test-"+Guid.NewGuid().ToString("N"));
+                var environment=await CoreWebView2Environment.CreateAsync(null,profile);
+                await browser.EnsureCoreWebView2Async(environment);
+                browser.CoreWebView2.WebMessageReceived+=async(_,_)=>
+                {
+                    try
+                    {
+                        // Reproduce the app's market-refresh ExecuteScriptAsync
+                        // continuation and a genuine WebView2 callback, sharing
+                        // the active site's browser environment.
+                        await browser.CoreWebView2.ExecuteScriptAsync("JSON.stringify([{id:'sezar2',name:'Sezar2'}])");
+                        for(var cycle=0;cycle<2;cycle++)await TestPopupAsync(owner,environment,cycle);
+                        Console.WriteLine("PASS: popup opens from WebView2 callback/ExecuteScriptAsync continuation using shared environment, loads native draft and mapped images, sends save message, renders pixels and reopens without reentrancy lock.");
+                    }
+                    catch(Exception ex){_failure=ex;Console.Error.WriteLine(ex);}
+                    finally{deadline.Stop();owner.BeginInvoke(new Action(()=>owner.Close()));}
+                };
+                browser.CoreWebView2.NavigateToString("<html><body>Mesajlar: popup test owner<script>chrome.webview.postMessage({ready:true});</script></body></html>");
             }
-            catch(Exception ex){_failure=ex;Console.Error.WriteLine(ex);}
-            finally{owner.Close();}
+            catch(Exception ex){_failure=ex;Console.Error.WriteLine(ex);owner.Close();}
         };
         Application.Run(owner);
         return _failure is null?0:1;
     }
 
-    private static void TestPopup(Form owner,int cycle)
+    private static async Task TestPopupAsync(Form owner,CoreWebView2Environment environment,int cycle)
     {
         var root=Path.Combine(Path.GetTempPath(),"itemci-composer-windows-"+Guid.NewGuid().ToString("N"));
         var images=Path.Combine(root,"images");Directory.CreateDirectory(images);
@@ -55,7 +74,6 @@ internal static class ComposerWindowsTests
         {
             try
             {
-                var environment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(root,"profile"));
                 await surface.LoadAsync(environment,AppContext.BaseDirectory,images,CancellationToken.None);
                 overlay.Visible=false;view.BringToFront();
                 await AssertEventually(view,"document.querySelector('h1')?.textContent==='Hızlı İlan Ekle' && document.getElementById('title').value==='Windows açılış testi' && document.getElementById('cover').naturalWidth===32 && getComputedStyle(document.querySelector('.app')).display!=='none'");
@@ -76,7 +94,7 @@ internal static class ComposerWindowsTests
             catch(Exception ex){_failure=ex;Console.Error.WriteLine(ex);}
             finally{popup.Close();}
         };
-        popup.ShowDialog(owner);
+        await ComposerModal.ShowAsync(owner,popup);
         if(_failure is not null)throw _failure;
     }
     private static async Task AssertEventually(WebView2 view,string script)

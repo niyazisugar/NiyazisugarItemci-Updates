@@ -100,7 +100,7 @@ public sealed partial class MainForm
             retry.Click+=async(_,_)=>await LoadSurfaceAsync();
             popup.Shown+=async(_,_)=>await LoadSurfaceAsync();
             PremiumTheme.Apply(popup);
-            popup.ShowDialog(this);
+            await ComposerModal.ShowAsync(this,popup);
         }
         catch(Exception ex){_composerStatus.Text="Hızlı ilan penceresi açılamadı: "+ex.Message;MessageBox.Show(this,_composerStatus.Text,"Hızlı İlan Ekle",MessageBoxButtons.OK,MessageBoxIcon.Information);}
         finally

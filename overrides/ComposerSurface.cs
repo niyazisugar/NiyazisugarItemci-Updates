@@ -27,6 +27,8 @@ internal sealed class ComposerSurface : IDisposable
         var core=_view.CoreWebView2;
         if(!_configured)
         {
+            core.Settings.IsScriptEnabled=true;
+            core.Settings.IsWebMessageEnabled=true;
             core.Settings.AreDefaultContextMenusEnabled=false;
             core.Settings.AreDevToolsEnabled=false;
             core.Settings.AreDefaultScriptDialogsEnabled=false;
@@ -45,7 +47,7 @@ internal sealed class ComposerSurface : IDisposable
         _navigation=new(TaskCreationOptions.RunContinuationsAsynchronously);
         core.Navigate(PageUrl);
         await Task.WhenAll(_ready.Task,_navigation.Task).WaitAsync(TimeSpan.FromSeconds(25),cancellationToken);
-        var rendered=await core.ExecuteScriptAsync("!!document.querySelector('.app') && document.querySelector('h1')?.textContent === 'Hızlı İlan Ekle' && typeof window.__composerReceive === 'function'");
+        var rendered=await core.ExecuteScriptAsync("!!document.querySelector('.app') && document.querySelector('h1')?.textContent === 'Hızlı İlan Ekle' && typeof window.__composerReceive === 'function'").WaitAsync(TimeSpan.FromSeconds(8),cancellationToken);
         if(rendered!="true")throw new IOException("İlan arayüzü yüklenemedi. Yeniden Dene ile tekrar açabilirsin.");
     }
 

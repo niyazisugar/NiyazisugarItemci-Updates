@@ -85,6 +85,7 @@ jobs:
           Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
           Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
           Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
+          Copy-Item "overrides/ComposerModal.cs" "src/ComposerModal.cs" -Force
           Copy-Item "overrides/ComposerView.html" "src/ComposerView.html" -Force
           Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
