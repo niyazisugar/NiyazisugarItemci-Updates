@@ -84,6 +84,7 @@ jobs:
           Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
           Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
           Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
+          Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
           Copy-Item "overrides/ComposerView.html" "src/ComposerView.html" -Force
           Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
@@ -180,6 +181,25 @@ jobs:
 
       - name: Test browser page routing
         run: dotnet run --project tests/BrowserRulesTests.csproj -c Release
+
+      - name: Ensure WebView2 runtime for Windows integration test
+        shell: pwsh
+        run: |
+          $runtimeRoot = "${env:ProgramFiles(x86)}/Microsoft/EdgeWebView/Application"
+          if (-not (Test-Path $runtimeRoot)) {
+            Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile "$env:RUNNER_TEMP/WebView2Setup.exe"
+            Start-Process "$env:RUNNER_TEMP/WebView2Setup.exe" -ArgumentList '/silent','/install' -Wait
+          }
+
+      - name: Test actual Windows composer popup
+        timeout-minutes: 5
+        run: dotnet run --project tests/ComposerWindowsTests.csproj -c Release
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-listing-windows-screenshots
+          path: test-results/quick-listing-windows-*.png
 
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj

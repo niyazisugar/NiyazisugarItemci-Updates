@@ -60,24 +60,46 @@ public sealed partial class MainForm
             {
                 if(_composerBusy||_composerAddingServer){e.Cancel=true;_composerStatus.Text="İşlem devam ediyor. Sonuç geldikten sonra pencereyi kapatabilirsin.";_=PushComposerStateAsync();}
             };
-            PremiumTheme.Apply(popup);
-            await view.EnsureCoreWebView2Async(_browserEnvironment);
-            var core=view.CoreWebView2;
-            core.Settings.AreDefaultContextMenusEnabled=false;
-            core.Settings.AreDevToolsEnabled=false;
-            core.Settings.AreDefaultScriptDialogsEnabled=false;
-            core.Settings.IsStatusBarEnabled=false;
-            core.Settings.IsZoomControlEnabled=false;
-            core.SetVirtualHostNameToFolderMapping("composer-images.local",ComposerImagesFolder,CoreWebView2HostResourceAccessKind.DenyCors);
-            core.NewWindowRequested+=(_,e)=>e.Handled=true;
-            core.NavigationStarting+=(_,e)=>{if(e.Uri!="about:blank")e.Cancel=true;};
-            core.WebMessageReceived+=async(_,e)=>
+            var loading=new Panel{Dock=DockStyle.Fill,BackColor=Color.FromArgb(16,25,31),Padding=new Padding(36)};
+            var loadingText=new Label{Dock=DockStyle.Top,Height=160,ForeColor=Color.FromArgb(217,231,238),Font=new Font("Segoe UI",12),Text="Hızlı İlan Ekle hazırlanıyor…"};
+            var retry=new Button{Text="Yeniden Dene",Width=150,Height=42,Top=210,Left=36,Visible=false,BackColor=Color.FromArgb(46,219,211),ForeColor=Color.FromArgb(9,39,42),FlatStyle=FlatStyle.Flat};
+            var copyError=new Button{Text="Hata Bilgisini Kopyala",Width=200,Height=42,Top=264,Left=36,Visible=false,BackColor=Card,ForeColor=TextMain,FlatStyle=FlatStyle.Flat};
+            copyError.Click+=(_,_)=>Clipboard.SetText(loadingText.Text);
+            loading.Controls.Add(loadingText);loading.Controls.Add(retry);loading.Controls.Add(copyError);
+            popup.Controls.Add(loading);loading.BringToFront();
+            using var lifetime=new CancellationTokenSource();
+            popup.FormClosed+=(_,_)=>lifetime.Cancel();
+            void Failed(string message)
             {
-                if(e.Source!="about:blank")return;
-                try{using var json=JsonDocument.Parse(e.WebMessageAsJson);await HandleComposerMessageAsync(json.RootElement.Clone());}
-                catch(Exception ex){_composerStatusKind="error";_composerStatus.Text="İşlem tamamlanamadı: "+ex.Message;await PushComposerStateAsync();}
-            };
-            core.NavigateToString(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"ComposerView.html")));
+                if(popup.IsDisposed||lifetime.IsCancellationRequested)return;
+                _composerViewReady=false;loadingText.Text="Hızlı İlan Ekle açılamadı.\r\n\r\n"+message;
+                retry.Visible=true;copyError.Visible=true;loading.Visible=true;loading.BringToFront();
+                try{File.AppendAllText(Path.Combine(Path.GetDirectoryName(ComposerPopupStatePath)!,"composer-view.log"),DateTime.UtcNow.ToString("O")+" "+message+Environment.NewLine);}catch{}
+            }
+            using var surface=new ComposerSurface(view,async text=>
+            {
+                using var json=JsonDocument.Parse(text);
+                await HandleComposerMessageAsync(json.RootElement.Clone());
+            },Failed);
+            var starting=false;
+            async Task LoadSurfaceAsync()
+            {
+                if(starting||lifetime.IsCancellationRequested)return;
+                starting=true;_composerViewReady=false;retry.Visible=false;copyError.Visible=false;
+                loadingText.Text="Hızlı İlan Ekle hazırlanıyor…";loading.Visible=true;loading.BringToFront();
+                try
+                {
+                    await surface.LoadAsync(_browserEnvironment,AppContext.BaseDirectory,ComposerImagesFolder,lifetime.Token);
+                    if(!lifetime.IsCancellationRequested){view.Visible=true;loading.Visible=false;view.BringToFront();await PushComposerStateAsync(true,true);}
+                }
+                catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}
+                catch(TimeoutException){Failed("Arayüz zamanında yüklenemedi. Yeniden Dene ile tekrar açabilirsin.");}
+                catch(Exception ex){Failed(ex.Message);}
+                finally{starting=false;}
+            }
+            retry.Click+=async(_,_)=>await LoadSurfaceAsync();
+            popup.Shown+=async(_,_)=>await LoadSurfaceAsync();
+            PremiumTheme.Apply(popup);
             popup.ShowDialog(this);
         }
         catch(Exception ex){_composerStatus.Text="Hızlı ilan penceresi açılamadı: "+ex.Message;MessageBox.Show(this,_composerStatus.Text,"Hızlı İlan Ekle",MessageBoxButtons.OK,MessageBoxIcon.Information);}

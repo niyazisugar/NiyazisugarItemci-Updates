@@ -1,4 +1,4 @@
 {
-  "version": "2.10.2",
-  "notes": "Hızlı İlan Ekle yenilendi: antrasit/turkuaz popup, canlı ilan önizlemesi, kapak seçimi ve sürüklenebilir görsel kartları, kalıcı hazır görsel galerisi, sabit işlem çubuğu ve küçük ekran desteği. Sunucu ekleme, taslaklar ve mevcut komisyon hesabı korunur. Gerçek ilan linki kopyalama/açma, yayınlama kilidi ve bekleme sayacı geliştirildi."
+  "version": "2.10.3",
+  "notes": "Hızlı İlan Ekle boş/siyah pencere sorunu düzeltildi: arayüz pencere açıldıktan sonra yerel HTTPS kaynağından başlatılır. Yükleniyor, yeniden dene ve açıklayıcı hata durumları eklendi. Gerçek Windows/WebView2 açılışı, yerel görseller, mesaj köprüsü ve yeniden açma entegrasyon testine alındı."
 }
