@@ -264,7 +264,7 @@ public sealed partial class MainForm
         {
             var url=await DiscoverLoggedInStoreUrlAsync();if(string.IsNullOrWhiteSpace(url))return null;
             var html=await FetchItemciHtmlAsync(url).WaitAsync(TimeSpan.FromSeconds(8));if(string.IsNullOrWhiteSpace(html))return null;
-            var listings=ParseCurrentListings(html,url);
+            var listings=ParseCurrentListings(html,url);if(listings.Count==0)return null;
             return new ComposerStoreSnapshot{url=url,urls=listings.Select(l=>l.Url).ToHashSet(StringComparer.OrdinalIgnoreCase)};
         }
         catch{return null;}

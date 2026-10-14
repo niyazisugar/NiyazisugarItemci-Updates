@@ -56,7 +56,7 @@ const description='Ürün hakkında detaylı bilgi almak için mesaj gönderebil
   const footer=await page.locator('.footer').boundingBox(),button=await page.locator('#publish').boundingBox();
   assert(footer.y>=0&&footer.y+footer.height<=size.height+1);assert(button.x>=0&&button.x+button.width<=size.width+1);assert(button.y+button.height<=size.height+1);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal clipping');
-  if(size.width===480){await page.locator('#scroll').evaluate(el=>el.scrollTop=0);await page.screenshot({path:'test-results/quick-listing-small.png'});}
+  if(size.width===480){await page.locator('#scroll').evaluate(el=>el.scrollTop=0);await page.locator('#toast').evaluate(el=>el.hidden=true);await page.screenshot({path:'test-results/quick-listing-small.png'});}
  }
  assert.deepEqual(errors,[]);
  console.log('PASS: live title/description/price/commission preview, one publish request, busy/uncertain/cooldown guards, true link actions, cover selection, drag order, image removal, 4-image gallery limit, add-server messaging, responsive fixed footer.');
