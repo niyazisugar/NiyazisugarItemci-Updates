@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "275";
+    const VERSION = "276";
     const FLAG = `__niyazisugarAdBlockInstalledV${VERSION}`;
     const REFRESH = `__niyazisugarAdBlockRefreshV${VERSION}`;
 
@@ -33,6 +33,9 @@
     const style = document.createElement("style");
     style.id = `niyazisugar-adblock-style-v${VERSION}`;
     style.textContent = `
+        .top-ad-bleed,
+        a[title="Reklam" i]:has(img),
+        a[aria-label="Reklam" i]:has(img),
         iframe[src*="doubleclick.net" i],
         iframe[src*="googlesyndication.com" i],
         iframe[src*="googletagservices.com" i],
@@ -137,7 +140,7 @@
     }
 
     function safeHide(el) {
-        if (!el || !el.isConnected || !el.style || isProtected(el))
+        if (!el || !el.isConnected || !el.style || el.dataset.niyazisugarAdBlocked === "1" || isProtected(el))
             return false;
 
         const r = el.getBoundingClientRect();
@@ -211,6 +214,32 @@
 
             if (looksLikeAdUrl(url))
                 safeHide(el);
+        }
+    }
+
+    // Itemci labels its own banners explicitly. Do not depend on their
+    // rendered dimensions: side banners can be tall, narrow or initially hidden.
+    function hideExplicitItemciAds() {
+        for (const link of document.querySelectorAll(
+            'a[title="Reklam" i],a[aria-label="Reklam" i]'
+        )) {
+            if (!link.querySelector("img,picture,video")) continue;
+            const top = link.closest(".top-ad-bleed");
+            if (top) {
+                safeHide(top);
+                continue;
+            }
+            let box = link;
+            for (let parent = link.parentElement, i = 0;
+                 parent && i < 2; parent = parent.parentElement, i++) {
+                if (isProtected(parent) || parent.querySelectorAll("a[href]").length !== 1)
+                    break;
+                if (getComputedStyle(parent).position === "fixed") {
+                    box = parent;
+                    break;
+                }
+            }
+            safeHide(box);
         }
     }
 
@@ -386,6 +415,7 @@
     }
 
     function scan() {
+        try { hideExplicitItemciAds(); } catch { }
         try { hideKnownNetworkFrames(); } catch { }
         try { hideItemciImageAds(); } catch { }
         try { hideTextAndOverlayAds(); } catch { }
@@ -401,13 +431,18 @@
             return;
 
         scheduled = true;
-        requestAnimationFrame(() => {
+        setTimeout(() => {
             scheduled = false;
             scan();
-        });
+        }, 150);
     };
 
-    const observer = new MutationObserver(scheduleScan);
+    const observer = new MutationObserver(records => {
+        // Ignore our own hiding writes and changes within already hidden ads.
+        if (records.some(record => !record.target.closest?.(
+            '[data-niyazisugar-ad-blocked="1"]'
+        ))) scheduleScan();
+    });
     observer.observe(document.documentElement, {
         childList: true,
         subtree: true,

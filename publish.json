@@ -1,4 +1,4 @@
 {
-  "version": "2.7.5",
-  "notes": "REKLAM ENGELLEYICI DUZELTMESI: Itemci'nin kendi banner/kampanya reklamlarini yakalayan yeni DOM filtresi eklendi. Google/DoubleClick ve diger yaygin reklam aglari genisletildi. Gec yuklenen ve sonradan DOM'a eklenen reklamlar da tekrar taraniyor. Login/kayit sayfalari guvenli modda korunmaya devam ediyor."
+  "version": "2.7.6",
+  "notes": "Reklam engelleyici düzeltildi: Itemci üst ve uzun yan reklamları doğrudan Reklam etiketleriyle yakalanıyor. Sonradan yüklenen reklamlar filtreleniyor. Tekrarlayan DOM taramaları azaltıldı. Ürün ve giriş formları korunuyor."
 }

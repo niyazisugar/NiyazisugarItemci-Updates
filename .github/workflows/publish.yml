@@ -11,7 +11,20 @@ permissions:
   contents: write
 
 jobs:
+  adblock-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --package-lock=false playwright@1.61.1
+      - run: npx playwright install --with-deps chromium
+      - run: node --check overrides/AdBlock.js
+      - run: node tests/adblock.cjs
+
   publish:
+    needs: adblock-test
     runs-on: windows-latest
 
     steps:
