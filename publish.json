@@ -1,4 +1,4 @@
 {
   "version": "2.8.6",
-  "notes": "Sol radar yerine Server Satışları takip paneli eklendi. Kayıtlı tüm sunucular arka planda taranır; listeden çıkan ilanlar kendi sayfalarında açık satıldı işaretiyle doğrulanır. Yeni doğrulananlar üstte; sunucu seçimi ve kalıcı kayıt var. Silinen/404 ilanlar satış sayılmaz. Gösterilen zaman tespit zamanı, fiyat son görülen ilan fiyatıdır; geçmiş günün tüm satışları garanti edilmez."
+  "notes": "Sol radar yerine Server Satışları takip paneli eklendi. Kayıtlı tüm sunucular arka planda taranır; listeden çıkan ilanlar kendi sayfalarında açık satıldı işaretiyle doğrulanır. Yeni doğrulanan kayıtlar en üstte; sunucu seçimi ve kalıcı kayıt var. Silinen/404 ilanlar satış sayılmaz. Gösterilen zaman tespit zamanı, fiyat son görülen ilan fiyatıdır; geçmiş günün tüm satışları garanti edilmez."
 }

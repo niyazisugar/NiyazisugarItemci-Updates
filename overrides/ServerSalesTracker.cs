@@ -106,7 +106,7 @@ public sealed partial class MainForm
                     }
                     state.cursor = scan.nextCursor;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
-                    state.status = scan.complete ? $"{DateTime.Now:HH:mm} · İzleniyor" : "Tarama eksik; kaybolan ilanlar değerlendirilmedi";
+                    state.status = scan.complete ? $"{state.known.Count} ilan · {DateTime.Now:HH:mm}" : "Tarama eksik; kaybolan ilanlar değerlendirilmedi";
                 }
                 catch { state.status = "Kontrol başarısız; sonraki turda tekrar denenecek"; }
                 RenderServerSalesWatch();
@@ -134,6 +134,5 @@ public sealed partial class MainForm
         public List<LiveListing> sold {get;set;} = new();
         public bool complete {get;set;}
         public int nextCursor {get;set;}
-        public int checked {get;set;}
     }
 }
