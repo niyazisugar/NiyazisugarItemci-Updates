@@ -32,7 +32,13 @@ const description='Ürün hakkında detaylı bilgi almak için mesaj gönderebil
  assert(await page.locator('#publish').isDisabled());assert(await page.locator('#link-actions').isVisible());
  await page.locator('#copy-link').click();await page.locator('#open-link').click();assert.equal(await page.evaluate(()=>window.messages.at(-1).action),'openLink');
  await page.evaluate(s=>window.__composerReceive({...s,remaining:0}),base);assert(await page.locator('#publish').isEnabled(),'timer completion must unlock publishing');
- await page.evaluate(s=>window.__composerReceive({...s,uncertain:true}),base);assert(await page.locator('#publish').isDisabled(),'uncertain results cannot auto-repeat');
+ await page.evaluate(s=>window.__composerReceive({...s,serverId:'sezar2',uncertain:true}),base);assert(await page.locator('#publish').isDisabled(),'uncertain results cannot auto-repeat');
+ assert(await page.locator('#unlock-draft').isVisible());await page.locator('#unlock-draft').click();assert.equal(await page.evaluate(()=>window.messages.at(-1).action),'unlockDraft');
+ await page.evaluate(s=>window.__composerReceive({...s,serverId:'sezar2',uncertain:false}),base);assert(await page.locator('#publish').isEnabled(),'Sezar selection must enable publishing after an explicitly cleared draft lock');
+ // Countdown/status updates may not recreate images or run the preview renderer.
+ const stable=await page.evaluate(async()=>{let mutations=0;const observer=new MutationObserver(rs=>mutations+=rs.length);observer.observe(document.querySelector('.preview-cover'),{subtree:true,childList:true});for(let i=10;i>0;i--)window.__composerReceive({remaining:i,busy:false,uncertain:false,message:'Bekleniyor.'});await Promise.resolve();observer.disconnect();return mutations;});
+ assert.equal(stable,0,'countdown must not repeatedly rebuild preview image nodes');
+
  const imgs=[1,2,3,4,5].map(n=>({id:`image-${n}.png`,name:`Hazır görsel ${n}`,url:`https://composer-images.local/image-${n}.png`}));
  await page.evaluate(({base,imgs})=>window.__composerReceive({...base,draft:{...base.draft,stock:false,images:imgs.slice(0,3)},gallery:imgs}),{base,imgs});
  assert.equal(await page.locator('#images .image-card').count(),3);

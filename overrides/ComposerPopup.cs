@@ -15,6 +15,7 @@ public sealed partial class MainForm
     private string _composerStatusKind="idle";
     private bool _composerResolvingLink;
     private bool _composerAddingServer;
+    private bool _composerTickHadCountdown;
     private readonly System.Windows.Forms.Timer _composerCooldownTimer=new(){Interval=1000};
     private string ComposerImagesFolder=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"NiyazisugarItemci","ListingImages");
     private string ComposerPopupStatePath=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"NiyazisugarItemci","composer-state.json");
@@ -31,7 +32,7 @@ public sealed partial class MainForm
         }
         catch { }
         _composerCooldownTimer.Tick+=(_,_)=>UpdateComposerPublishAvailability();
-        _composerCooldownTimer.Start();
+
         FormClosed+=(_,_)=>_composerCooldownTimer.Dispose();
     }
 
@@ -42,8 +43,10 @@ public sealed partial class MainForm
         _composerPopupOpening=true;
         try
         {
-            if(_marketWebReady)await RefreshMarketServersAsync();
+            // Use the already synchronized server list. A background market scan
+            // must never delay opening the local composer.
             RefreshComposerServerChoices();
+            _composerCooldownTimer.Start();
             Directory.CreateDirectory(ComposerImagesFolder);
             var area=Screen.FromControl(this).WorkingArea;
             using var popup=new Form
@@ -90,7 +93,7 @@ public sealed partial class MainForm
                 try
                 {
                     await surface.LoadAsync(_browserEnvironment,AppContext.BaseDirectory,ComposerImagesFolder,lifetime.Token);
-                    if(!lifetime.IsCancellationRequested){view.Visible=true;loading.Visible=false;view.BringToFront();await PushComposerStateAsync(true,true);}
+                    if(!lifetime.IsCancellationRequested){view.Visible=true;loading.Visible=false;view.BringToFront();await PushComposerStateAsync(true);}
                 }
                 catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}
                 catch(TimeoutException){Failed("Arayüz zamanında yüklenemedi. Yeniden Dene ile tekrar açabilirsin.");}
@@ -105,7 +108,7 @@ public sealed partial class MainForm
         catch(Exception ex){_composerStatus.Text="Hızlı ilan penceresi açılamadı: "+ex.Message;MessageBox.Show(this,_composerStatus.Text,"Hızlı İlan Ekle",MessageBoxButtons.OK,MessageBoxIcon.Information);}
         finally
         {
-            SaveComposerDrafts();_composerViewReady=false;_composerView=null;_composerPopup=null;_composerPopupOpening=false;
+            SaveComposerDrafts();_composerCooldownTimer.Stop();_composerTickHadCountdown=false;_composerViewReady=false;_composerView=null;_composerPopup=null;_composerPopupOpening=false;
         }
     }
 
@@ -122,7 +125,7 @@ public sealed partial class MainForm
     private async Task HandleComposerMessageAsync(JsonElement message)
     {
         var action=message.GetProperty("action").GetString();
-        if(action=="ready"){_composerViewReady=true;await PushComposerStateAsync(true,true);return;}
+        if(action=="ready"){_composerViewReady=true;await PushComposerStateAsync(true);return;}
         if(_composerBusy||_composerAddingServer){await PushComposerStateAsync();return;}
         if(message.TryGetProperty("draft",out var draft))ApplyComposerWebDraft(draft);
         switch(action)
@@ -138,6 +141,10 @@ public sealed partial class MainForm
                 _composerStatusKind="idle";
                 if(SaveComposerDrafts())_composerStatus.Text="Taslak kaydedildi.";
                 await PushComposerStateAsync();break;
+            case "unlockDraft":
+                _composerUncertain=false;_composerStatusKind="idle";
+                _composerStatus.Text="Taslak kilidi kaldırıldı. Yayınlamadan önce önceki ilanın İlanlarım bölümünde olmadığını kontrol et.";
+                SaveComposerDrafts();await PushComposerStateAsync();break;
             case "newDraft":
                 _composerLoading=true;_composerTitle.Clear();_composerPrice.Value=1;_composerImages.Items.Clear();
                 _composerDescription.Text=DefaultComposerDescription;_composerStock.Checked=true;_composerOrders.Checked=true;
@@ -250,7 +257,9 @@ public sealed partial class MainForm
     private void UpdateComposerPublishAvailability()
     {
         if(_composerPublish is not null)_composerPublish.Enabled=!_composerBusy&&!_composerUncertain&&DateTime.UtcNow>=_composerCooldownUntilUtc;
-        _=PushComposerStateAsync();
+        var countdown=DateTime.UtcNow<_composerCooldownUntilUtc;
+        if(countdown||_composerTickHadCountdown)_=PushComposerStateAsync();
+        _composerTickHadCountdown=countdown;
     }
     private void ApplyComposerServerWait(ComposerResult result)
     {
@@ -263,6 +272,7 @@ public sealed partial class MainForm
     private async Task AddComposerServerFromWebAsync(string name,string url)
     {
         _composerAddingServer=true;
+        _marketWebView.CoreWebView2?.Resume();
         try
         {
             name=name.Trim();
@@ -276,7 +286,7 @@ public sealed partial class MainForm
             await PushComposerStateAsync(true,false,new{ok=true});
         }
         catch(Exception ex){await PushComposerStateAsync(false,false,new{ok=false,message=ex.Message});}
-        finally{_composerAddingServer=false;}
+        finally{_composerAddingServer=false;await SuspendIdleMarketAsync();}
     }
 
     // Use the owner's observed store, never a fabricated listing URL or somebody else's profile.

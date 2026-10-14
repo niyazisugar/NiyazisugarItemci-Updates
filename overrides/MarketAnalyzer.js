@@ -2805,6 +2805,7 @@ ${categorySectionsHtml}
         return loadServers().map(s => ({
             id: s.id,
             name: s.name,
+            url: s.url,
             categoryCount: categoriesForServer(s).length,
             isDefault: s.id === DEFAULT_SERVER.id
         }));

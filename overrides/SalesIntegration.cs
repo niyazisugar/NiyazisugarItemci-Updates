@@ -117,7 +117,7 @@ public sealed partial class MainForm
         _soldScanView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         _soldScanView.CoreWebView2.NewWindowRequested += (_, e) => e.Handled = true;
         ConfigureAdBlocking(_soldScanView);
-        FormClosed += (_, _) => _soldScanView?.Dispose();
+
     }
 
     private async Task NavigateSoldPageAsync(int page)
@@ -240,7 +240,7 @@ public sealed partial class MainForm
             if (_soldScanView is not null) { Controls.Remove(_soldScanView); _soldScanView.Dispose(); _soldScanView = null; }
             if (showErrors) MessageBox.Show(ex.Message, "Satış takibi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-        finally { _soldScanBusy = false; }
+        finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; }
     }
 
     private sealed class SoldScanResult

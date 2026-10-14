@@ -6,6 +6,7 @@ const assert = require('assert/strict');
  const page=await browser.newPage();
  const source=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarLiveListings = async','    window.__testLiveRow = liveListingRow;\n    window.__NiyazisugarLiveListings = async');
  await page.addScriptTag({content:source});
+ const exposed=await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()));assert(exposed.every(s=>typeof s.url==='string'&&s.url.startsWith('https://itemci.com/categories/')),'desktop server export must retain real category URLs');
  const result=await page.evaluate(()=>{
  const server={id:'test',name:'Test',url:'https://itemci.com/categories/test',categories:[
  {id:'yang',name:'Yang',mode:'token',tokens:['KT'],keywords:[],unitLabel:'KT'},

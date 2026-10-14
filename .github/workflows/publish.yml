@@ -86,6 +86,7 @@ jobs:
           Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
           Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
           Copy-Item "overrides/ComposerModal.cs" "src/ComposerModal.cs" -Force
+          Copy-Item "overrides/ResourceManagement.cs" "src/ResourceManagement.cs" -Force
           Copy-Item "overrides/ComposerView.html" "src/ComposerView.html" -Force
           Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
           $settingsSource = Get-Content "src/AppSettings.cs" -Raw
@@ -178,6 +179,13 @@ jobs:
           $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")
           $mainForm = $mainForm.Replace('                await InstallAdBlockDomAsync(view);', "                await InstallAdBlockDomAsync(view);`r`n                PositionLiveMarket();")
           $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallListingComposer();`r`n        PremiumTheme.Apply(this);")
+          $mainForm = $mainForm.Replace('        InstallListingComposer();', "        InstallListingComposer();`r`n        InstallResourceManagement();")
+          # Resume the shared market worker before explicitly reading or editing its data.
+          foreach ($method in @('RefreshMarketServersAsync()', 'OpenEmbeddedMarketAnalyzerAsync()', 'OpenMarketAddServerAsync()', 'RunMarketServerAsync(', 'EditMarketServerAsync(', 'DeleteMarketServerAsync(')) {
+            $escaped = [regex]::Escape($method)
+            $pattern = '(private async Task[^\r\n]*' + $escaped + '[^\{]*\{)'
+            $mainForm = [regex]::Replace($mainForm, $pattern, '$1' + "`r`n        _marketWebView.CoreWebView2?.Resume();", 1)
+          }
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test browser page routing

@@ -429,7 +429,9 @@
         }
     }
 
+    let lastFullScan=0;
     function scan() {
+        lastFullScan=Date.now();
         try { hideWelcomePopup(); } catch { }
         try { hideExplicitItemciAds(); } catch { }
         try { hideKnownNetworkFrames(); } catch { }
@@ -442,6 +444,15 @@
     window[REFRESH] = scan;
 
     let scheduled = false;
+    let fullScanTimer=null;
+    function mutationScan(){
+        // Dismiss the known popup immediately; don't repeatedly force layout
+        // over every page element during chat, animation or list mutations.
+        try{hideWelcomePopup();hideExplicitItemciAds();hideKnownNetworkFrames();hideItemciImageAds();hideAttributeAds();}catch{}
+        const wait=1500-(Date.now()-lastFullScan);
+        if(wait<=0){if(fullScanTimer)clearTimeout(fullScanTimer);fullScanTimer=null;scan();}
+        else if(!fullScanTimer)fullScanTimer=setTimeout(()=>{fullScanTimer=null;scan();},wait);
+    }
     const scheduleScan = () => {
         if (scheduled)
             return;
@@ -449,7 +460,7 @@
         scheduled = true;
         setTimeout(() => {
             scheduled = false;
-            scan();
+            mutationScan();
         }, 150);
     };
 

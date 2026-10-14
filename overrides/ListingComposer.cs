@@ -83,7 +83,7 @@ public sealed partial class MainForm
         var missing=false;
         foreach(var path in draft.paths.Take(4))
         {
-            try{var saved=SaveComposerLibraryImage(path);if(!_composerImages.Items.Contains(saved))_composerImages.Items.Add(saved);}
+            try{var saved=ResolveComposerImageId(Path.GetFileName(path))??SaveComposerLibraryImage(path);if(!_composerImages.Items.Contains(saved))_composerImages.Items.Add(saved);}
             catch{missing=true;}
         }
         _composerLoading=false;_composerUncertain=draft.blocked;

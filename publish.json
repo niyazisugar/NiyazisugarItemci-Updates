@@ -1,4 +1,4 @@
 {
-  "version": "2.10.4",
-  "notes": "Hızlı İlan Ekle hazırlanıyor durumunda takılma düzeltildi. Popup, WebView2 piyasa yenileme dönüşü tamamlandıktan sonra ayrı bir UI işleminde açılır. Ortak tarayıcı oturumunda gerçek WebView2 callback akışından popup açma ve yeniden açma Windows entegrasyon testleri eklendi."
+  "version": "2.11.0",
+  "notes": "Hızlı ilan açılışı piyasa taramasını beklemez. Sezar dahil sunucu kategori bağlantıları korunur; belirsiz taslak kilidi nedenini gösteren ve taslağı silmeden kaldırabilen işlem eklendi. Önizleme ve galeri gereksiz yeniden yüklenmez. İşlem bittiğinde satış tarayıcısı kapatılır; boşta piyasa tarayıcısı askıya alınır. Satış paneli yalnızca değişen veride yeniden çizilir, kayıtlar sayfalı gösterilir. Reklam engelleyicinin pahalı DOM taramaları sınırlandı."
 }
