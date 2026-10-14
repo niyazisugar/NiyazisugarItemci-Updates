@@ -66,8 +66,14 @@ public sealed partial class MainForm
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};
         RenderSoldSalesPanel();if(_salesGrid.Rows.Count!=1||_salesHistory["test-order"].NetAmount!=90.04m)throw new Exception("Commission or data binding changed.");
         _salesSearch.Text="eşleşmeyen";if(_salesGrid.Rows.Count!=0)throw new Exception("Sales search filter failed.");_salesSearch.Clear();
-        _salesHistory["test-order-2"]=new SaleRecord {OrderId="test-order-2",ItemTitle="Test satış kaydı 02",Server="Test Sunucusu B",Timestamp=TurkeyToday.AddHours(11),GrossAmount=175.55m};
-        _salesHistory["test-order-3"]=new SaleRecord {OrderId="test-order-3",ItemTitle="Test satış kaydı 03",Server="Test Sunucusu A",Timestamp=TurkeyToday.AddHours(10),GrossAmount=320m};
+        _salesHistory["test-order-2"]=new SaleRecord {OrderId="test-order-2",ItemTitle="Test satış kaydı 02",Server="Test Sunucusu B",Timestamp=TurkeyToday.AddDays(-1).AddHours(11),GrossAmount=175.55m};
+        _salesHistory["test-order-3"]=new SaleRecord {OrderId="test-order-3",ItemTitle="Test satış kaydı 03",Server="Test Sunucusu A",Timestamp=TurkeyToday.AddDays(-30).AddHours(10),GrossAmount=320m};
+        SetSalesPeriod(true);
+        if(_salesGrid.Rows.Count!=3||_salesGrossLabel.Text!=FormatTl(595.60m)||_salesNetLabel.Text!=FormatTl(536.03m)||_salesCommissionLabel.Text!=FormatTl(59.57m))throw new Exception("All-time totals exclude older sales or round incorrectly.");
+        SetSalesPeriod(false);if(_salesGrid.Rows.Count!=1)throw new Exception("Today filter failed when date was unchanged.");
+        _salesDate.Value=TurkeyToday.AddDays(-1);if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(175.55m))throw new Exception("Selected day totals failed.");
+        SetSalesPeriod(true);_salesServerFilter.SelectedItem="Test Sunucusu A";if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(320m))throw new Exception("All-time server totals failed.");
+        _salesServerFilter.SelectedIndex=0;_salesSearch.Text="02";if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(175.55m))throw new Exception("All-time search totals failed.");_salesSearch.Clear();
         RenderSoldSalesPanel();for(int i=0;i<_salesGrid.Rows.Count;i++)_salesGrid.Rows[i].Cells["Cover"].Value=TestThumbnail(i+1);
         ShowPanel(_salesPanel);await Task.Delay(100);await CaptureAsync("sales");
         foreach(var size in new[]{new Size(1050,680),new Size(1280,720),new Size(1440,900)}) {
