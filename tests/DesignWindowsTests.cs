@@ -49,15 +49,15 @@ public sealed partial class MainForm
         MinimumSize=new Size(900,600);
         Location=new Point(10,10);
         ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));
-        await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);Capture("main");
+        await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);await CaptureAsync("main");
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
-        RenderCurrentListings(new List<ListingInfo>());ShowPanel(_listingsPanel);await Task.Delay(100);Capture("listings");
+        RenderCurrentListings(new List<ListingInfo>());ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};
         RenderSoldSalesPanel();if(_salesGrid.Rows.Count!=1||_salesHistory["test-order"].NetAmount!=90.04m)throw new Exception("Commission or data binding changed.");
         _salesSearch.Text="eşleşmeyen";if(_salesGrid.Rows.Count!=0)throw new Exception("Sales search filter failed.");_salesSearch.Clear();_salesHistory.Clear();RenderSoldSalesPanel();
-        ShowPanel(_salesPanel);await Task.Delay(100);Capture("sales");
+        ShowPanel(_salesPanel);await Task.Delay(100);await CaptureAsync("sales");
         foreach(var size in new[]{new Size(1050,680),new Size(1280,720),new Size(1440,900)}) {
             ClientSize=size;await Task.Delay(100);
             foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel}) {
@@ -74,14 +74,14 @@ public sealed partial class MainForm
         var reply=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"QuickReplyDock.js"));
         // Only adapt route detection in the test's about:blank fixture.
         reply=reply.Replace("function isMessagesPage(){return /\\/(panel\\/mesaj|messages?|chat)/i.test(location.pathname);}","function isMessagesPage(){return true;}");await _webView.CoreWebView2.ExecuteScriptAsync(reply);await Task.Delay(300);
-        var check=await _webView.CoreWebView2.ExecuteScriptAsync("document.querySelector('#niyazi-quick-replies button').click();document.querySelector('textarea').value.length>0&&window.sent===0");if(check!="true")throw new Exception("Reply chip sent or failed to fill the input.");firstTab.RequestedUrl="https://itemci.com/panel/mesajlar";SelectTopSection(_browserPanel);if(_topMessages!.ForeColor!=PremiumTheme.Gold)throw new Exception("Messages menu did not become active.");Capture("messages");
+        var check=await _webView.CoreWebView2.ExecuteScriptAsync("document.querySelector('#niyazi-quick-replies button').click();document.querySelector('textarea').value.length>0&&window.sent===0");if(check!="true")throw new Exception("Reply chip sent or failed to fill the input.");firstTab.RequestedUrl="https://itemci.com/panel/mesajlar";SelectTopSection(_browserPanel);if(_topMessages!.ForeColor!=PremiumTheme.Gold)throw new Exception("Messages menu did not become active.");await CaptureAsync("messages");
         await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);ShowPanel(_marketPanel);
         _marketWebView.CoreWebView2.NavigateToString("<html><body></body></html>");await Task.Delay(300);
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));
         analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
-        await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);Capture("market");
+        await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);await CaptureAsync("market");
         Console.WriteLine("PASS: actual MainForm screens, filters, commission math, rail layout, viewport sizes and no-send quick replies.");
-        void Capture(string name) { using var bitmap=new Bitmap(ClientSize.Width,ClientSize.Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }
+        async Task CaptureAsync(string name) { Refresh();await Task.Delay(180); using var bitmap=new Bitmap(ClientSize.Width,ClientSize.Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }
     }
 }
 }
