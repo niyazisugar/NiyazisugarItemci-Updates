@@ -17,6 +17,7 @@ const description='Ürün hakkında detaylı bilgi almak için mesaj gönderebil
  await page.waitForTimeout(1500);
  fs.mkdirSync('test-results',{recursive:true});
  await page.screenshot({path:'test-results/quick-listing-desktop.png'});
+ const toggleSize=await page.locator('#orders').boundingBox();assert.equal(toggleSize.height,20);assert.equal(toggleSize.width,34);
  assert.equal(await page.locator('#net').innerText(),'4.500,00 TL');
  assert.equal(await page.locator('#preview-title').innerText(),base.draft.title);
  await page.locator('#title').fill('Yeni başlık <b>Türkçe İlan</b>');
