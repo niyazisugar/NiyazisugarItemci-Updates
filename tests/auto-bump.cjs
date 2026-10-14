@@ -13,6 +13,11 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  });
  await page.addScriptTag({content:fs.readFileSync('overrides/AutoBump.js','utf8')});
  const read=await page.evaluate(()=>window.__niyaziReadBumpPage());assert.equal(read.hasNext,true);assert.deepEqual(read.listings.map(x=>[x.id,x.enabled]),[['101',true],['102',false],['106',false]]);assert.deepEqual(await page.evaluate(()=>window.clicked),[]);
+ await page.evaluate(()=>document.querySelector('button[data-id="102"]').title='Tekrar 00:30:00 sonra');
+ const cooldownRead=await page.evaluate(()=>window.__niyaziReadBumpPage());assert.equal(cooldownRead.listings.find(x=>x.id==='102').waitSeconds,1800);
+ await page.evaluate(()=>{const b=document.querySelector('button[data-id="102"]');b.disabled=false;});
+ const unlabeled=await page.evaluate(()=>window.__niyaziBumpOne('102'));assert(unlabeled.notSent,'an arrow icon without explicit free label must never be clicked');
+ await page.evaluate(()=>document.querySelector('button[data-id="102"]').disabled=true);
  const successful=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert.equal(successful.ok,true);assert.deepEqual(await page.evaluate(()=>window.clicked),['101']);
  const repeat=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert(repeat.notSent);assert.equal(repeat.retryAfterSeconds,3600);
  for(const id of ['102','103','104','105','106']){const result=await page.evaluate(id=>window.__niyaziBumpOne(id),id);assert(result.notSent);}

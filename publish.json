@@ -1,4 +1,4 @@
 {
-  "version": "2.12.0",
-  "notes": "Süresi gelen aktif ilanlar için otomatik ücretsiz yukarı taşıma eklendi. Yalnızca ücretsiz düğme aktifken işlem yapılır; saatlik kayıtlar ve tekrar gönderim koruması bilgisayarda saklanır. Ayarlardan açılıp kapatılabilir, sonuç görülebilir ve hemen kontrol başlatılabilir. Kontrol tarayıcısı iş bitince kapatılır; boşta yeniden taramalar azaltılır. Satılmayan aktif ilanlar için boşta kontrol planı ve ücretsiz işlem onayı doğrulaması tamamlandı."
+  "version": "2.12.1",
+  "notes": "Süresi gelen aktif ilanlar otomatik ücretsiz yukarı taşınır. Ücretsiz düğme aktifken işlem yapılır; değişen geri sayım etiketleri okunur. Saatlik takip ve tekrar gönderim koruması bilgisayarda saklanır. Ayarlardan açılıp kapatılabilir, sonuç görülebilir ve hemen kontrol başlatılabilir. Kontrol tarayıcısı iş bitince kapanır; boşta gereksiz taramalar yapılmaz."
 }

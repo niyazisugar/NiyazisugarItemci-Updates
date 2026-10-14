@@ -16,7 +16,11 @@
     const text=norm(parent.innerText);if((text.match(/ilan\s*no\s*:?\s*\d+/g)||[]).length>1)break;
     const active=[...parent.querySelectorAll('span,div,small,p,[data-status]')].some(el=>norm(el.textContent)==='satista');
     if(!active)continue;
-    const button=freeButton(parent);if(button){found.set(id,{id,el:parent,button});break;}
+    const free=freeButton(parent);
+    const button=free||[...parent.querySelectorAll('button')].find(b=>b.querySelector('svg.lucide-arrow-up,[data-lucide="arrow-up"]'));
+    // Icon-only discovery reads cooldowns when a disabled button changes its
+    // tooltip. It is never permission to click without the explicit free label.
+    if(button){found.set(id,{id,el:parent,button,free:!!free});break;}
    }
   }
   return [...found.values()];
@@ -35,7 +39,7 @@
  window.__niyaziReadBumpPage=async()=>{
   ownPage();
   for(let attempt=0;attempt<100;attempt++){
-   const found=rows();if(found.length)return {listings:found.map(row=>({id:row.id,enabled:enabled(row.button),waitSeconds:waitSeconds(row.button)})),hasNext:nextPage(),empty:false};
+   const found=rows();if(found.length)return {listings:found.map(row=>({id:row.id,enabled:row.free&&enabled(row.button),waitSeconds:waitSeconds(row.button)})),hasNext:nextPage(),empty:false};
    const text=norm(document.body.innerText);
    if(/ilan(?:iniz)? (?:yok|bulunamadi)|ilaniniz bulunmuyor|kayit bulunamadi/.test(text))return {listings:[],hasNext:nextPage(),empty:true};
    // A page containing only sold/inactive listings has nothing to bump.
@@ -57,7 +61,7 @@
  let running=false;
  window.__niyaziBumpOne=async id=>{
   ownPage();if(running)return {ok:false,message:'Önceki yukarı taşıma devam ediyor.',notSent:true};
-  const row=rows().find(r=>r.id===String(id));if(!row||!enabled(row.button))return {ok:false,notSent:true,message:'Ücretsiz düğme henüz aktif değil.',retryAfterSeconds:row?waitSeconds(row.button):0};
+  const row=rows().find(r=>r.id===String(id));if(!row||!row.free||!enabled(row.button))return {ok:false,notSent:true,message:'Ücretsiz düğme henüz aktif değil.',retryAfterSeconds:row?waitSeconds(row.button):0};
   running=true;const original=window.fetch;let outcome=null,sent=false;
   const existing=new Set(notices());
   window.fetch=async function(input,options){
@@ -72,7 +76,7 @@
   try{
    // Recheck immediately before the only action. Never fall back to an icon,
    // paid boost, delete/edit button, or a guessed endpoint.
-   const fresh=rows().find(r=>r.id===String(id));if(!fresh||!enabled(fresh.button))return {ok:false,notSent:true,message:'Ücretsiz düğme aktif değil.'};
+   const fresh=rows().find(r=>r.id===String(id));if(!fresh||!fresh.free||!enabled(fresh.button))return {ok:false,notSent:true,message:'Ücretsiz düğme aktif değil.'};
    fresh.button.click();
    let confirmedDialog=false;
    for(let attempt=0;attempt<100;attempt++){
