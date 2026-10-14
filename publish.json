@@ -1,4 +1,4 @@
 {
-  "version": "2.8.2",
-  "notes": "Sağ panel yerine yatay üst menü eklendi: Ana Sayfa, Itemci, Satışlar, İlanlarım, Piyasa Analizi ve İlan Oluştur. Sunucu analiz/düzenleme/silme ve ilan oluşturma seçenekleri açılır menülerde. Mesaj sayacı ve Ayarlar üst sağda; aktif bölüm altın renkle belirtilir."
+  "version": "2.8.3",
+  "notes": "Üst menünün sekme ve adres çubuğunu örtmesi düzeltildi. Mesajlar ve ilan oluşturma sayfaları açık sekmeleri yeniden kullanır; hızlı tekrarlı tıklamalar sıraya alınır. Farklı konuşma bağlantıları aynı mesaj sekmesinde açılır. Arka plandaki tarayıcı sekmeleri askıya alınır, seçilince devam eder."
 }

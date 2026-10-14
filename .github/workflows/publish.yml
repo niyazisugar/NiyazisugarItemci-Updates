@@ -65,6 +65,8 @@ jobs:
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
           Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
           Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
+          Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
+          Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
           Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 
           if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
@@ -133,7 +135,20 @@ jobs:
           $mainForm = $mainForm.Replace('private void RebuildSidebarNavigation()', 'private void LegacyRebuildSidebarNavigation()')
           $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallTopNavigation();`r`n        PremiumTheme.Apply(this);")
           $mainForm = $mainForm.Replace('        panel.BringToFront();', "        panel.BringToFront();`r`n        SelectTopSection(panel);")
+          $mainForm = $mainForm.Replace('private async Task<BrowserTabState?> OpenOrActivateBrowserTabAsync(', 'private async Task<BrowserTabState?> LegacyOpenOrActivateBrowserTabAsync(')
+          $mainForm = $mainForm.Replace('OpenBrowserTabAsync(', 'OpenSmartBrowserTabAsync(')
+          $mainForm = $mainForm.Replace('private async Task<BrowserTabState?> OpenSmartBrowserTabAsync(', 'private async Task<BrowserTabState?> CreateBrowserTabAsync(')
+          $mainForm = [regex]::Replace($mainForm, '(private sealed class BrowserTabState\s*\{)', '$1' + "`r`n        public string RequestedUrl { get; set; } = string.Empty;", 1)
+          # Only the explicit + action is allowed to force an extra tab.
+          $mainForm = [regex]::Replace($mainForm, '("Yeni Sekme",\s*activate: true)(\s*\);)', '$1, forceNew: true$2', 1)
+          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallBrowserWorkspace();`r`n        PremiumTheme.Apply(this);")
+          $mainForm = $mainForm.Replace('            item.WebView.Visible = false;', "            item.WebView.Visible = false;`r`n            if (!ReferenceEquals(item, tab)) _ = SuspendHiddenTabAsync(item);")
+          $mainForm = $mainForm.Replace('        tab.WebView.Visible = true;', "        tab.WebView.Visible = true;`r`n        try { tab.WebView.CoreWebView2?.Resume(); } catch { }")
+          $mainForm = $mainForm.Replace('        tab.WebView.Dispose();', "        tab.TabPanel?.Dispose();`r`n        tab.WebView.Dispose();")
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
+
+      - name: Test browser page routing
+        run: dotnet run --project tests/BrowserRulesTests.csproj -c Release
 
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
