@@ -29,6 +29,7 @@ jobs:
       - run: node tests/listing-composer.cjs
       - run: node tests/composer-view.cjs
       - run: node tests/auto-bump.cjs
+      - run: node tests/redesign.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

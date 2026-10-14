@@ -9,6 +9,8 @@ public sealed partial class MainForm
     private readonly FlowLayoutPanel _liveRows = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
     private readonly Label _liveStatus = new() { Dock = DockStyle.Bottom, Height = 22, ForeColor = Color.FromArgb(150,157,170), Font = new Font("Segoe UI", 8) };
     private readonly System.Windows.Forms.Timer _liveTimer = new() { Interval = 60000 };
+    private readonly Label _liveCount=new() { Dock=DockStyle.Fill,ForeColor=PremiumTheme.Gold,TextAlign=ContentAlignment.MiddleCenter,Text="Bugün\n0 tespit" };
+    private readonly Label _liveLast=new() { Dock=DockStyle.Fill,ForeColor=PremiumTheme.Turquoise,TextAlign=ContentAlignment.MiddleCenter,Text="Son tespit\n—" };
     private bool _liveBusy;
     private bool _liveCollapsed;
     private bool _updatingLiveServers;
@@ -17,15 +19,17 @@ public sealed partial class MainForm
     {
         _liveMarket = new Panel { Dock = DockStyle.Right, Width = 300, BackColor = Card, Padding = new Padding(12) };
         _liveMarket.Paint += (_, e) => DrawBorder(e.Graphics, _liveMarket.ClientRectangle);
-        var header = new Panel { Dock = DockStyle.Top, Height = 80 };
+        var header = new Panel { Dock = DockStyle.Top, Height = 150 };
         var title = new Label { Text = "Satış Takibi", Dock = DockStyle.Top, Height = 32, ForeColor = PremiumTheme.Gold, Font = new Font("Segoe UI",12,FontStyle.Bold) };
         var collapse = new Button { Text = "›", Dock = DockStyle.Right, Width = 30, FlatStyle = FlatStyle.Flat, ForeColor = TextMain, BackColor = Card };
-        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Width = _liveCollapsed ? 48 : 300; _liveRows.Visible = _liveStatus.Visible = _liveServer.Visible = title.Visible = !_liveCollapsed; collapse.Text = _liveCollapsed ? "‹" : "›"; };
+        var metrics=new TableLayoutPanel { Dock=DockStyle.Top,Height=58,ColumnCount=2,RowCount=1,Margin=new Padding(0,8,0,8) };
+        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.Controls.Add(_liveCount,0,0);metrics.Controls.Add(_liveLast,1,0);
+        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Width = _liveCollapsed ? 48 : 300; _liveRows.Visible = _liveStatus.Visible = _liveServer.Visible = title.Visible = !_liveCollapsed; metrics.Visible = !_liveCollapsed; header.Height=_liveCollapsed ? 48 : 150; collapse.Text = _liveCollapsed ? "‹" : "›"; };
         _liveServer.Dock = DockStyle.Top;
         _liveServer.SelectedIndexChanged += (_, _) => { if (!_updatingLiveServers) RenderServerSalesWatch(); };
         var refresh = new Button { Text = "Yenile", Dock = DockStyle.Bottom, Height = 32, FlatStyle = FlatStyle.Flat, ForeColor = PremiumTheme.Gold, BackColor = Card };
         refresh.Click += (_, _) => _ = RefreshLiveMarketAsync();
-        header.Controls.Add(_liveServer);header.Controls.Add(title);header.Controls.Add(collapse);
+        header.Controls.Add(metrics);header.Controls.Add(_liveServer);header.Controls.Add(title);header.Controls.Add(collapse);
         _liveStatus.Height = 58;
         _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(header);
         _browserPanel.Controls.Add(_liveMarket);

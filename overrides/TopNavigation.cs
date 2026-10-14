@@ -20,6 +20,7 @@ public sealed partial class MainForm
             e.Graphics.DrawLine(pen, 0, _topNavigation.Height - 1, _topNavigation.Width, _topNavigation.Height - 1);
         };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));

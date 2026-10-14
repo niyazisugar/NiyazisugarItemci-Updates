@@ -41,7 +41,10 @@ public sealed partial class MainForm
         _monitorTimer.Stop();_salesTimer.Stop();_liveTimer.Stop();_autoBumpTimer.Stop();
         var output=Path.Combine(Environment.CurrentDirectory,"test-results");Directory.CreateDirectory(output);
         _browserEnvironment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Path.GetTempPath(),"niyazi-design-test-"+Guid.NewGuid().ToString("N")));
+        _webView.Dock=DockStyle.Fill;_browserHost.Controls.Add(_webView);_webView.Visible=true;
         await _webView.EnsureCoreWebView2Async(_browserEnvironment);
+        var firstTab=new BrowserTabState { Id=++_browserTabSequence, Title="Itemci",WebView=_webView };
+        firstTab.TabPanel=CreateBrowserTabControl(firstTab);_browserTabs.Add(firstTab);_browserTabStrip.Controls.Add(firstTab.TabPanel);SelectBrowserTab(firstTab);
         _webView.CoreWebView2.NavigateToString("<html lang='tr'><body style='background:#181818;color:#ddd;font:16px Segoe UI;padding:32px'><h2>Itemci</h2><p>Yalıtılmış arayüz testi · Hesap oturumu ve ilan verisi kullanılmıyor.</p></body></html>");
         MinimumSize=new Size(900,600);
         Location=new Point(10,10);
@@ -74,7 +77,7 @@ public sealed partial class MainForm
         await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);ShowPanel(_marketPanel);
         _marketWebView.CoreWebView2.NavigateToString("<html><body></body></html>");await Task.Delay(300);
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));
-        analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:[]});\n    window.__NiyazisugarRunMarket = runAnalysis;");
+        analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
         await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);Capture("market");
         Console.WriteLine("PASS: actual MainForm screens, filters, commission math, rail layout, viewport sizes and no-send quick replies.");
         void Capture(string name) { using var bitmap=new Bitmap(ClientSize.Width,ClientSize.Height);using var graphics=Graphics.FromImage(bitmap);graphics.CopyFromScreen(PointToScreen(Point.Empty),Point.Empty,new Size(ClientSize.Width,ClientSize.Height));bitmap.Save(Path.Combine(output,"design-"+name+".png"),ImageFormat.Png); }

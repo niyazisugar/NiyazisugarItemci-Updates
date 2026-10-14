@@ -10,7 +10,7 @@ public sealed partial class MainForm
     private readonly DateTimePicker _salesDate = new() { Format = DateTimePickerFormat.Custom, CustomFormat = "dd.MM.yyyy", Width = 145 };
     private readonly ComboBox _salesServerFilter = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 190 };
     private readonly TextBox _salesSearch = new() { PlaceholderText = "Satılan ürün ara…", Width = 230 };
-    private readonly Label _salesTotals = new() { Dock = DockStyle.Bottom, Height = 44, ForeColor = PremiumTheme.Gold, TextAlign = ContentAlignment.MiddleRight };
+    private readonly Label _salesTotals = new() { Dock = DockStyle.Bottom, Height = 54, ForeColor = PremiumTheme.Gold, TextAlign = ContentAlignment.MiddleRight };
     private bool _salesFiltering;
     private WebView2? _soldScanView;
     private bool _soldScanBusy;
@@ -35,7 +35,16 @@ public sealed partial class MainForm
         _salesDate.Value = TurkeyToday;
         _salesDate.Margin = new Padding(0, 8, 12, 0);
         _salesDate.ValueChanged += (_, _) => RenderSoldSalesPanel();
-        actions.Controls.Add(_salesDate);
+        var dateChoice=ActionButton(_salesDate.Value.ToString("dd.MM.yyyy")+"  ▾",()=>{});dateChoice.Width=155;
+        _salesDate.ValueChanged+=(_,_)=>dateChoice.Text=_salesDate.Value.ToString("dd.MM.yyyy")+"  ▾";
+        dateChoice.Click+=(_,_)=>{
+            using var picker=new Form { Text="Satış günü",FormBorderStyle=FormBorderStyle.FixedToolWindow,StartPosition=FormStartPosition.Manual,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,BackColor=Card,Padding=new Padding(8),ShowInTaskbar=false };
+            var calendar=new MonthCalendar {MaxSelectionCount=1,SelectionStart=_salesDate.Value,SelectionEnd=_salesDate.Value};
+            calendar.DateSelected+=(_,e)=>{_salesDate.Value=e.Start;picker.Close();};picker.Controls.Add(calendar);
+            var point=dateChoice.PointToScreen(new Point(0,dateChoice.Height));var area=Screen.FromControl(dateChoice).WorkingArea;
+            picker.Location=new Point(Math.Min(point.X,area.Right-270),Math.Min(point.Y,area.Bottom-240));picker.ShowDialog(this);
+        };
+        actions.Controls.Add(dateChoice);
         var today = ActionButton("BUGÜN", () => _salesDate.Value = TurkeyToday);
         today.Width = 85;
         actions.Controls.Add(today);
@@ -74,14 +83,15 @@ public sealed partial class MainForm
         _salesGrid.DefaultCellStyle.ForeColor = TextMain;
         _salesGrid.DefaultCellStyle.Font = new Font("Segoe UI", 9);
         _salesGrid.ColumnHeadersHeight = 42;
+        _salesGrid.ColumnHeadersBorderStyle=DataGridViewHeaderBorderStyle.None;
         _salesGrid.Columns.Clear();
         _salesGrid.Columns.Add(new DataGridViewImageColumn { Name="Cover",HeaderText="",ImageLayout=DataGridViewImageCellLayout.Zoom,DefaultCellStyle=new DataGridViewCellStyle {NullValue=null},FillWeight=65 });
         _salesGrid.Columns.Add("Item", "SATILAN ÜRÜN");
         _salesGrid.Columns.Add("Server", "SUNUCU");
-        _salesGrid.Columns.Add("Commission", "KOMİSYON");
         _salesGrid.Columns.Add("Date", "TARİH");
         _salesGrid.Columns.Add("Time", "SAAT");
         _salesGrid.Columns.Add("Gross", "SATIŞ FİYATI");
+        _salesGrid.Columns.Add("Commission", "KOMİSYON");
         _salesGrid.Columns.Add("Net", "NET FİYAT (%10 DÜŞÜLMÜŞ)");
         _salesGrid.Columns["Item"]!.FillWeight = 200;
         foreach(DataGridViewColumn col in _salesGrid.Columns) col.MinimumWidth = 75;
@@ -118,12 +128,12 @@ public sealed partial class MainForm
         _salesCommissionLabel.Text = FormatTl(gross - net);
         _salesNetLabel.Text = FormatTl(net);
         _salesCountLabel.Text = sales.Count.ToString();
-        _salesTotals.Text = $"TOPLAM   ·   {sales.Count} satış   ·   Satış: {FormatTl(gross)}   ·   Komisyon: {FormatTl(gross-net)}   ·   Net: {FormatTl(net)}";
+        _salesTotals.Text = $"TOPLAM   ·   {sales.Count} satış\nSatış: {FormatTl(gross)}   ·   Komisyon: {FormatTl(gross-net)}   ·   Net: {FormatTl(net)}";
         foreach(DataGridViewRow old in _salesGrid.Rows) (old.Cells["Cover"].Value as Image)?.Dispose();
         _salesGrid.Rows.Clear();
         foreach (var sale in sales)
         {
-            int row = _salesGrid.Rows.Add(null, sale.ItemTitle, sale.Server, FormatTl(sale.CommissionAmount), sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.NetAmount));
+            int row = _salesGrid.Rows.Add(null, sale.ItemTitle, sale.Server, sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.CommissionAmount), FormatTl(sale.NetAmount));
             _salesGrid.Rows[row].Height = 58;
             if(row<30) _=LoadSaleThumbnailAsync(_salesGrid.Rows[row],sale.ImageUrl);
             _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = Color.FromArgb(255,140,135);

@@ -35,6 +35,7 @@ public sealed partial class MainForm
         _serverWatch.TryGetValue(server.Id, out var state);
         var rows = state?.sales.Where(s => s.detectedAt.Date == TurkeyToday).OrderByDescending(s => s.detectedAt).ToList() ?? new();
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
+        _liveCount.Text=$"Bugün\n{rows.Count} tespit"; _liveLast.Text="Son tespit\n"+(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
         _liveStatus.Text = $"Bugün tespit: {rows.Count} · {state?.status ?? "Takip hazırlanıyor"}";
         var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks));
         if(key==_serverWatchRenderedKey)return;
@@ -49,9 +50,9 @@ public sealed partial class MainForm
         {
             var row = sale.listing;
             var card = new Panel { Width = _liveMarket.Width - 26, Height = 65, BackColor = Color.FromArgb(21,25,33), Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
-            var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = Color.FromArgb(151,190,255), Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
-            var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = Color.FromArgb(190,151,255), Font = Font, Padding = new Padding(4,0,0,0) };
-            var info = new Label { Dock = DockStyle.Fill, Text = $"{row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = Color.FromArgb(67,222,169), Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
+            var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
+            var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
+            var info = new Label { Dock = DockStyle.Fill, Text = $"{row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = PremiumTheme.Turquoise, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
             card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
             foreach (Control target in new Control[] {card,name,seller,info})
             {

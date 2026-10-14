@@ -45,7 +45,8 @@ public sealed partial class MainForm
         foreach(var node in container.Descendants("a"))
         {
             var href = NormalizeItemciUrl(node.GetAttributeValue("href","")) ?? "";
-            var server = _marketServers.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Url) && href.TrimEnd('/').Equals(s.Url.TrimEnd('/'),StringComparison.OrdinalIgnoreCase));
+            var server = _marketServers.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Url) && (href.TrimEnd('/').Equals(s.Url.TrimEnd('/'),StringComparison.OrdinalIgnoreCase) || href.TrimEnd('/').Equals(s.Url.TrimEnd('/')+"-item-yang",StringComparison.OrdinalIgnoreCase)));
+            if(server is null && Uri.TryCreate(href,UriKind.Absolute,out var categoryUri) && categoryUri.AbsolutePath.StartsWith("/categories/",StringComparison.OrdinalIgnoreCase)) server=_marketServers.FirstOrDefault(s=>NormalizeHtmlText(node.InnerText).Equals(s.Name,StringComparison.CurrentCultureIgnoreCase));
             if(server is not null) return server.Name;
         }
         var explicitName = container.GetAttributeValue("data-server","");

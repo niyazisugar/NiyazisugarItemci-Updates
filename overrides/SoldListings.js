@@ -62,7 +62,7 @@
         const explicit=clean(row.getAttribute('data-server'));
         if(explicit)return explicit;
         const headings=[...row.closest('table')?.querySelectorAll('thead th') || []];
-        const index=headings.findIndex(el=>/^(sunucu|server)$/.test(norm(el.textContent)));
+        const index=headings.findIndex(el=>/(?:^|[\s/])(sunucu|server)(?:$|[\s/])/.test(norm(el.textContent)));
         if(index>=0&&row.cells?.[index])return clean(row.cells[index].textContent)||'Bilinmeyen sunucu';
         for(const label of row.querySelectorAll('span,dt,label')) {
             if(/^(sunucu|server)\s*:?$/.test(norm(label.textContent))) {
