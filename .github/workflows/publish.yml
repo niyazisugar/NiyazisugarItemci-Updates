@@ -206,6 +206,7 @@ jobs:
           $mainForm = $mainForm.Replace('_settings.OwnStoreUrl = url;', '_settings.OwnStoreUrl = url; if (_marketWebView.CoreWebView2 is not null) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(url));')
           $mainForm = $mainForm.Replace("        BuildUi();", "        AutoScaleMode = AutoScaleMode.Dpi;`r`n        BuildUi();")
           $mainForm = $mainForm.Replace('NIYAZISUGAR', 'NiyaziSUGAR').Replace('Niyazisugar Itemci', 'NiyaziSUGAR · Itemci')
+          $mainForm = $mainForm.Replace('FormClosing += OnFormClosing;', 'Shown += (_, _) => { var area=Screen.FromControl(this).WorkingArea; MinimumSize=new Size(Math.Min(MinimumSize.Width,area.Width),Math.Min(MinimumSize.Height,area.Height)); if (Width>area.Width || Height>area.Height) Size=new Size(Math.Min(Width,area.Width),Math.Min(Height,area.Height)); }; FormClosing += OnFormClosing;')
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test bump scheduling and restart protection

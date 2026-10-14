@@ -59,6 +59,7 @@ public sealed partial class MainForm
         layout.Controls.Add(menu, 1, 0);
         var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         var settings = TopButton("⚙", 42, () => ShowPanel(_settingsPanel));
+        settings.Text="\uE713";settings.Font=new Font("Segoe MDL2 Assets",14);
         _topSections.Add(settings, _settingsPanel);
         _sidebarToolTip.SetToolTip(settings, "Ayarlar ve güncellemeler");
         utility.Controls.Add(settings);

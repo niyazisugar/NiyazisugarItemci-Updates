@@ -13,7 +13,8 @@ public sealed partial class MainForm
     private void BuildListingsPanel()
     {
         _listingsPanel.Dock = DockStyle.Fill; _listingsPanel.BackColor = Bg; _listingsPanel.Padding = new Padding(24);
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 64, ColumnCount = 2 };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 64, ColumnCount = 2, RowCount=1 };
+        header.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,150));
         header.Controls.Add(new Label { Text = "İlanlarım", Dock = DockStyle.Fill, ForeColor = TextMain, Font = new Font("Segoe UI",22,FontStyle.Bold) },0,0);
         var refresh = ActionButton("İlanları Yenile", () => _ = RefreshCurrentListingsAsync(true)); refresh.Dock = DockStyle.Fill; header.Controls.Add(refresh,1,0);
@@ -34,6 +35,7 @@ public sealed partial class MainForm
         _autoBumpStatus.TextChanged+=(_,_)=>{_listingBumpSummary.Text="Ücretsiz yukarı çıkarma · "+_autoBumpStatus.Text;};
         _listingsPanel.Controls.Add(_listingBumpSummary);
         _listingsPanel.Controls.Add(_listingsList); _listingsPanel.Controls.Add(_listingsStatusLabel); _listingsPanel.Controls.Add(_listingSummary); _listingsPanel.Controls.Add(filters); _listingsPanel.Controls.Add(metrics); _listingsPanel.Controls.Add(header);
+        _listingsList.BringToFront();
     }
     private async Task LoadListingThumbnailAsync(PictureBox target,string address)
     {

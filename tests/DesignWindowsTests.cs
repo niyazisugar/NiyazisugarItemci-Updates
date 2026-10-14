@@ -63,6 +63,7 @@ public sealed partial class MainForm
             foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel}) {
                 ShowPanel(panel);PerformLayout();
                 if(panel.PointToScreen(Point.Empty).Y<_topNavigation!.PointToScreen(new Point(0,_topNavigation.Height)).Y)throw new Exception("Content overlaps top menu.");
+                if(ReferenceEquals(panel,_browserPanel) && _browserHost.PointToScreen(new Point(_browserHost.Width,0)).X>_liveMarket!.PointToScreen(Point.Empty).X)throw new Exception("Sales rail overlays Itemci instead of reserving width.");
                 if(panel.Width<=0||panel.Height<=0)throw new Exception("Panel lost usable space.");
             }
         }

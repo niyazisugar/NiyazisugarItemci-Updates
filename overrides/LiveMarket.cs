@@ -23,12 +23,13 @@ public sealed partial class MainForm
         var title = new Label { Text = "Satış Takibi", Dock = DockStyle.Top, Height = 32, ForeColor = PremiumTheme.Gold, Font = new Font("Segoe UI",12,FontStyle.Bold) };
         var collapse = new Button { Text = "›", Dock = DockStyle.Right, Width = 30, FlatStyle = FlatStyle.Flat, ForeColor = TextMain, BackColor = Card };
         var metrics=new TableLayoutPanel { Dock=DockStyle.Top,Height=58,ColumnCount=2,RowCount=1,Margin=new Padding(0,8,0,8) };
+        metrics.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.Controls.Add(_liveCount,0,0);metrics.Controls.Add(_liveLast,1,0);
-        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Width = _liveCollapsed ? 48 : 300; _liveRows.Visible = _liveStatus.Visible = _liveServer.Visible = title.Visible = !_liveCollapsed; metrics.Visible = !_liveCollapsed; header.Height=_liveCollapsed ? 48 : 150; collapse.Text = _liveCollapsed ? "‹" : "›"; };
-        _liveServer.Dock = DockStyle.Top;
-        _liveServer.SelectedIndexChanged += (_, _) => { if (!_updatingLiveServers) RenderServerSalesWatch(); };
         var refresh = new Button { Text = "Yenile", Dock = DockStyle.Bottom, Height = 32, FlatStyle = FlatStyle.Flat, ForeColor = PremiumTheme.Gold, BackColor = Card };
         refresh.Click += (_, _) => _ = RefreshLiveMarketAsync();
+        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Width = LogicalToDeviceUnits(_liveCollapsed ? 48 : 300); _liveMarket.Padding=new Padding(LogicalToDeviceUnits(_liveCollapsed ? 4 : 12)); refresh.Visible=!_liveCollapsed; _liveRows.Visible = _liveStatus.Visible = _liveServer.Visible = title.Visible = !_liveCollapsed; metrics.Visible = !_liveCollapsed; header.Height=LogicalToDeviceUnits(_liveCollapsed ? 48 : 150); collapse.Text = _liveCollapsed ? "‹" : "›"; };
+        _liveServer.Dock = DockStyle.Top;
+        _liveServer.SelectedIndexChanged += (_, _) => { if (!_updatingLiveServers) RenderServerSalesWatch(); };
         header.Controls.Add(metrics);header.Controls.Add(_liveServer);header.Controls.Add(title);header.Controls.Add(collapse);
         _liveStatus.Height = 58;
         _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(header);
@@ -42,7 +43,7 @@ public sealed partial class MainForm
         _liveStatus.Text = "Tüm sunucular izleniyor · 60 saniyede bir kontrol";
         _liveTimer.Tick += (_, _) => { PositionLiveMarket(); _ = RefreshLiveMarketAsync(); };
         _liveTimer.Start();
-        _browserPanel.VisibleChanged += (_, _) => { if (_browserPanel.Visible) { _liveMarket.BringToFront(); _ = RefreshLiveMarketAsync(); } };
+        _browserPanel.VisibleChanged += (_, _) => { if (_browserPanel.Visible) { _ = RefreshLiveMarketAsync(); } };
         _marketWebView.NavigationCompleted += (_, e) => { if (e.IsSuccess) { PositionLiveMarket(); _ = RefreshLiveMarketAsync(); } };
         FormClosed += (_, _) => _liveTimer.Dispose();
         // Dashboard is now reached from Settings, not the top navigation.
