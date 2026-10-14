@@ -20,6 +20,7 @@ internal static class ReferenceUi
         var state=g.Save();g.TranslateTransform(r.X,r.Y);g.ScaleTransform(r.Width/24,r.Height/24);g.SmoothingMode=SmoothingMode.AntiAlias;using var p=new Pen(color,1.6f){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round};
         void Line(float a,float b,float c,float d)=>g.DrawLine(p,a,b,c,d);void Rect(float x,float y,float w,float h)=>g.DrawRectangle(p,x,y,w,h);void Circle(float x,float y,float d)=>g.DrawEllipse(p,x,y,d,d);
         switch(icon) {
+            case "status":using(var dot=new SolidBrush(Color.FromArgb(61,225,146)))g.FillEllipse(dot,7,7,10,10);break;
             case "search":Circle(3,3,13);Line(15,15,21,21);break;
             case "message":Rect(3,5,18,14);Line(3,5,12,12);Line(12,12,21,5);break;
             case "store":Rect(4,10,16,11);Line(3,10,5,3);Line(5,3,19,3);Line(19,3,21,10);Rect(9,15,6,6);break;
@@ -81,7 +82,7 @@ internal sealed class ReferenceMetric : ReferencePanel
 internal sealed class ReferenceSearch : ReferencePanel
 {
     private readonly TextBox _model;internal string Icon {get;set;}="search";
-    internal ReferenceSearch(TextBox model){_model=model;BackColor=ReferenceUi.Field;model.BorderStyle=BorderStyle.None;model.BackColor=ReferenceUi.Field;model.ForeColor=ReferenceUi.Text;model.Font=ReferenceUi.Font(11);Controls.Add(model);Resize+=(_,_)=>LayoutInput();LayoutInput();}
+    internal ReferenceSearch(TextBox model){_model=model;BackColor=ReferenceUi.Field;model.Dock=DockStyle.None;model.BorderStyle=BorderStyle.None;model.BackColor=ReferenceUi.Field;model.ForeColor=ReferenceUi.Text;model.Font=ReferenceUi.Font(11);Controls.Add(model);Resize+=(_,_)=>LayoutInput();LayoutInput();}
     private void LayoutInput(){int s=LogicalToDeviceUnits(1);_model.Location=new Point(LogicalToDeviceUnits(48),Math.Max(0,(Height-_model.PreferredHeight)/2));_model.Width=Math.Max(20,Width-LogicalToDeviceUnits(64));}
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);ReferenceUi.Icon(e.Graphics,Icon,new RectangleF(LogicalToDeviceUnits(16),(Height-LogicalToDeviceUnits(22))/2,LogicalToDeviceUnits(22),LogicalToDeviceUnits(22)),ReferenceUi.Muted);}
 }

@@ -86,6 +86,8 @@ public sealed partial class MainForm
             _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = ReferenceUi.Text;
             _salesGrid.Rows[row].Cells["Gross"].Style.ForeColor = ReferenceUi.Text;
             _salesGrid.Rows[row].Cells["Net"].Style.ForeColor = ReferenceUi.Aqua;
+            _salesGrid.Rows[row].Cells["Net"].Style.SelectionForeColor=ReferenceUi.Aqua;
+            _salesGrid.Rows[row].Cells["Net"].Style.Font=ReferenceUi.Bold(12);
         }
     }
 

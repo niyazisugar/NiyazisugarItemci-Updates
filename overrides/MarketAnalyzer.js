@@ -1972,7 +1972,7 @@
 #itemci-v17 .title{font-size:28px;line-height:1.3;color:#f0f2f6;font-weight:750}
 #itemci-v17 .sub{font-size:12px;line-height:1.7;margin-top:8px}
 #itemci-v17 .serverbar{padding-top:15px;padding-bottom:12px;gap:12px}
-#itemci-v17 .tabs{padding-top:12px;gap:10px}#itemci-v17 .tab{height:40px;font-size:12px;padding:0 18px;border-radius:8px}
+#itemci-v17 .tabs{padding-top:12px;gap:10px}#itemci-v17 .tabBtn{height:40px;font-size:12px;padding:0 18px;border-radius:8px}
 #itemci-v17 button{height:40px;font-size:12px;font-weight:600;border-radius:8px}
 #itemci-v17 .serverSelect{height:42px;min-width:240px;font-size:13px;border-radius:8px}
 #itemci-v17 .stats{gap:14px;padding:18px 28px 0}#itemci-v17 .stat{min-height:106px;padding:20px;border-radius:10px;background:#13191f}
