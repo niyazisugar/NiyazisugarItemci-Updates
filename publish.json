@@ -1,4 +1,4 @@
 {
   "version": "2.8.8",
-  "notes": "Hızlı İlan Ekle artık uygulama içindeki bağımsız formdur. Sunucu ekleme, Item&Yang, başlık, açıklama, fiyat/net hesap, teslim/geçerlilik, stok Yang veya 4 görsel ve sunucu bazlı kalıcı taslaklar eklendi. Yayınla tıklanınca Itemci formu arka planda doldurulur ve gönderilir; sonuç doğrulanmazsa tekrar gönderim durdurulur. Canlı Itemci yayınlama kullanıcı testi gerektirir."
+  "notes": "Hızlı İlan Ekle artık uygulama içindeki bağımsız formdur. Sunucu ekleme, Item&Yang, başlık, açıklama, fiyat/net hesap, teslim/geçerlilik, stok Yang veya 4 görsel ve sunucu bazlı kalıcı taslaklar hazırlandı. Yayınla tıklanınca Itemci formu arka planda doldurulur ve gönderilir; sonuç doğrulanmazsa tekrar gönderim durdurulur. Canlı Itemci yayınlama kullanıcı testi gerektirir."
 }
