@@ -1,4 +1,4 @@
 {
   "version": "2.10.2",
-  "notes": "Hızlı İlan Ekle antrasit/turkuaz tasarımla yenilendi: canlı önizleme, kapak seçimi, sürüklenebilir görsel kartları, kalıcı hazır görsel galerisi, sabit işlem çubuğu ve küçük ekran desteği. Gerçek ilan bağlantısı kopyalama/açma, net kazanç özeti, güvenli yayınlama ve bekleme sayacı geliştirildi. Orta boy pencerelerde alan aralıkları iyileştirildi. Sipariş anahtarının ölçüleri referansla eşleştirildi."
+  "notes": "Hızlı İlan Ekle yenilendi: antrasit/turkuaz popup, canlı ilan önizlemesi, kapak seçimi ve sürüklenebilir görsel kartları, kalıcı hazır görsel galerisi, sabit işlem çubuğu ve küçük ekran desteği. Sunucu ekleme, taslaklar ve mevcut komisyon hesabı korunur. Gerçek ilan linki kopyalama/açma, yayınlama kilidi ve bekleme sayacı geliştirildi."
 }
