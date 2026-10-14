@@ -67,7 +67,7 @@
         const title = clean(row.el.querySelector('h3,h4,h2,a[href*="/product/"]')?.innerText || product || '');
         if (!order || !date || !price || !title) throw new Error(`İlan ${row.id}: sipariş ayrıntısında ürün, tarih veya fiyat okunamadı.`);
         if (/iptal|iade/.test(normalized.match(/durum\s*(.*?)\s*(?:teslimat|alici|siparis\s*tarihi)/)?.[1] || '')) return null;
-        return {OrderId:order, ListingId:row.id, ItemTitle:title, Date:date[1], Time:date[2], Price:price, IsDelivered:/tamamlandi/.test(normalized)};
+        return {OrderId:order, ListingId:row.id, ItemTitle:title, Server:clean(row.el.getAttribute("data-server") || text.match(/Sunucu\s*:\s*([^\n]+)/i)?.[1] || "Bilinmeyen sunucu"), Date:date[1], Time:date[2], Price:price, IsDelivered:/tamamlandi/.test(normalized)};
     }
     async function closeDialog(el) {
         const button = [...el.querySelectorAll('button')].find(b => /^kapat$/i.test(clean(b.innerText))) ||

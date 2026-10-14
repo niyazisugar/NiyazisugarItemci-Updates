@@ -1,4 +1,4 @@
 {
-  "version": "2.12.1",
-  "notes": "Süresi gelen aktif ilanlar otomatik ücretsiz yukarı taşınır. Ücretsiz düğme aktifken işlem yapılır; değişen geri sayım etiketleri okunur. Saatlik takip ve tekrar gönderim koruması bilgisayarda saklanır. Ayarlardan açılıp kapatılabilir, sonuç görülebilir ve hemen kontrol başlatılabilir. Kontrol tarayıcısı iş bitince kapanır; boşta gereksiz taramalar yapılmaz."
+  "version": "2.13.0",
+  "notes": "NiyaziSUGAR arayüzü antrasit, şampanya altını ve turkuaz renklerle yenilendi. Üst menü, sağda daraltılabilir satış takibi, canlı önizlemeli ilan penceresi, mesaj alanının üstünde hızlı cevaplar, filtreli ilan listesi, satış komisyon ve toplamları ve piyasa analizi düzenlendi. Çok boyutlu N simgesi eklendi. Kayıtlar, oturum, taslaklar, hazır görseller ve ücretsiz yukarı çıkarma otomasyonu korundu."
 }

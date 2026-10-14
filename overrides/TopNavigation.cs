@@ -13,20 +13,23 @@ public sealed partial class MainForm
     {
         Controls.Remove(_sidebar);
         _sidebar.Visible = false;
-        _topNavigation = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(21, 24, 30), Padding = new Padding(16, 10, 16, 10) };
+        _topNavigation = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Color.FromArgb(21, 24, 30), Padding = new Padding(16, 10, 16, 10) };
         _topNavigation.Paint += (_, e) =>
         {
             using var pen = new Pen(Color.FromArgb(48, 52, 62));
             e.Graphics.DrawLine(pen, 0, _topNavigation.Height - 1, _topNavigation.Width, _topNavigation.Height - 1);
         };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, Margin = new Padding(0) };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
-        var brand = new Label { Text = "NIYAZISUGAR\nITEMCI  V" + UpdateService.CurrentVersion, Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
+        var brand = new Label { Text = "NiyaziSUGAR\nITEMCI  V" + UpdateService.CurrentVersion, Dock = DockStyle.Fill, ForeColor = Accent, Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Cursor = Cursors.Hand, Margin = new Padding(0) };
         brand.Click += (_, _) => ShowPanel(_browserPanel);
-        layout.Controls.Add(brand, 0, 0);
-        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
+        var branding = new Panel { Dock = DockStyle.Fill, Padding = new Padding(44,0,0,0) };
+        branding.Controls.Add(brand);
+        branding.Controls.Add(new BrandMark { Location = new Point(0,7), Size = new Size(36,36) });
+        layout.Controls.Add(branding, 0, 0);
+        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         Button Section(string text, int width, Panel panel, Action click)
         {
             var button = TopButton(text, width, click);
@@ -49,8 +52,8 @@ public sealed partial class MainForm
             _ = OpenEmbeddedMarketAnalyzerAsync();
         });
         var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowListingComposerAsync());
-        create.ForeColor = Accent;
-        create.BackColor = Color.FromArgb(49, 42, 30);
+        create.ForeColor = Color.FromArgb(10,38,38);
+        create.BackColor = PremiumTheme.Turquoise;
         menu.Controls.Add(create);
         layout.Controls.Add(menu, 1, 0);
         var utility = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(0, 6, 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
@@ -89,6 +92,7 @@ public sealed partial class MainForm
     {
         var button = new Button { Text = text, Width = width, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(26, 29, 36), ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 0, 4, 0), AutoEllipsis = true };
         button.FlatAppearance.BorderSize = 0;
+        button.Paint += (_, e) => { if (_topSections.TryGetValue(button, out var target) && ReferenceEquals(target, _activeTopPanel)) { using var line = new Pen(PremiumTheme.Gold, 2); e.Graphics.DrawLine(line, 8, button.Height-2, button.Width-8, button.Height-2); } };
         button.Click += (_, _) => click();
         return button;
     }
@@ -99,8 +103,9 @@ public sealed partial class MainForm
         foreach (var entry in _topSections)
         {
             bool selected = ReferenceEquals(entry.Value, panel);
-            entry.Key.BackColor = selected ? Color.FromArgb(59, 49, 32) : Color.FromArgb(26, 29, 36);
-            entry.Key.ForeColor = selected ? Accent : TextMain;
+            entry.Key.BackColor = Color.FromArgb(26, 29, 36);
+            entry.Key.ForeColor = selected ? PremiumTheme.Gold : TextMain;
+            entry.Key.Invalidate();
         }
     }
 

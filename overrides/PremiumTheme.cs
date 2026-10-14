@@ -8,7 +8,8 @@ internal static class PremiumTheme
     internal static readonly Color Background = Color.FromArgb(17, 19, 24);
     internal static readonly Color Surface = Color.FromArgb(26, 29, 36);
     internal static readonly Color Outline = Color.FromArgb(48, 52, 62);
-    internal static readonly Color Gold = Color.FromArgb(216, 180, 106);
+    internal static readonly Color Turquoise = Color.FromArgb(46, 219, 211);
+    internal static readonly Color Gold = Color.FromArgb(211, 190, 143);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);

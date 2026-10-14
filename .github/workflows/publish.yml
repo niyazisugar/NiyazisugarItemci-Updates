@@ -73,6 +73,11 @@ jobs:
           Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
           Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
+          Copy-Item "overrides/BrandMark.cs" "src/BrandMark.cs" -Force
+          Copy-Item "overrides/ListingsDesign.cs" "src/ListingsDesign.cs" -Force
+          Copy-Item "overrides/QuickReplyDock.js" "src/QuickReplyDock.js" -Force
+          Copy-Item "overrides/app.ico.b64" "src/app.ico.b64" -Force
+          if (Test-Path "src/app.ico") { Remove-Item "src/app.ico" }
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
           Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
           Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
@@ -145,7 +150,7 @@ jobs:
             1
           )
 
-          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(216, 180, 106)')
+          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(211, 190, 143)')
           $mainForm = $mainForm.Replace('Color.FromArgb(12, 14, 18)', 'Color.FromArgb(17, 19, 24)')
           $mainForm = $mainForm.Replace('Color.FromArgb(24, 28, 35)', 'Color.FromArgb(26, 29, 36)')
           # Apply native rounded controls after the UI has been built.
@@ -190,6 +195,13 @@ jobs:
             $pattern = '(private async Task[^\r\n]*' + $escaped + '[^\{]*\{)'
             $mainForm = [regex]::Replace($mainForm, $pattern, '$1' + "`r`n        _marketWebView.CoreWebView2?.Resume();", 1)
           }
+          $mainForm = $mainForm.Replace('private void BuildListingsPanel()', 'private void LegacyBuildListingsPanel()')
+          $mainForm = $mainForm.Replace('private void RenderCurrentListings(List<ListingInfo> listings)', 'private void LegacyRenderCurrentListings(List<ListingInfo> listings)')
+          $mainForm = $mainForm.Replace('public string Status { get; set; } = "AKTİF";', 'public string Status { get; set; } = "AKTİF"; public string ImageUrl { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
+          $mainForm = $mainForm.Replace('Status = "AKTİF"', 'Status = "AKTİF", ImageUrl = ReadListingImage(container), Server = ReadListingServer(container)')
+          $mainForm = $mainForm.Replace('public string ItemTitle { get; set; } = "";', 'public string ItemTitle { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
+          $mainForm = $mainForm.Replace('_settings.OwnStoreUrl = url;', '_settings.OwnStoreUrl = url; if (_marketWebView.CoreWebView2 is not null) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(url));')
+          $mainForm = $mainForm.Replace('NIYAZISUGAR', 'NiyaziSUGAR').Replace('Niyazisugar Itemci', 'NiyaziSUGAR · Itemci')
           Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
 
       - name: Test bump scheduling and restart protection
@@ -216,6 +228,23 @@ jobs:
         with:
           name: quick-listing-windows-screenshots
           path: test-results/quick-listing-windows-*.png
+
+      - name: Test complete redesigned Windows interface
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          Copy-Item src ui-test-src -Recurse
+          $testSource = Get-Content "ui-test-src/MainForm.cs" -Raw
+          $testSource = $testSource.Replace('await InitializeWebViewAsync();', 'return; // Isolated UI test: do not log in, scan, update or publish.')
+          Set-Content "ui-test-src/MainForm.cs" $testSource -Encoding utf8
+          dotnet run --project tests/DesignWindowsTests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Windows interface checks failed.' }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: redesigned-windows-screenshots
+          path: test-results/design-*.png
 
       - name: Restore main app
         run: dotnet restore src/NiyazisugarItemci.csproj
@@ -247,6 +276,11 @@ jobs:
         with:
           name: quick-listing-screenshots
           path: screenshots
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: redesigned-windows-screenshots
+          path: design-screenshots
 
       - name: Assemble update package
         shell: pwsh
@@ -285,6 +319,7 @@ jobs:
           gh release create $tag `
             "NiyazisugarItemci-update.zip" `
             "latest.json" `
+            "design-screenshots/*.png" `
             "screenshots/quick-listing-desktop.png" `
             "screenshots/quick-listing-small.png" `
             --target "${{ github.sha }}" `

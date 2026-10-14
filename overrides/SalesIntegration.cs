@@ -8,6 +8,10 @@ namespace NiyazisugarItemci;
 public sealed partial class MainForm
 {
     private readonly DateTimePicker _salesDate = new() { Format = DateTimePickerFormat.Custom, CustomFormat = "dd.MM.yyyy", Width = 145 };
+    private readonly ComboBox _salesServerFilter = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 190 };
+    private readonly TextBox _salesSearch = new() { PlaceholderText = "Satılan ürün ara…", Width = 230 };
+    private readonly Label _salesTotals = new() { Dock = DockStyle.Bottom, Height = 44, ForeColor = PremiumTheme.Gold, TextAlign = ContentAlignment.MiddleRight };
+    private bool _salesFiltering;
     private WebView2? _soldScanView;
     private bool _soldScanBusy;
     private bool _soldCacheLoaded;
@@ -25,8 +29,8 @@ public sealed partial class MainForm
         _salesPanel.Dock = DockStyle.Fill;
         _salesPanel.BackColor = Bg;
         _salesPanel.Padding = new Padding(24);
-        var heading = new Label { Text = "Satışlar / Günlük Net Kazanç", Dock = DockStyle.Top, Height = 55, Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = TextMain };
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 55, WrapContents = false };
+        var heading = new Label { Text = "Satışlar ve Kazanç", Dock = DockStyle.Top, Height = 55, Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = TextMain };
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0,0,0,12) };
         actions.Controls.Add(new Label { Text = "GÜN", AutoSize = true, Margin = new Padding(0, 12, 10, 0), ForeColor = TextMuted });
         _salesDate.Value = TurkeyToday;
         _salesDate.Margin = new Padding(0, 8, 12, 0);
@@ -35,6 +39,10 @@ public sealed partial class MainForm
         var today = ActionButton("BUGÜN", () => _salesDate.Value = TurkeyToday);
         today.Width = 85;
         actions.Controls.Add(today);
+        _salesServerFilter.Items.Add("Tüm sunucular"); _salesServerFilter.SelectedIndex=0;
+        _salesServerFilter.SelectedIndexChanged += (_,_) => { if(!_salesFiltering) RenderSoldSalesPanel(); };
+        _salesSearch.TextChanged += (_,_) => RenderSoldSalesPanel();
+        actions.Controls.Add(_salesServerFilter); actions.Controls.Add(_salesSearch);
         var refresh = ActionButton("YENİLE", () => _ = RefreshSoldListingsAsync(true));
         refresh.Width = 110;
         actions.Controls.Add(refresh);
@@ -46,7 +54,7 @@ public sealed partial class MainForm
         var metrics = new[] {
             SalesMetricCard("GÜNLÜK SATIŞ TOPLAMI", _salesGrossLabel, "0,00 TL", Accent),
             SalesMetricCard("KOMİSYON (%10)", _salesCommissionLabel, "0,00 TL", Color.FromArgb(255, 110, 110)),
-            SalesMetricCard("GÜNLÜK NET (%90)", _salesNetLabel, "0,00 TL", Green),
+            SalesMetricCard("GÜNLÜK NET (%90)", _salesNetLabel, "0,00 TL", PremiumTheme.Turquoise),
             SalesMetricCard("SATIŞ ADEDİ", _salesCountLabel, "0", TextMain)
         };
         for (int i = 0; i < 4; i++) { metrics[i].Dock = DockStyle.Fill; metrics[i].Margin = new Padding(0, 5, i < 3 ? 10 : 0, 12); cards.Controls.Add(metrics[i], i, 0); }
@@ -68,17 +76,23 @@ public sealed partial class MainForm
         _salesGrid.ColumnHeadersHeight = 42;
         _salesGrid.Columns.Clear();
         _salesGrid.Columns.Add("Item", "SATILAN ÜRÜN");
+        _salesGrid.Columns.Add("Server", "SUNUCU");
+        _salesGrid.Columns.Add("Commission", "KOMİSYON");
         _salesGrid.Columns.Add("Date", "TARİH");
         _salesGrid.Columns.Add("Time", "SAAT");
         _salesGrid.Columns.Add("Gross", "SATIŞ FİYATI");
         _salesGrid.Columns.Add("Net", "NET FİYAT (%10 DÜŞÜLMÜŞ)");
         _salesGrid.Columns["Item"]!.FillWeight = 200;
+        foreach(DataGridViewColumn col in _salesGrid.Columns) col.MinimumWidth = 75;
+        _salesGrid.Columns["Item"]!.MinimumWidth=160;
+        _salesGrid.Columns["Server"]!.MinimumWidth=120;
         _salesGrid.Columns["Date"]!.FillWeight = 80;
         _salesGrid.Columns["Time"]!.FillWeight = 55;
         _salesGrid.Columns["Gross"]!.FillWeight = 100;
         _salesGrid.Columns["Net"]!.FillWeight = 130;
         var table = new Panel { Dock = DockStyle.Fill, BackColor = Card, Padding = new Padding(8), };
         table.Controls.Add(_salesGrid);
+        table.Controls.Add(_salesTotals);
         _salesPanel.Controls.Add(table);
         _salesPanel.Controls.Add(status);
         _salesPanel.Controls.Add(cards);
@@ -89,20 +103,29 @@ public sealed partial class MainForm
     private void RenderSoldSalesPanel()
     {
         var selected = _salesDate.Value.Date;
-        var sales = _salesHistory.Values.Where(s => s.Timestamp.Date == selected).OrderByDescending(s => s.Timestamp).ToList();
+        var chosenServer=_salesServerFilter.SelectedItem?.ToString();
+        var names=_salesHistory.Values.Select(x=>x.Server).Distinct().OrderBy(x=>x).ToArray();
+        if(!names.SequenceEqual(_salesServerFilter.Items.Cast<string>().Skip(1))) {
+            _salesFiltering=true;_salesServerFilter.Items.Clear();_salesServerFilter.Items.Add("Tüm sunucular");foreach(var name in names)_salesServerFilter.Items.Add(name);
+            _salesServerFilter.SelectedItem=chosenServer;if(_salesServerFilter.SelectedIndex<0)_salesServerFilter.SelectedIndex=0;_salesFiltering=false;
+        }
+        var query=_salesSearch.Text.Trim();
+        var sales = _salesHistory.Values.Where(s => s.Timestamp.Date == selected && (chosenServer is null or "Tüm sunucular" || s.Server==chosenServer) && (query.Length==0 || s.ItemTitle.Contains(query,StringComparison.CurrentCultureIgnoreCase))).OrderByDescending(s => s.Timestamp).ToList();
         var gross = sales.Sum(s => s.GrossAmount);
         var net = sales.Sum(s => s.NetAmount);
         _salesGrossLabel.Text = FormatTl(gross);
         _salesCommissionLabel.Text = FormatTl(gross - net);
         _salesNetLabel.Text = FormatTl(net);
         _salesCountLabel.Text = sales.Count.ToString();
+        _salesTotals.Text = $"TOPLAM   ·   {sales.Count} satış   ·   Satış: {FormatTl(gross)}   ·   Komisyon: {FormatTl(gross-net)}   ·   Net: {FormatTl(net)}";
         _salesGrid.Rows.Clear();
         foreach (var sale in sales)
         {
-            int row = _salesGrid.Rows.Add(sale.ItemTitle, sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.NetAmount));
-            _salesGrid.Rows[row].Height = 38;
+            int row = _salesGrid.Rows.Add(sale.ItemTitle, sale.Server, FormatTl(sale.CommissionAmount), sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.NetAmount));
+            _salesGrid.Rows[row].Height = 48;
+            _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = Color.FromArgb(255,140,135);
             _salesGrid.Rows[row].Cells["Gross"].Style.ForeColor = Accent;
-            _salesGrid.Rows[row].Cells["Net"].Style.ForeColor = Green;
+            _salesGrid.Rows[row].Cells["Net"].Style.ForeColor = PremiumTheme.Turquoise;
         }
     }
 
@@ -210,7 +233,7 @@ public sealed partial class MainForm
                         !decimal.TryParse(data.Price, NumberStyles.Number, CultureInfo.GetCultureInfo("tr-TR"), out var gross) || gross <= 0 || string.IsNullOrWhiteSpace(data.OrderId))
                     { failed++; continue; }
                     // Replace by order ID. Refreshes cannot double-count a sale.
-                    _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
+                    _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Server = data.Server, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
                 }
                 SaveSalesHistory();
                 RenderSoldSalesPanel();
@@ -255,6 +278,7 @@ public sealed partial class MainForm
         public string OrderId { get; set; } = "";
         public string ListingId { get; set; } = "";
         public string ItemTitle { get; set; } = "";
+        public string Server { get; set; } = "Bilinmeyen sunucu";
         public string Date { get; set; } = "";
         public string Time { get; set; } = "";
         public string Price { get; set; } = "";

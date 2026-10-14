@@ -12,29 +12,26 @@ public sealed partial class MainForm
     private bool _liveBusy;
     private bool _liveCollapsed;
     private bool _updatingLiveServers;
-    private bool _positioningLive;
 
     private void InstallLiveMarket()
     {
-        _liveMarket = new Panel { Size = new Size(288, 340), BackColor = Card, Padding = new Padding(10), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
+        _liveMarket = new Panel { Dock = DockStyle.Right, Width = 300, BackColor = Card, Padding = new Padding(12) };
         _liveMarket.Paint += (_, e) => DrawBorder(e.Graphics, _liveMarket.ClientRectangle);
-        var header = new Panel { Dock = DockStyle.Top, Height = 62 };
-        var title = new Button { Text = "SERVER SATIŞLARI", Width = 190, Height = 28, FlatStyle = FlatStyle.Flat, ForeColor = Accent, BackColor = Card, Font = new Font("Segoe UI",8,FontStyle.Bold) };
-        title.Click += (_, _) => _topMarketMenu.Show(title, new Point(0,title.Height));
-        _liveServer.Location = new Point(0, 30);
+        var header = new Panel { Dock = DockStyle.Top, Height = 80 };
+        var title = new Label { Text = "Satış Takibi", Dock = DockStyle.Top, Height = 32, ForeColor = PremiumTheme.Gold, Font = new Font("Segoe UI",12,FontStyle.Bold) };
+        var collapse = new Button { Text = "›", Dock = DockStyle.Right, Width = 30, FlatStyle = FlatStyle.Flat, ForeColor = TextMain, BackColor = Card };
+        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Width = _liveCollapsed ? 48 : 300; _liveRows.Visible = _liveStatus.Visible = _liveServer.Visible = title.Visible = !_liveCollapsed; collapse.Text = _liveCollapsed ? "‹" : "›"; };
+        _liveServer.Dock = DockStyle.Top;
         _liveServer.SelectedIndexChanged += (_, _) => { if (!_updatingLiveServers) RenderServerSalesWatch(); };
-        var refresh = new Button { Text = "↻", Location = new Point(220,28), Size = new Size(28,28), FlatStyle = FlatStyle.Flat, ForeColor = TextMain, BackColor = Card };
+        var refresh = new Button { Text = "Yenile", Dock = DockStyle.Bottom, Height = 32, FlatStyle = FlatStyle.Flat, ForeColor = PremiumTheme.Gold, BackColor = Card };
         refresh.Click += (_, _) => _ = RefreshLiveMarketAsync();
-        var collapse = new Button { Text = "−", Location = new Point(246,0), Size = new Size(26,28), FlatStyle = FlatStyle.Flat, ForeColor = TextMain, BackColor = Card };
-        collapse.Click += (_, _) => { _liveCollapsed = !_liveCollapsed; _liveMarket.Height = _liveCollapsed ? 82 : 340; _liveRows.Visible = !_liveCollapsed; _liveStatus.Visible = !_liveCollapsed; collapse.Text = _liveCollapsed ? "+" : "−"; PositionLiveMarket(); };
-        header.Controls.Add(title);header.Controls.Add(_liveServer);header.Controls.Add(refresh);header.Controls.Add(collapse);
-        _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(header);
-        _liveRows.BringToFront();
+        header.Controls.Add(_liveServer);header.Controls.Add(title);header.Controls.Add(collapse);
+        _liveStatus.Height = 58;
+        _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(header);
         _browserPanel.Controls.Add(_liveMarket);
-        _browserPanel.SizeChanged += (_, _) => PositionLiveMarket();
-        _browserAddressBox.TextChanged += (_, _) => PositionLiveMarket();
-        PositionLiveMarket();
-        _liveMarket.BringToFront();
+        _browserPanel.Controls.SetChildIndex(_liveMarket, _browserPanel.Controls.Count-1);
+        _liveRows.SizeChanged += (_, _) => { foreach (Control row in _liveRows.Controls) row.Width = Math.Max(40,_liveRows.ClientSize.Width-6); };
+        _liveMarket.SizeChanged += (_, _) => { foreach (Control row in _liveRows.Controls) row.Width = Math.Max(40,_liveRows.ClientSize.Width-6); };
         LoadServerSalesWatch();
         RefreshLiveMarketServers();
         RenderServerSalesWatch();
@@ -56,55 +53,7 @@ public sealed partial class MainForm
         }
     }
 
-    private void PositionLiveMarket() => _ = PositionLiveMarketAsync();
-
-    private async Task PositionLiveMarketAsync()
-    {
-        if (_positioningLive || _liveMarket is null) return;
-        _positioningLive = true;
-        try
-        {
-            var core = _webView.CoreWebView2;
-            if (core is null) { _liveMarket.Visible = false; return; }
-            // Find the real sidebar boundary, rather than covering the site's menu.
-            var raw = await core.ExecuteScriptAsync("""
-                (() => {
-                    const norm = s => String(s || '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').trim();
-                    let left = null;
-                    for (const node of document.querySelectorAll('a,span')) {
-                        if (norm(node.textContent) !== 'kullanici paneli') continue;
-                        for (let p = node.parentElement, i = 0; p && i < 10; p = p.parentElement, i++) {
-                            const r = p.getBoundingClientRect();
-                            if (r.width >= 160 && r.width <= 420 && r.height >= 200) { left = r.left; break; }
-                        }
-                        if (left !== null) break;
-                    }
-                    if (left === null) {
-                        const container = [...document.querySelectorAll('main .container,main [class*="max-w-7xl"],header .container')]
-                            .map(el=>el.getBoundingClientRect()).find(r=>r.width>600 && r.left>0);
-                        left = container?.left ?? 0;
-                    }
-                    return {left, viewport: innerWidth};
-                })()
-                """);
-            using var data = JsonDocument.Parse(raw);
-            var viewport = data.RootElement.GetProperty("viewport").GetDouble();
-            var margin = data.RootElement.GetProperty("left").GetDouble() * _browserHost.ClientSize.Width / Math.Max(1, viewport);
-            // On narrow windows there is no unused gutter. Hide the floating panel;
-            // the full analysis remains available in the top menu.
-            _liveMarket.Visible = margin >= 260;
-            if (_liveMarket.Visible)
-            {
-                _liveMarket.Width = Math.Min(288, (int)margin - 24);
-                var origin = _browserPanel.PointToClient(_browserHost.PointToScreen(Point.Empty));
-                _liveMarket.Location = new Point(origin.X + 12, Math.Max(origin.Y + 12, origin.Y + _browserHost.Height - _liveMarket.Height - 12));
-                foreach (Control row in _liveRows.Controls) row.Width = _liveMarket.Width - 26;
-                _liveMarket.BringToFront();
-            }
-        }
-        catch { _liveMarket.Visible = false; }
-        finally { _positioningLive = false; }
-    }
+    private void PositionLiveMarket() { /* Docking reserves space without probing the website. */ }
 
     private void RefreshLiveMarketServers()
     {
