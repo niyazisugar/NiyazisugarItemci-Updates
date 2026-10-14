@@ -48,8 +48,7 @@ public sealed partial class MainForm
             ShowPanel(_marketPanel);
             _ = OpenEmbeddedMarketAnalyzerAsync();
         });
-        Button? create = null;
-        create = TopButton("İlan Oluştur ▾", 117, () => _topCreateMenu.Show(create!, new Point(0, create!.Height + 6)));
+        var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowQuickListingPickerAsync());
         create.ForeColor = Accent;
         create.BackColor = Color.FromArgb(49, 42, 30);
         menu.Controls.Add(create);

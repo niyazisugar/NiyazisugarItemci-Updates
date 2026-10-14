@@ -25,6 +25,7 @@ jobs:
       - run: node tests/sales.cjs
       - run: node tests/live-market.cjs
       - run: node tests/server-sales.cjs
+      - run: node tests/quick-listing.cjs
 
   publish:
     needs: adblock-test
@@ -72,6 +73,11 @@ jobs:
           Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force
           Copy-Item "overrides/ServerSalesTracker.cs" "src/ServerSalesTracker.cs" -Force
           Copy-Item "overrides/ServerSales.js" "src/ServerSales.js" -Force
+          Copy-Item "overrides/QuickListing.cs" "src/QuickListing.cs" -Force
+          Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
+          $settingsSource = Get-Content "src/AppSettings.cs" -Raw
+          $settingsSource = $settingsSource.Replace('public bool NotificationsEnabled', 'public string LastQuickListingServer { get; set; } = ""; public bool NotificationsEnabled')
+          Set-Content "src/AppSettings.cs" $settingsSource -Encoding utf8
           Copy-Item "overrides/MarketAnalyzer.js" "src/MarketAnalyzer.js" -Force
           Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 

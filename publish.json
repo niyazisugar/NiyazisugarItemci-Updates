@@ -1,4 +1,4 @@
 {
-  "version": "2.8.6",
-  "notes": "Sol radar yerine Server Satışları takip paneli eklendi. Kayıtlı tüm sunucular arka planda taranır; listeden çıkan ilanlar kendi sayfalarında açık satıldı işaretiyle doğrulanır. Yeni doğrulanan kayıtlar en üstte; sunucu seçimi ve kalıcı kayıt var. Silinen/404 ilanlar satış sayılmaz. Gösterilen zaman tespit zamanı, fiyat son görülen ilan fiyatıdır; geçmiş günün tüm satışları garanti edilmez."
+  "version": "2.8.7",
+  "notes": "Hızlı İlan Ekle eklendi: analiz sunucularını gösteren aramalı seçim penceresi, son kullanılan sunucuyu hatırlama, doğrudan ilan formuna geçiş ve sunucu/kategori seçimini hazırlama. Aynı sunucunun açık taslağı yeniden kullanılır; farklı sunucu için mevcut taslak korunur. Yayınlama kullanıcı tarafından yapılır."
 }
