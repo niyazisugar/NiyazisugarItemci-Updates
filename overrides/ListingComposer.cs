@@ -56,7 +56,8 @@ public sealed partial class MainForm
         actions.Controls.Add(ActionButton("TASLAĞI KAYDET",()=>{SaveComposerDrafts();_composerStatus.Text="Taslak kaydedildi.";}));
         actions.Controls.Add(ActionButton("İLANLARIM",()=>{ShowPanel(_listingsPanel);_=RefreshCurrentListingsAsync(true);}));
         actions.Controls.Add(ActionButton("YENİ TASLAK",()=>{_composerLoading=true;_composerTitle.Clear();_composerPrice.Value=1;_composerImages.Items.Clear();_composerDescription.Text=DefaultComposerDescription;_composerLoading=false;_composerUncertain=false;_composerPublish.Enabled=true;QueueComposerSave();_composerStatus.Text="Yeni taslak hazır.";}));
-        column.Controls.Add(actions);column.Controls.Add(_composerStatus);_composerPanel.Controls.Add(column);_content.Controls.Add(_composerPanel);
+        column.Controls.Add(actions);column.Controls.Add(_composerStatus);
+        column.Controls.Add(ActionButton("HATA BİLGİSİNİ KOPYALA",()=>{if(!string.IsNullOrWhiteSpace(_composerStatus.Text))Clipboard.SetText(_composerStatus.Text);}));_composerPanel.Controls.Add(column);_content.Controls.Add(_composerPanel);
         foreach(var input in new TextBox[]{_composerTitle,_composerDescription}){input.BackColor=Card;input.ForeColor=TextMain;input.Font=new Font("Segoe UI",11);input.TextChanged+=(_,_)=>QueueComposerSave();}
         _composerPrice.ValueChanged+=(_,_)=>{UpdateComposerNet();QueueComposerSave();};
         _composerDelivery.SelectedIndexChanged+=(_,_)=>QueueComposerSave();_composerValidity.SelectedIndexChanged+=(_,_)=>QueueComposerSave();
@@ -105,7 +106,7 @@ public sealed partial class MainForm
             var images=new List<object>();if(!draft.stock)foreach(var path in draft.paths){if(!File.Exists(path)||new FileInfo(path).Length>5*1024*1024)throw new IOException("Görsel dosyası bulunamadı veya 5 MB sınırını aşıyor.");images.Add(new{name=Path.GetFileName(path),type=Path.GetExtension(path).ToLowerInvariant()==".png"?"image/png":"image/jpeg",base64=Convert.ToBase64String(await File.ReadAllBytesAsync(path))});}
             if(_browserEnvironment is null)throw new IOException("Itemci oturumu hazır değil.");
             if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();}
-            _composerTransport=new WebView2{Size=new Size(1280,900),Visible=false};Controls.Add(_composerTransport);await _composerTransport.EnsureCoreWebView2Async(_browserEnvironment);
+            _composerTransport=new WebView2{Size=new Size(1280,900),Location=new Point(-6000,-6000),Visible=true,TabStop=false};Controls.Add(_composerTransport);await _composerTransport.EnsureCoreWebView2Async(_browserEnvironment);
             var core=_composerTransport.CoreWebView2;core.NewWindowRequested+=(_,e)=>e.Handled=true;
             var loaded=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);core.NavigationCompleted+=(_,e)=>{if(e.IsSuccess)loaded.TrySetResult(true);else loaded.TrySetException(new IOException("Itemci formu yüklenemedi."));};core.Navigate("https://itemci.com/panel/ilan-ekle");await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30));
             var resultTask=new TaskCompletionSource<ComposerResult>(TaskCreationOptions.RunContinuationsAsynchronously);var token=Guid.NewGuid().ToString("N");
@@ -119,7 +120,7 @@ public sealed partial class MainForm
         }
         catch(TimeoutException){_composerUncertain=true;_composerStatus.Text="Sonuç doğrulanamadı. Tekrar göndermeden önce İlanlarım bölümünü kontrol et.";}
         catch(Exception ex){_composerStatus.Text=ex.Message;_composerStatus.ForeColor=Accent;}
-        finally{_composerBusy=false;_composerPanel.Enabled=true;_composerPublish.Enabled=!_composerUncertain;SaveComposerDrafts();}
+        finally{if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();_composerTransport=null;}_composerBusy=false;_composerPanel.Enabled=true;_composerPublish.Enabled=!_composerUncertain;SaveComposerDrafts();}
     }
     private sealed class ComposerDraft{public string title{get;set;}="";public string description{get;set;}=DefaultComposerDescription;public decimal price{get;set;}=1;public int delivery{get;set;}=1;public int validity{get;set;}=15;public bool stock{get;set;}=true;public bool orders{get;set;}=true;public List<string> paths{get;set;}=new();public bool blocked{get;set;}}
     private sealed class ComposerResult{public bool ok{get;set;}public bool uncertain{get;set;}public string message{get;set;}="";public string id{get;set;}="";public string url{get;set;}="";}

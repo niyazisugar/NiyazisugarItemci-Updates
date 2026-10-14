@@ -11,6 +11,19 @@ const{chromium}=require('playwright');const fs=require('fs');const assert=requir
  result=await page.evaluate(()=>window.__NiyaziQuickListing('Sezar2'));
  assert.equal(result.draft,true);assert.equal(await page.locator('#server').inputValue(),'msp');assert.equal(await page.locator('input[name="title"]').inputValue(),'Korunacak ilan taslağı');
  assert.equal(await page.evaluate(()=>window.submits),0);
+ await page.setContent('<meta charset="utf-8"><aside><button>Sezar2</button></aside><main id="wizard"><button id="game"><h3>Metin2 PvP Serverler</h3><small>Sunuculara göz at</small></button></main>');
+ await page.evaluate(()=>{
+  const wizard=document.querySelector('#wizard');
+  document.querySelector('#game').onclick=()=>{
+   wizard.innerHTML='<div class="cursor-pointer" id="server-card"><h3>Sezar 2</h3><span>2 kategori</span></div>';
+   document.querySelector('#server-card').onclick=()=>{
+    wizard.innerHTML='<button id="category-card"><span>Sezar2 Item&amp;Yang</span><small>İlan kategorisi</small></button>';
+    document.querySelector('#category-card').onclick=()=>wizard.innerHTML='<form><input type="text" required maxlength="150"><button type="submit">Yayınla</button></form>';
+   };
+  };
+ });
+ const wizardResult=await page.evaluate(()=>window.__NiyaziQuickListing('Sezar2'));
+ assert.equal(wizardResult.ok,true);assert.equal(await page.locator('form input[maxlength="150"]').count(),1);
  await page.goto('https://itemci.com/user/login');await page.addScriptTag({content:fs.readFileSync('overrides/QuickListing.js','utf8')});
  result=await page.evaluate(()=>window.__NiyaziQuickListing('Sezar2'));assert.equal(result.ok,false);
  console.log('PASS: automatic server/category selection, existing draft preserved, login route reported, no publishing.');
