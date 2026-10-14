@@ -24,6 +24,7 @@ jobs:
       - run: node tests/adblock.cjs
       - run: node tests/sales.cjs
       - run: node tests/live-market.cjs
+      - run: node tests/server-sales.cjs
 
   publish:
     needs: adblock-test
@@ -69,6 +70,8 @@ jobs:
           Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
           Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
           Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force
+          Copy-Item "overrides/ServerSalesTracker.cs" "src/ServerSalesTracker.cs" -Force
+          Copy-Item "overrides/ServerSales.js" "src/ServerSales.js" -Force
           Copy-Item "overrides/MarketAnalyzer.js" "src/MarketAnalyzer.js" -Force
           Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
 

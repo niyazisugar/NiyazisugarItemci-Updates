@@ -1,4 +1,4 @@
 {
-  "version": "2.8.5",
-  "notes": "Üst menüye geniş Piyasa Analiz ekranı geri eklendi. Sol piyasa radarı Itemci menüsünün gerçek sınırına göre boş alana yerleşir. İlan kısa adı, toplam fiyat ve ürün miktarına göre hesaplanan birim fiyat (TL/KT, TL/OT, TL/M) renkli satırlarda gösterilir. Dar ekranlarda menüyü örtmemek için küçük radar gizlenir."
+  "version": "2.8.6",
+  "notes": "Sol radar yerine Server Satışları takip paneli eklendi. Kayıtlı tüm sunucular arka planda taranır; listeden çıkan ilanlar kendi sayfalarında açık satıldı işaretiyle doğrulanır. Yeni doğrulananlar üstte; sunucu seçimi ve kalıcı kayıt var. Silinen/404 ilanlar satış sayılmaz. Gösterilen zaman tespit zamanı, fiyat son görülen ilan fiyatıdır; geçmiş günün tüm satışları garanti edilmez."
 }

@@ -2947,6 +2947,47 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor) => {
+        const server = loadServers().find(s => s.id === serverId);
+        if (!server) throw new Error('Sunucu bulunamadı.');
+        const base = await resolveItemYangCategory(server.url);
+        const active = new Map();
+        let complete = false;
+        for (let page = 1; page <= MAX_PAGES; page++) {
+            const data = await fetchPage(page, base);
+            const cards = cardsFromDocument(data.doc, base);
+            if (!cards.length) {
+                const body = normalizeSearchText(data.doc.body.textContent);
+                if (page > 1 || /ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)) complete = true;
+                break;
+            }
+            let added = 0;
+            for (const card of cards) {
+                card.href = new URL(card.getAttribute('href'), data.url).href;
+                const row = parseCard(card);
+                if (row && !active.has(row.url)) { active.set(row.url, row); added++; }
+            }
+            if (!added && page > 1) { complete = true; break; }
+            await sleep(350);
+        }
+        const sold = [];
+        let checked = 0;
+        if (complete) {
+            const missing = known.filter(row => !active.has(row.url));
+            for (let i = 0; i < Math.min(12, missing.length); i++) {
+                const row = missing[(cursor + i) % missing.length];
+                try {
+                    const response = await fetch(row.url, {credentials:'include',cache:'no-store'});
+                    if (!response.ok || new URL(response.url).pathname !== new URL(row.url).pathname) continue;
+                    const html = await response.text();
+                    if (window.__NiyaziConfirmedPublicSale(html,row.url)) sold.push(row);
+                } catch {}
+                checked++;
+                await sleep(300);
+            }
+        }
+        return {rows:[...active.values()],sold,complete,nextCursor:cursor+12,checked};
+    };
     window.__NiyazisugarRunMarket = runAnalysis;
     window.__NiyazisugarMarketVersion = 'V17.1-Desktop';
 
