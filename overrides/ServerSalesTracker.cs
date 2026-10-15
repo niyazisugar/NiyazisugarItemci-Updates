@@ -7,6 +7,7 @@ public sealed partial class MainForm
     private readonly Dictionary<string, ServerWatch> _serverWatch = new();
     private string _serverWatchRenderedKey="";
     private int _serverWatchNextIndex;
+    private DateTime _serverWatchRetryUtc;
     private int _serverWatchVisibleCount=50;
     private string _serverWatchRenderedServer="";
     private readonly Font _watchTitleFont=new("Segoe UI",8.5F,FontStyle.Bold);
@@ -90,14 +91,14 @@ public sealed partial class MainForm
         {
             var soldUrls=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var known=state.known.Values.Where(row=>!soldUrls.Contains(row.url)).ToList();
-            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
-            return await task.Task.WaitAsync(TimeSpan.FromMinutes(3));
+            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
+            return await task.Task.WaitAsync(TimeSpan.FromSeconds(45));
         }
         finally { core.WebMessageReceived -= Message; }
     }
     private async Task ScanAllServerSalesAsync()
     {
-        if (_liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
+        if (DateTime.UtcNow<_serverWatchRetryUtc || _liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
         _liveBusy = true;
         _marketWebView.CoreWebView2.Resume();
         try
@@ -109,7 +110,7 @@ public sealed partial class MainForm
             var start=servers.Length==0?0:_serverWatchNextIndex%servers.Length;
             for(var offset=0;offset<servers.Length;offset++)
             {
-                if(_composerPopup is not null||_composerBusy||_marketPanel.Visible)break;
+                if(_composerPopup is not null||_composerBusy||_marketPanel.Visible||_autoBumpBusy||AutoBumpDue)break;
                 var index=(start+offset)%servers.Length;var server=servers[index];
                 _serverWatchNextIndex=(index+1)%servers.Length;
                 if (!_serverWatch.TryGetValue(server.Id,out var state)) _serverWatch[server.Id] = state = new();
@@ -128,12 +129,14 @@ public sealed partial class MainForm
                         }
                         state.known.Remove(row.url);
                     }
-                    state.cursor = scan.nextCursor;
+                    state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
-                    state.status = scan.complete ? $"{state.known.Count} ilan · {DateTime.Now:HH:mm}" : "Tarama eksik; kaybolan ilanlar değerlendirilmedi";
+                    state.status = $"{state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
+                    if(scan.rateLimited){_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
                 }
-                catch { state.status = "Kontrol başarısız; sonraki turda tekrar denenecek"; }
+                catch(Exception ex) { state.status = "Kontrol başarısız: "+ex.Message; }
                 if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
+                if(DateTime.UtcNow<_serverWatchRetryUtc)break;
             }
             SaveServerSalesWatch();
         }
@@ -144,6 +147,7 @@ public sealed partial class MainForm
     {
         public Dictionary<string,LiveListing> known {get;set;} = new();
         public List<WatchSale> sales {get;set;} = new();
+        public int pageCursor {get;set;} = 1;
         public int cursor {get;set;}
         public string status {get;set;} = "İzleniyor";
     }
@@ -158,5 +162,9 @@ public sealed partial class MainForm
         public List<LiveListing> sold {get;set;} = new();
         public bool complete {get;set;}
         public int nextCursor {get;set;}
+        public int nextPage {get;set;} = 1;
+        public int @checked {get;set;}
+        public int failed {get;set;}
+        public bool rateLimited {get;set;}
     }
 }

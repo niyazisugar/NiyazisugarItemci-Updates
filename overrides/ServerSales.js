@@ -18,7 +18,10 @@
    } catch {}
   }
   // Exact product notices only. No inference from a 404 or disappearing card.
-  for (const el of doc.querySelectorAll('h1,h2,h3,[role="alert"]')) {
+  for (const el of doc.querySelectorAll('h1,h2,h3,p,span,div,[role="alert"]')) {
+   if (el.closest('script,style,nav,aside')) continue;
+   const link=el.closest('a[href]');
+   if(link){try{if(new URL(link.getAttribute('href'),url).pathname.replace(/\/$/,'')!==expected)continue;}catch{continue;}}
    if (/^(?:bu (?:ilan|urun) (?:satildi|satilmistir)|ilan satildi|urun satildi)[.!]?$/.test(text(el.textContent))) confirmed = true;
   }
   return confirmed;

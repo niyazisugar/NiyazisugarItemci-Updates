@@ -2987,46 +2987,69 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
-        const base = await resolveItemYangCategory(server.url);
+        const deadline = Date.now() + 30000;
+        let rateLimited = false, failed = 0, checked = 0, complete = false;
+        const read = async url => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), Math.min(8000, Math.max(1, deadline-Date.now())));
+            try {
+                const response = await fetch(url, {credentials:'include',cache:'no-store',signal:controller.signal});
+                if (response.status === 429) {rateLimited=true;throw new Error('Site işlem sınırı; takip beklemeye alındı.');}
+                if (!response.ok) throw new Error('HTTP '+response.status);
+                if (response.url && new URL(response.url).pathname.replace(/\/$/,'') !== new URL(url).pathname.replace(/\/$/,'')) throw new Error('Sayfa başka bir adrese yönlendirildi.');
+                return await response.text();
+            } finally {clearTimeout(timer);}
+        };
+        let base=normalizeServerCategoryUrl(server.url);
+        if (!base) throw new Error('Sunucu kategori bağlantısı geçersiz.');
+        // Resolve from one bounded request, preserving the configured category.
+        if (!/-itemyang$/.test(new URL(base).pathname)) {
+            const html=await read(base);
+            base=discoverItemYangUrl(new DOMParser().parseFromString(html,'text/html'),base);
+            if(!base)throw new Error('ItemYang kategorisi bulunamadı.');
+        }
         const active = new Map();
-        let complete = false;
-        for (let page = 1; page <= MAX_PAGES; page++) {
-            const data = await fetchPage(page, base);
-            const cards = cardsFromDocument(data.doc, base);
-            if (!cards.length) {
-                const body = normalizeSearchText(data.doc.body.textContent);
-                if (page > 1 || /ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)) complete = true;
-                break;
-            }
-            let added = 0;
-            for (const card of cards) {
-                card.href = new URL(card.getAttribute('href'), data.url).href;
-                const row = parseCard(card);
-                if (row && !active.has(row.url)) { active.set(row.url, row); added++; }
-            }
-            if (!added && page > 1) { complete = true; break; }
-            await sleep(350);
+        let nextPage=Math.max(1,Math.min(MAX_PAGES,Number(pageCursor)||1));
+        // Refresh new listings on page one, then advance through older pages.
+        const pages=[...new Set([1,nextPage,nextPage+1,nextPage+2])].filter(p=>p<=MAX_PAGES);
+        for (const page of pages) {
+            if(Date.now()>=deadline||rateLimited)break;
+            try {
+                const url=page===1?base:`${base}?page=${page}`;
+                const doc=new DOMParser().parseFromString(await read(url),'text/html');
+                const cards=cardsFromDocument(doc,base);
+                if(!cards.length){
+                    const body=normalizeSearchText(doc.body.textContent);
+                    if(/ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)){complete=true;nextPage=1;break;}
+                    failed++;break;
+                }
+                for(const card of cards){card.href=new URL(card.getAttribute('href'),url).href;const row=parseCard(card);if(row)active.set(row.url,row);}
+                nextPage=page>=MAX_PAGES?1:page+1;
+                const hasNext=[...doc.querySelectorAll('a[href]')].some(a=>{try{const u=new URL(a.getAttribute('href'),url);return u.pathname===new URL(base).pathname&&Number(u.searchParams.get('page'))>page;}catch{return false;}});
+                if(!hasNext){complete=true;nextPage=1;break;}
+            } catch {failed++;break;}
+            await sleep(250);
         }
-        const sold = [];
-        let checked = 0;
-        if (complete) {
-            const missing = known.filter(row => !active.has(row.url));
-            for (let i = 0; i < Math.min(12, missing.length); i++) {
-                const row = missing[(cursor + i) % missing.length];
-                try {
-                    const response = await fetch(row.url, {credentials:'include',cache:'no-store'});
-                    if (!response.ok || new URL(response.url).pathname !== new URL(row.url).pathname) continue;
-                    const html = await response.text();
-                    if (window.__NiyaziConfirmedPublicSale(html,row.url)) sold.push(row);
-                } catch {}
-                checked++;
-                await sleep(300);
-            }
+        // A sold listing may still be present in a category. Check known URLs
+        // directly even when pagination is incomplete; disappearance is never proof.
+        const candidates=new Map((known||[]).map(row=>[row.url,row]));
+        for(const row of active.values())candidates.set(row.url,row);
+        const queue=[...candidates.values()].sort((a,b)=>a.url.localeCompare(b.url));
+        const sold=[];let attempted=0;
+        for(let i=0;i<Math.min(12,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
+            const row=queue[((Number(cursor)||0)+i)%queue.length];attempted++;
+            try{
+                const url=new URL(row.url);
+                if(url.origin!=='https://itemci.com'||!url.pathname.startsWith('/product/'))continue;
+                const html=await read(url.href);checked++;
+                if(window.__NiyaziConfirmedPublicSale(html,url.href))sold.push(row);
+            }catch{failed++;}
+            await sleep(250);
         }
-        return {rows:[...active.values()],sold,complete,nextCursor:cursor+12,checked};
+        return {rows:[...active.values()],sold,complete,nextCursor:(Number(cursor)||0)+attempted,nextPage,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);

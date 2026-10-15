@@ -1,4 +1,4 @@
 {
-  "version": "2.14.4",
-  "notes": "Ücretsiz yukarı taşıma her ilan için saatlik sınırı korur. Farklı ilanların işlemleri arasında en az 90 saniye beklenir; bu süre uygulama yeniden başlatıldığında da korunur. Site işlem sınırı bildirirse bütün sıra beklemeye alınır. Bekleme sırasında gizli tarayıcı kapatılır."
+  "version": "2.14.5",
+  "notes": "Canlı sunucu satış takibi düzeltildi. Eksik kategori taraması satış doğrulamasını artık durdurmaz. Bilinen ve listede kalan ilanlar sırayla kontrol edilir; sayfalar parça parça taranır. Ağ istekleri süreyle sınırlanır, site işlem sınırında takip bekler ve hatalar panelde gösterilir. Kaybolan veya silinen ilanlar satış sayılmaz."
 }
