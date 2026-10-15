@@ -1,4 +1,4 @@
 {
-  "version": "2.14.5",
-  "notes": "Canlı sunucu satış takibi düzeltildi. Eksik kategori taraması satış doğrulamasını artık durdurmaz. Bilinen ve listede kalan ilanlar sırayla kontrol edilir; sayfalar parça parça taranır. Ağ istekleri süreyle sınırlanır, site işlem sınırında takip bekler ve hatalar panelde gösterilir. Kaybolan veya silinen ilanlar satış sayılmaz."
+  "version": "2.14.6",
+  "notes": "Sunucu ve filtre açılır listelerindeki ContextMenuStrip nesnesine erişilemiyor hatası düzeltildi. Seçim ve iptal sırasında menü erken silinmez; bileşen kapatıldığında temizlenir. Sezar2 geçişi ve diğer ortak açılır listeler aynı düzeltmeyi kullanır."
 }

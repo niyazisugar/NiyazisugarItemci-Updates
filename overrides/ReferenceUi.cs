@@ -88,14 +88,30 @@ internal sealed class ReferenceSearch : ReferencePanel
 }
 internal sealed class ReferenceSelect : Control
 {
+    private readonly ContextMenuStrip _choices = new() {BackColor=ReferenceUi.Surface,ForeColor=ReferenceUi.Text,Font=ReferenceUi.Font(11),ShowImageMargin=false};
     private readonly ComboBox _model;internal string Icon {get;set;}="server";
     internal ReferenceSelect(ComboBox model){_model=model;model.SelectedIndexChanged+=Changed;BackColor=ReferenceUi.Field;Font=ReferenceUi.Font(11);Cursor=Cursors.Hand;TabStop=true;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
     private void Changed(object? sender,EventArgs e)=>Invalidate();
     protected override void OnPaint(PaintEventArgs e){var g=e.Graphics;g.Clear(ReferenceUi.Host(this));float s=DeviceDpi/96f;ReferenceUi.SurfacePaint(g,ClientRectangle,ReferenceUi.Field,true,8*s);ReferenceUi.Icon(g,Icon,new RectangleF(16*s,(Height-22*s)/2,22*s,22*s),ReferenceUi.Muted);TextRenderer.DrawText(g,_model.GetItemText(_model.SelectedItem),Font,new Rectangle((int)(50*s),0,Math.Max(0,Width-(int)(86*s)),Height),ReferenceUi.Text,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix);ReferenceUi.Icon(g,"chevron",new RectangleF(Width-30*s,(Height-18*s)/2,18*s,18*s),ReferenceUi.Muted);}
     protected override void OnClick(EventArgs e){base.OnClick(e);OpenChoices();}
-    private void OpenChoices(){var menu=new ContextMenuStrip {BackColor=ReferenceUi.Surface,ForeColor=ReferenceUi.Text,Font=ReferenceUi.Font(11),ShowImageMargin=false};for(int i=0;i<_model.Items.Count;i++){int index=i;var item=new ToolStripMenuItem(_model.GetItemText(_model.Items[i])) {Checked=i==_model.SelectedIndex};item.Click+=(_,_)=>_model.SelectedIndex=index;menu.Items.Add(item);}menu.Closed+=(_,_)=>menu.Dispose();menu.Show(this,new Point(0,Height));}
+    private void OpenChoices()
+    {
+        if(IsDisposed||Disposing||_model.IsDisposed||_choices.IsDisposed||_choices.Visible)return;
+        // Keep the dropdown alive until its owning control is disposed. WinForms
+        // still accesses it after Closed while completing mouse/keyboard selection.
+        foreach(ToolStripItem old in _choices.Items.Cast<ToolStripItem>().ToArray())old.Dispose();
+        _choices.Items.Clear();
+        for(int i=0;i<_model.Items.Count;i++)
+        {
+            int index=i;var value=_model.Items[i];
+            var item=new ToolStripMenuItem(_model.GetItemText(value)) {Checked=i==_model.SelectedIndex};
+            item.Click+=(_,_)=>{if(!IsDisposed&&!Disposing&&!_model.IsDisposed&&index<_model.Items.Count&&Equals(_model.Items[index],value))_model.SelectedIndex=index;};
+            _choices.Items.Add(item);
+        }
+        if(_choices.Items.Count>0)_choices.Show(this,new Point(0,Height));
+    }
     protected override void OnKeyDown(KeyEventArgs e){base.OnKeyDown(e);if(e.KeyCode is Keys.Enter or Keys.Space){OpenChoices();e.Handled=true;}else if(e.KeyCode is Keys.Up or Keys.Down&&_model.Items.Count>0){_model.SelectedIndex=Math.Clamp(_model.SelectedIndex+(e.KeyCode==Keys.Down?1:-1),0,_model.Items.Count-1);e.Handled=true;}}
-    protected override void Dispose(bool disposing){if(disposing)_model.SelectedIndexChanged-=Changed;base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){_model.SelectedIndexChanged-=Changed;_choices.Dispose();}base.Dispose(disposing);}
 }
 internal sealed class ReferenceBadge : Control
 {

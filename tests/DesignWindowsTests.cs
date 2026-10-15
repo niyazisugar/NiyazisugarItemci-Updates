@@ -51,6 +51,21 @@ public sealed partial class MainForm
         Location=new Point(10,10);
         ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));
         await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);await CaptureAsync("main");
+        // Exercise actual WinForms dropdown close/selection and repeated reopen.
+        using(var model=new ComboBox())using(var select=new ReferenceSelect(model) {Size=new Size(220,44),Location=new Point(20,110)}) {
+            model.Items.AddRange(new object[]{"MSP2","Sezar2"});model.SelectedIndex=0;Controls.Add(select);select.BringToFront();
+            var open=typeof(ReferenceSelect).GetMethod("OpenChoices",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!;
+            var menu=(ContextMenuStrip)typeof(ReferenceSelect).GetField("_choices",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(select)!;
+            for(int attempt=0;attempt<3;attempt++) {
+                open.Invoke(select,null);await Task.Delay(100);
+                ((ToolStripMenuItem)menu.Items[1]).Select();SendKeys.SendWait("{ENTER}");await Task.Delay(100);
+                if(model.SelectedIndex!=1||menu.IsDisposed||menu.Visible)throw new Exception("Server dropdown selection disposed its active menu or failed to close.");
+                open.Invoke(select,null);await Task.Delay(100);SendKeys.SendWait("{ESC}");await Task.Delay(100);
+                if(menu.IsDisposed||menu.Visible)throw new Exception("Dropdown cancellation or repeated reopen failed.");
+                model.Items.Clear();model.Items.AddRange(new object[]{"MSP2","Sezar2"});model.SelectedIndex=0;
+            }
+            select.Dispose();if(!menu.IsDisposed)throw new Exception("Owned dropdown leaked after control disposal.");
+        }
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
         RenderCurrentListings(new List<ListingInfo> {
             new() {Title="Test ilanı 01 · başlık ve görsel yerleşimi",Server="Test Sunucusu A",PriceText="100,05 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-01"},
