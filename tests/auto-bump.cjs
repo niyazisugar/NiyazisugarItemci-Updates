@@ -23,7 +23,12 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  for(const id of ['102','103','104','105','106']){const result=await page.evaluate(id=>window.__niyaziBumpOne(id),id);assert(result.notSent);}
  assert.equal(await page.evaluate(()=>window.paidClicks),0);assert.deepEqual(await page.evaluate(()=>window.clicked),['101']);
  await page.evaluate(()=>{const button=document.querySelector('button[data-id="101"]');button.disabled=false;button.title='İlanı Yukarı Taşı (ücretsiz)';window.fetch=async()=>new Response(JSON.stringify({status:false,message:'1 saat bekleyiniz.'}),{status:429,headers:{'Content-Type':'application/json','Retry-After':'3600'}});});
- const limited=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert.equal(limited.ok,false);assert.equal(limited.retryAfterSeconds,3600);
+ const limited=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert.equal(limited.ok,false);assert.equal(limited.retryAfterSeconds,3600);assert.equal(limited.rateLimited,true);
+ await page.evaluate(()=>{const b=document.querySelector('button[data-id="101"]');b.disabled=false;window.fetch=async()=>new Response(JSON.stringify({status:false,message:'Çok fazla işlem yaptınız.'}),{headers:{'Content-Type':'application/json'}});});
+ const textLimited=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert.equal(textLimited.rateLimited,true);
+ await page.evaluate(()=>{const b=document.querySelector('button[data-id="101"]');b.disabled=false;b.onclick=()=>{const alert=document.createElement('div');alert.setAttribute('role','alert');alert.textContent='Çok fazla işlem yaptınız';document.body.append(alert);};});
+ const toastLimited=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert.equal(toastLimited.rateLimited,true);assert.equal(toastLimited.retryAfterSeconds,300);
+ await page.evaluate(()=>{const b=document.querySelector('button[data-id="101"]');b.onclick=async()=>{await fetch('/api/auth/product/101/up',{method:'POST',body:'{"id":"101"}'});};});
  await page.evaluate(()=>{const button=document.querySelector('button[data-id="101"]');button.disabled=false;window.fetch=async()=>{await new Promise(r=>setTimeout(r,300));return new Response(JSON.stringify({status:true}),{headers:{'Content-Type':'application/json'}});};});
  const parallel=await page.evaluate(()=>Promise.all([window.__niyaziBumpOne('101'),window.__niyaziBumpOne('101')]));assert(parallel[0].ok);assert(parallel[1].notSent);
  await page.evaluate(()=>{const button=document.querySelector('button[data-id="101"]');button.disabled=false;button.onclick=()=>{window.clicked.push('101');fetch('/api/auth/product/101/up',{method:'POST',body:'{"id":"101"}'}).catch(()=>{});};window.fetch=async()=>{throw new Error('offline');};});

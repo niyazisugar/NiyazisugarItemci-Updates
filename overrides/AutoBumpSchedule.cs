@@ -8,6 +8,8 @@ internal sealed class AutoBumpRecord
 }
 internal static class AutoBumpSchedule
 {
+    internal static DateTime GlobalNextAllowed(IEnumerable<AutoBumpRecord> records,DateTime savedGate) => records.Select(r=>r.lastAttemptUtc.AddSeconds(90)).Append(savedGate).Max();
+    internal static DateTime AfterAttempt(DateTime completedAt,bool rateLimited,int retryAfterSeconds) => completedAt.AddSeconds(rateLimited?Math.Max(300,Math.Min(86400,retryAfterSeconds)):Math.Max(90,Math.Min(86400,retryAfterSeconds)));
     internal static bool CanAttempt(AutoBumpRecord? record,DateTime now)=>record is null||record.nextAllowedUtc<=now;
     internal static void Reserve(AutoBumpRecord record,DateTime now)
     {

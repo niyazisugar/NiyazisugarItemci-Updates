@@ -1,4 +1,4 @@
 {
-  "version": "2.14.3",
-  "notes": "Satışlar ve Kazanç varsayılan olarak Tüm Zamanlar görünümünde açılır. Bütün tarihlerdeki kayıtlı satışların satış toplamı, %10 komisyonu, net kazancı ve adedi gösterilir. Bugün, tarih, sunucu ve arama filtreleri korunur; Tüm Geçmişi Tara toplam görünümünü açar."
+  "version": "2.14.4",
+  "notes": "Ücretsiz yukarı taşıma her ilan için saatlik sınırı korur. Farklı ilanların işlemleri arasında en az 90 saniye beklenir; bu süre uygulama yeniden başlatıldığında da korunur. Site işlem sınırı bildirirse bütün sıra beklemeye alınır. Bekleme sırasında gizli tarayıcı kapatılır."
 }

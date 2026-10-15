@@ -68,7 +68,7 @@
    const matched=requestMatches(input,options,String(id));if(matched)sent=true;
    let response;try{response=await original.apply(this,arguments);}catch(error){if(matched)outcome={ok:false,uncertain:true,message:'Bağlantı kesildi; yukarı taşımanın sonucu doğrulanamadı.'};throw error;}
    if(matched){try{let json={};try{json=await response.clone().json();}catch{}
-    if(!response.ok||json?.status===false||json?.success===false)outcome={ok:false,message:typeof json?.message==='string'?json.message:'Itemci yukarı taşımayı kabul etmedi.',retryAfterSeconds:retryAfter(response,json||{})};
+    if(!response.ok||json?.status===false||json?.success===false)outcome={ok:false,rateLimited:response.status===429||/cok fazla|too many|islem siniri/.test(norm(json?.message)),message:typeof json?.message==='string'?json.message:'Itemci yukarı taşımayı kabul etmedi.',retryAfterSeconds:retryAfter(response,json||{})};
     else if(json?.status===true||json?.success===true)outcome={ok:true,message:'İlan ücretsiz yukarı taşındı.'};
    }catch{}}
    return response;
@@ -81,6 +81,8 @@
    let confirmedDialog=false;
    for(let attempt=0;attempt<100;attempt++){
     if(outcome)return outcome;
+    const limit=notices().find(el=>!existing.has(el)&&/cok fazla|too many|islem siniri/.test(norm(el.textContent)));
+    if(limit)return {ok:false,rateLimited:true,retryAfterSeconds:300,message:clean(limit.textContent)};
     if(!confirmedDialog){
      const dialog=[...document.querySelectorAll('[role="dialog"]')].find(el=>{const t=norm(el.innerText);return visible(el)&&t.includes('ilan')&&t.includes('yukari')&&!/ucret(?!siz)|vip|vitrin|bakiye|\d[\d.,]*\s*(?:tl|₺)/.test(t);});
      const confirm=dialog&&[...dialog.querySelectorAll('button')].find(b=>enabled(b)&&/^(?:evet|onayla|(?:ucretsiz )?(?:ilani )?yukari tasi)$/.test(norm(b.textContent)));
