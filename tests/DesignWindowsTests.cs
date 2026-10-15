@@ -67,6 +67,14 @@ public sealed partial class MainForm
             select.Dispose();if(!menu.IsDisposed)throw new Exception("Owned dropdown leaked after control disposal.");
         }
         // Exercise actual toast detection and shared cross-automation cooldown.
+        var rateFixture=Path.Combine(Path.GetTempPath(),"niyazi-rate-fixture-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(rateFixture);
+        File.WriteAllText(Path.Combine(rateFixture,"rate-test.html"),"<html><meta charset=utf-8><body>Yalıtılmış Itemci uyarı testi</body></html>");
+        _webView.CoreWebView2.SetVirtualHostNameToFolderMapping("itemci.com",rateFixture,CoreWebView2HostResourceAccessKind.DenyCors);
+        var rateLoaded=new TaskCompletionSource<bool>();
+        void RateLoaded(object? sender,CoreWebView2NavigationCompletedEventArgs e)=>rateLoaded.TrySetResult(e.IsSuccess);
+        _webView.CoreWebView2.NavigationCompleted+=RateLoaded;
+        _webView.CoreWebView2.Navigate("https://itemci.com/rate-test.html");await rateLoaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        _webView.CoreWebView2.NavigationCompleted-=RateLoaded;
         InstallSiteTrafficGuard(_webView);
         await _webView.CoreWebView2.ExecuteScriptAsync(SiteLimitObserver);
         await _webView.CoreWebView2.ExecuteScriptAsync("document.body.insertAdjacentHTML('beforeend','<div role=alert>Çok fazla deneme yaptınız. Güvenliğiniz için 32 saniye beklemeniz gerekiyor.</div>');");
@@ -74,7 +82,7 @@ public sealed partial class MainForm
         if(!SiteAutomationBlocked||_sitePauseUntilUtc<DateTime.UtcNow.AddSeconds(80)||_composerCooldownUntilUtc<_sitePauseUntilUtc)throw new Exception("Site rate-limit toast did not pause all automation and publication.");
         var savedGate=_sitePauseUntilUtc;_sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=false;
         if(!SiteAutomationBlocked||_sitePauseUntilUtc!=savedGate)throw new Exception("Shared site cooldown did not survive state reload.");
-        _sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=true;File.Delete(SitePausePath);
+        _sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=true;File.Delete(SitePausePath);_webView.CoreWebView2.ClearVirtualHostNameToFolderMapping("itemci.com");
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
         RenderCurrentListings(new List<ListingInfo> {
             new() {Title="Test ilanı 01 · başlık ve görsel yerleşimi",Server="Test Sunucusu A",PriceText="100,05 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-01"},
