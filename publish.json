@@ -1,4 +1,4 @@
 {
-  "version": "2.14.6",
-  "notes": "Sunucu ve filtre açılır listelerindeki ContextMenuStrip nesnesine erişilemiyor hatası düzeltildi. Seçim ve iptal sırasında menü erken silinmez; bileşen kapatıldığında temizlenir. Sezar2 geçişi ve diğer ortak açılır listeler aynı düzeltmeyi kullanır."
+  "version": "2.14.7",
+  "notes": "Itemci işlem sınırına karşı ortak otomasyon beklemesi eklendi. Sitedeki çok fazla deneme uyarısı veya HTTP 429 yanıtında bütün otomatik işlemler durur; bekleme yeniden başlatmada korunur. Satış geçmişi ve sunucu takibi aynı anda tarama yapmaz. Sunucular tek tek ve daha az istekle izlenir; analiz ve satış ayrıntısı istekleri aralıklı çalışır. İlan başına saatlik ve ilanlar arası 90 saniyelik öne çıkarma sınırları korunur."
 }

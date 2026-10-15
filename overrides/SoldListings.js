@@ -89,7 +89,7 @@
         button.click();
         if (!await waitFor(() => !visible(el) || !el.isConnected, 4000)) throw new Error('Sipariş ayrıntısı kapanmadı.');
     }
-    async function scan(knownIds = []) {
+    async function scan(knownIds = [], spacingMs = 0) {
         if (window.__niyaziSoldScanRunning) throw new Error('Önceki satış taraması hâlâ çalışıyor.');
         window.__niyaziSoldScanRunning = true;
         try {
@@ -110,12 +110,15 @@
                 try {
                     const button = detailButton(row.el);
                     if (!button) throw new Error(`İlan ${row.id}: ayrıntı düğmesi bulunamadı.`);
+                    if(spacingMs>0)await sleep(spacingMs);
+                    const notice=norm(document.body.innerText);
+                    if(Date.now()<(window.__niyaziSitePauseUntil||0)||/cok fazla (?:deneme|islem)/.test(notice))throw new Error("Itemci işlem sınırı; tarama durduruldu.");
                     button.click();
                     modal = await waitFor(dialog);
                     if (!modal) throw new Error(`İlan ${row.id}: sipariş ayrıntısı yüklenmedi.`);
                     const sale = parseDetail(clean(modal.innerText), row);
                     if (sale) sales.push(sale);
-                } catch (error) { errors.push(error.message); }
+                } catch (error) { if(/işlem sınırı/.test(error.message))throw error;errors.push(error.message); }
                 finally {
                     modal = modal || dialog();
                     if (modal) await closeDialog(modal);

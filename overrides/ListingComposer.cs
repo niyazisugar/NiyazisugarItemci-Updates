@@ -113,7 +113,7 @@ public sealed partial class MainForm
     }
     private async Task PublishComposerAsync()
     {
-        if(_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc||_composerServer.SelectedItem is not MarketServerInfo server){await PushComposerStateAsync();return;}
+        if(SiteAutomationBlocked||_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc||_composerServer.SelectedItem is not MarketServerInfo server){await PushComposerStateAsync();return;}
         var draft=CurrentComposerDraft();if(string.IsNullOrWhiteSpace(draft.title)||string.IsNullOrWhiteSpace(draft.description)||(!draft.stock&&draft.paths.Count==0)){_composerStatusKind="error";_composerStatus.Text="Başlık, açıklama ve en az bir görsel gerekli.";await PushComposerStateAsync();return;}
         _composerSaveTimer.Stop();_composerBusy=true;_composerPublish!.Enabled=false;_composerPanel.Enabled=false;SaveComposerDrafts();
         var submissionStarted=false;

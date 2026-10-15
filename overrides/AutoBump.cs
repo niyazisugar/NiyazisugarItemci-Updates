@@ -98,7 +98,7 @@ public sealed partial class MainForm
     }
     private async Task RunAutoBumpAsync()
     {
-        if(!_settings.AutoFreeBumpEnabled||_autoBumpBusy||IsDisposed||!_webReady||_browserEnvironment is null||DateTime.UtcNow<_autoBumpNextScanUtc||DateTime.UtcNow<_autoBumpGlobalNextUtc)return;
+        if(SiteAutomationBlocked||!_settings.AutoFreeBumpEnabled||_autoBumpBusy||IsDisposed||!_webReady||_browserEnvironment is null||DateTime.UtcNow<_autoBumpNextScanUtc||DateTime.UtcNow<_autoBumpGlobalNextUtc)return;
         if(_composerPopup is not null||_composerBusy||_soldScanBusy||_liveBusy||_marketPanel.Visible)return;
         _autoBumpBusy=true;
         var attempted=false;var throttled=false;var successes=0;var checkedCount=0;var uncertain=0;var interrupted=false;var unsupported=0;var seen=new HashSet<string>();
@@ -119,13 +119,13 @@ public sealed partial class MainForm
             ConfigureAdBlocking(_autoBumpView);
             for(var page=1;page<=40;page++)
             {
-                if(!_settings.AutoFreeBumpEnabled||_composerPopup is not null||_composerBusy){interrupted=true;break;}
+                if(SiteAutomationBlocked||!_settings.AutoFreeBumpEnabled||_composerPopup is not null||_composerBusy){interrupted=true;break;}
                 await NavigateAutoBumpPageAsync(page);
                 var read=await ReadAutoBumpResultAsync<AutoBumpPage>("window.__niyaziReadBumpPage()");
                 if(read.unsupported)unsupported++;
                 foreach(var listing in read.listings)
                 {
-                    if(!_settings.AutoFreeBumpEnabled||_composerPopup is not null||_composerBusy){interrupted=true;break;}
+                    if(SiteAutomationBlocked||!_settings.AutoFreeBumpEnabled||_composerPopup is not null||_composerBusy){interrupted=true;break;}
                     if(!seen.Add(listing.id))continue;checkedCount++;
                     if(!_autoBumpRecords.TryGetValue(listing.id,out var record))_autoBumpRecords[listing.id]=record=new();
                     var now=DateTime.UtcNow;
@@ -139,6 +139,7 @@ public sealed partial class MainForm
                     catch(Exception ex){result=new AutoBumpResult{uncertain=true,message="İşlem sonucu doğrulanamadı: "+ex.Message};}
                     finally{_autoBumpConfirmId=null;}
                     throttled=result.rateLimited;
+                    if(throttled)PauseSiteAutomation(Math.Max(300,result.retryAfterSeconds));
                     _autoBumpGlobalNextUtc=AutoBumpSchedule.AfterAttempt(DateTime.UtcNow,throttled,result.retryAfterSeconds);
                     AutoBumpSchedule.Complete(record,DateTime.UtcNow,result.ok,result.uncertain,result.notSent,result.retryAfterSeconds);SaveAutoBumpState();
                     if(result.ok)successes++;if(result.uncertain)uncertain++;

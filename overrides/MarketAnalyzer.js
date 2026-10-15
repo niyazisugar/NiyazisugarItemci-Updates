@@ -1020,7 +1020,11 @@
         });
     }
 
-    function requestHtml(url) {
+    let lastAnalysisRequestAt=0;
+    async function requestHtml(url) {
+        await sleep(Math.max(0,2500-(Date.now()-lastAnalysisRequestAt)));
+        if(Date.now()<(window.__niyaziSitePauseUntil||0))throw new Error('Itemci işlem sınırı; bekleme süresi dolunca tekrar deneyebilirsin.');
+        lastAnalysisRequestAt=Date.now();
         if (typeof GM_xmlhttpRequest === 'function') {
             return new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
@@ -2992,7 +2996,11 @@ ${categorySectionsHtml}
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
         let rateLimited = false, failed = 0, checked = 0, complete = false;
+        let lastRequestAt=0;
         const read = async url => {
+            await sleep(Math.max(0,2500-(Date.now()-lastRequestAt)));
+            if(Date.now()<(window.__niyaziSitePauseUntil||0)){rateLimited=true;throw new Error("Itemci işlem sınırı");}
+            lastRequestAt=Date.now();
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), Math.min(8000, Math.max(1, deadline-Date.now())));
             try {
@@ -3014,7 +3022,7 @@ ${categorySectionsHtml}
         const active = new Map();
         let nextPage=Math.max(1,Math.min(MAX_PAGES,Number(pageCursor)||1));
         // Refresh new listings on page one, then advance through older pages.
-        const pages=[...new Set([1,nextPage,nextPage+1,nextPage+2])].filter(p=>p<=MAX_PAGES);
+        const pages=[...new Set([1,nextPage])].filter(p=>p<=MAX_PAGES);
         for (const page of pages) {
             if(Date.now()>=deadline||rateLimited)break;
             try {
@@ -3039,7 +3047,7 @@ ${categorySectionsHtml}
         for(const row of active.values())candidates.set(row.url,row);
         const queue=[...candidates.values()].sort((a,b)=>a.url.localeCompare(b.url));
         const sold=[];let attempted=0;
-        for(let i=0;i<Math.min(12,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
+        for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[((Number(cursor)||0)+i)%queue.length];attempted++;
             try{
                 const url=new URL(row.url);

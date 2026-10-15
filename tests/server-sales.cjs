@@ -44,9 +44,9 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  assert.equal(scan.complete,false);assert.equal(scan.sold.length,1);assert.equal(scan.sold[0].title,'Önceden görülen ilan');assert.equal(scan.failed,2);assert.equal(scan.nextCursor,2);
  await page.evaluate(()=>{window.mode='pages';window.calls=[];});
  const paged=await page.evaluate(()=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,4));
- assert.equal(paged.rows.length,4);assert.equal(paged.nextPage,7);assert.equal(paged.sold.length,4,'Sold markers must be checked even while listing remains in category');
+ assert.equal(paged.rows.length,2);assert.equal(paged.nextPage,5);assert.equal(paged.sold.length,2,'Sold markers must be checked even while listing remains in category');
  const pages=await page.evaluate(()=>window.calls.filter(x=>x.includes('/categories/')).map(x=>Number(new URL(x).searchParams.get('page')||1)));
- assert.deepEqual(pages,[1,4,5,6]);
+ assert.deepEqual(pages,[1,4]);
  await page.evaluate(()=>{window.mode='limit';window.calls=[];});
  const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
  assert.equal(limit.rateLimited,true);assert.equal(await page.evaluate(()=>window.calls.length),1);

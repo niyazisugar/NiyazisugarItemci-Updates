@@ -17,6 +17,7 @@ public sealed partial class MainForm
     private Label? _salesPeriodLabel;
     private WebView2? _soldScanView;
     private bool _soldScanBusy;
+    private DateTime _salesNextRefreshUtc;
     private bool _soldCacheLoaded;
     private static DateTime TurkeyToday
     {
@@ -165,7 +166,7 @@ public sealed partial class MainForm
         try
         {
             var known = JsonSerializer.Serialize(_salesHistory.Values.Where(s => s.IsDelivered && !string.IsNullOrWhiteSpace(s.ListingId)).Select(s => s.ListingId).Distinct().ToArray());
-            await core.ExecuteScriptAsync($"window.__niyaziScanSoldListings({known}).then(result => window.chrome.webview.postMessage({{token:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{token:'{token}',error:String(e.message || e)}}));");
+            await core.ExecuteScriptAsync($"window.__niyaziScanSoldListings({known},3000).then(result => window.chrome.webview.postMessage({{token:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{token:'{token}',error:String(e.message || e)}}));");
             return await completion.Task.WaitAsync(TimeSpan.FromMinutes(3));
         }
         finally { core.WebMessageReceived -= Received; }
@@ -173,8 +174,11 @@ public sealed partial class MainForm
 
     private async Task RefreshSoldListingsAsync(bool showErrors, bool fullHistory = false)
     {
-        if (_soldScanBusy || (!showErrors&&(_autoBumpBusy||AutoBumpDue)) || IsDisposed) return;
+        if(SiteAutomationBlocked){if(showErrors)_salesStatusLabel.Text=SitePauseMessage;return;}
+        if (_liveBusy||_autoBumpBusy||_composerBusy||_soldScanBusy || (!showErrors&&(_autoBumpBusy||AutoBumpDue)) || IsDisposed) return;
         if (!_webReady) { _salesStatusLabel.Text = "Itemci oturumu henüz hazır değil."; return; }
+        if(!fullHistory&&DateTime.UtcNow<_salesNextRefreshUtc){if(showErrors)RenderSoldSalesPanel();return;}
+        _salesNextRefreshUtc=DateTime.UtcNow.AddMinutes(3);
         _soldScanBusy = true;
         try
         {
@@ -197,6 +201,8 @@ public sealed partial class MainForm
             var fingerprints = new HashSet<string>();
             for (int page = 1; page <= max; page++)
             {
+                if(SiteAutomationBlocked)throw new IOException(SitePauseMessage);
+                await Task.Delay(3000);
                 _salesStatusLabel.Text = $"Satılan ilanlar okunuyor · Sayfa {page} · Tüm sunucular";
                 _salesStatusLabel.ForeColor = TextMuted;
                 await NavigateSoldPageAsync(page);

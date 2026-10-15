@@ -95,6 +95,7 @@ jobs:
           Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
           Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
           Copy-Item "overrides/ComposerModal.cs" "src/ComposerModal.cs" -Force
+          Copy-Item "overrides/SiteTraffic.cs" "src/SiteTraffic.cs" -Force
           Copy-Item "overrides/ResourceManagement.cs" "src/ResourceManagement.cs" -Force
           Copy-Item "overrides/AutoBump.cs" "src/AutoBump.cs" -Force
           Copy-Item "overrides/AutoBumpSchedule.cs" "src/AutoBumpSchedule.cs" -Force
@@ -185,7 +186,7 @@ jobs:
           $mainForm = $mainForm.Replace('        tab.WebView.Dispose();', "        tab.TabPanel?.Dispose();`r`n        tab.WebView.Dispose();")
           $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallLiveMarket();`r`n        PremiumTheme.Apply(this);")
           # Itemci itself checks this cookie before showing its full-screen welcome ad.
-          $cookieHook = "        if (_settings.AdBlockEnabled)`r`n        {`r`n            var adCookie = view.CoreWebView2.CookieManager.CreateCookie(`"site_login_advert`", `"1`", `"itemci.com`", `"/`");`r`n            adCookie.Expires = DateTime.Now.AddYears(1);`r`n            adCookie.IsSecure = true;`r`n            view.CoreWebView2.CookieManager.AddOrUpdateCookie(adCookie);`r`n        }`r`n"
+          $cookieHook = "        InstallSiteTrafficGuard(view);`r`n        if (_settings.AdBlockEnabled)`r`n        {`r`n            var adCookie = view.CoreWebView2.CookieManager.CreateCookie(`"site_login_advert`", `"1`", `"itemci.com`", `"/`");`r`n            adCookie.Expires = DateTime.Now.AddYears(1);`r`n            adCookie.IsSecure = true;`r`n            view.CoreWebView2.CookieManager.AddOrUpdateCookie(adCookie);`r`n        }`r`n"
           $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`r`n    {", "    private void ConfigureAdBlocking(WebView2 view)`r`n    {`r`n" + $cookieHook)
           $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`n    {", "    private void ConfigureAdBlocking(WebView2 view)`n    {`n" + $cookieHook)
           $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")

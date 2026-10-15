@@ -98,7 +98,7 @@ public sealed partial class MainForm
     }
     private async Task ScanAllServerSalesAsync()
     {
-        if (DateTime.UtcNow<_serverWatchRetryUtc || _liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
+        if (SiteAutomationBlocked || _soldScanBusy || DateTime.UtcNow<_serverWatchRetryUtc || _liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
         _liveBusy = true;
         _marketWebView.CoreWebView2.Resume();
         try
@@ -108,9 +108,9 @@ public sealed partial class MainForm
             await _marketWebView.CoreWebView2.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"ServerSales.js")));
             var servers=_marketServers.ToArray();
             var start=servers.Length==0?0:_serverWatchNextIndex%servers.Length;
-            for(var offset=0;offset<servers.Length;offset++)
+            for(var offset=0;offset<Math.Min(1,servers.Length);offset++)
             {
-                if(_composerPopup is not null||_composerBusy||_marketPanel.Visible||_autoBumpBusy||AutoBumpDue)break;
+                if(SiteAutomationBlocked||_soldScanBusy||_composerPopup is not null||_composerBusy||_marketPanel.Visible||_autoBumpBusy||AutoBumpDue)break;
                 var index=(start+offset)%servers.Length;var server=servers[index];
                 _serverWatchNextIndex=(index+1)%servers.Length;
                 if (!_serverWatch.TryGetValue(server.Id,out var state)) _serverWatch[server.Id] = state = new();
@@ -132,7 +132,7 @@ public sealed partial class MainForm
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
                     state.status = $"{state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
-                    if(scan.rateLimited){_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
+                    if(scan.rateLimited){PauseSiteAutomation(300);_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
                 }
                 catch(Exception ex) { state.status = "Kontrol başarısız: "+ex.Message; }
                 if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
