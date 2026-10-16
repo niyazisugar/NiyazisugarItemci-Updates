@@ -96,6 +96,7 @@ jobs:
           Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
           Copy-Item "overrides/ComposerModal.cs" "src/ComposerModal.cs" -Force
           Copy-Item "overrides/SiteTraffic.cs" "src/SiteTraffic.cs" -Force
+          Copy-Item "overrides/TrayLifecycle.cs" "src/TrayLifecycle.cs" -Force
           Copy-Item "overrides/ResourceManagement.cs" "src/ResourceManagement.cs" -Force
           Copy-Item "overrides/AutoBump.cs" "src/AutoBump.cs" -Force
           Copy-Item "overrides/AutoBumpSchedule.cs" "src/AutoBumpSchedule.cs" -Force
@@ -163,6 +164,12 @@ jobs:
           $mainForm = [regex]::Replace($mainForm, $borderPattern, "    private static void DrawBorder(Graphics g, Rectangle rect)`r`n    {`r`n        PremiumTheme.DrawBorder(g, rect);`r`n    }", 1)
 
           $mainForm = $mainForm.Replace('public sealed class MainForm : Form', 'public sealed partial class MainForm : Form')
+          # Keep tray transitions from recreating the parent HWND of live WebViews.
+          $mainForm = $mainForm.Replace('private void HideToTray(bool showInfo)', 'private void LegacyHideToTray(bool showInfo)')
+          $mainForm = $mainForm.Replace('private void RestoreFromTray()', 'private void LegacyRestoreFromTray()')
+          $mainForm = $mainForm.Replace('private void OnFormClosing(object? sender, FormClosingEventArgs e)', 'private void LegacyOnFormClosing(object? sender, FormClosingEventArgs e)')
+          $mainForm = $mainForm.Replace('            await InitializeWebViewAsync();', "            await InitializeWebViewAsync();`r`n            if (IsDisposed || Disposing || _allowExit) return;")
+          $mainForm = $mainForm.Replace('            await Task.Delay(1800);', "            await Task.Delay(1800);`r`n            if (IsDisposed || Disposing || _allowExit) return;")
           $mainForm = $mainForm.Replace('BuildSalesPanel();', 'BuildSoldSalesPanel();')
           $mainForm = $mainForm.Replace('RefreshSalesAsync(', 'RefreshSoldListingsAsync(')
           # Keep the obsolete notification reader unused; all callers use sold orders.

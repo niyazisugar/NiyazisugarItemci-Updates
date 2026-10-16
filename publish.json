@@ -1,4 +1,4 @@
 {
-  "version": "2.14.10",
-  "notes": "Gönderilen gerçek takip kaydındaki ölçüm darboğazı düzeltildi. Kontrol sırası artık kaydedilmiş ölçüm zamanlarını kullanır; henüz ölçülmemiş ilanlara öncelik verir. Önceki aktif ölçümü olmayan satış dışı ilanlar öncelik sırasını sürekli işgal etmez. Panel bu eksik başlangıç ölçümlerini açıkça gösterir. Satış doğrulama koşulları ve istek bütçesi korunur."
+  "version": "2.14.11",
+  "notes": "Windows açılışında saat yanına gizleme sırasında oluşan WebView2 ObjectDisposedException hatası düzeltildi. Gizleme ve geri açma artık ana pencereyi yeniden oluşturmaz. Windows kapanışı normal çıkış olarak ele alınır; açılış beklemeleri pencere kapatıldıktan sonra devam etmez. Oturum ve kayıtlı veriler korunur."
 }

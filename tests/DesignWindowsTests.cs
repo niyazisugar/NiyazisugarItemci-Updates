@@ -83,6 +83,27 @@ public sealed partial class MainForm
         var savedGate=_sitePauseUntilUtc;_sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=false;
         if(!SiteAutomationBlocked||_sitePauseUntilUtc!=savedGate)throw new Exception("Shared site cooldown did not survive state reload.");
         _sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=true;File.Delete(SitePausePath);_webView.CoreWebView2.ClearVirtualHostNameToFolderMapping("itemci.com");
+        // Regression for --tray startup: the real shown form must retain its
+        // HWND and initialized WebView controllers over hide/restore cycles.
+        await _messageMonitorWebView.EnsureCoreWebView2Async(_browserEnvironment);
+        await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);
+        var mainHandle=Handle;var browserHandle=_webView.Handle;var marketHandle=_marketWebView.Handle;
+        int recreations=0;EventHandler recreated=(_,_)=>recreations++;HandleCreated+=recreated;
+        for(int attempt=0;attempt<4;attempt++){
+            HideToTray(showInfo:false);await Task.Delay(80);
+            if(Visible||Handle!=mainHandle||_webView.IsDisposed||_marketWebView.IsDisposed)throw new Exception("Tray hiding recreated the form or disposed its browser.");
+            RestoreFromTray();await Task.Delay(80);
+            if(!Visible||Handle!=mainHandle||_webView.Handle!=browserHandle||_marketWebView.Handle!=marketHandle)throw new Exception("Tray restore recreated initialized browser handles.");
+            await _webView.CoreWebView2.ExecuteScriptAsync("1+1");
+            await _marketWebView.CoreWebView2.ExecuteScriptAsync("1+1");
+            await _messageMonitorWebView.CoreWebView2.ExecuteScriptAsync("1+1");
+        }
+        HandleCreated-=recreated;if(recreations!=0)throw new Exception("Tray transitions recreated the main window.");
+        var closing=new FormClosingEventArgs(CloseReason.UserClosing,false);OnFormClosing(this,closing);
+        if(!closing.Cancel||Visible)throw new Exception("User close did not preserve close-to-tray behavior.");RestoreFromTray();
+        var shutdown=new FormClosingEventArgs(CloseReason.WindowsShutDown,false);OnFormClosing(this,shutdown);
+        if(shutdown.Cancel||!_allowExit)throw new Exception("Windows shutdown was incorrectly intercepted as close-to-tray.");_allowExit=false;
+        Console.WriteLine("PASS: initialized browser handles survive tray startup, repeated hide/restore, user close and Windows shutdown routing.");
         var original=_liveMarket!.Width;_liveMarket.Width=48;await Task.Delay(100);if(_browserHost.Width<600)throw new Exception("Collapsed rail did not release browser space.");_liveMarket.Width=original;
         RenderCurrentListings(new List<ListingInfo> {
             new() {Title="Test ilanı 01 · başlık ve görsel yerleşimi",Server="Test Sunucusu A",PriceText="100,05 TL",Status="AKTİF",Url="https://itemci.com/product/test-ilan-01"},
