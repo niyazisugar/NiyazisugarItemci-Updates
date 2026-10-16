@@ -55,6 +55,32 @@
   }
   return found;
  }
+ // The seller page exposes the counter plus a whole page of products in one
+ // response. Match the seller identity and pagination before trusting absence.
+ function sellerSnapshot(html,url){
+  const expected=new URL(url);if(expected.origin!=='https://itemci.com'||!expected.pathname.startsWith('/user/store/'))return null;
+  const username=decodeURIComponent(expected.pathname.split('/').filter(Boolean).pop()).toLocaleLowerCase('tr-TR');
+  const doc=new DOMParser().parseFromString(html,'text/html');let flight='',found=null;
+  for(const script of doc.querySelectorAll('script:not([src])')){
+   const match=script.textContent.match(/self\.__next_f\.push\((\[[\s\S]*\])\)\s*;?\s*$/);if(!match)continue;
+   try{const frame=JSON.parse(match[1]);if(frame[0]===1&&typeof frame[1]==='string')flight+=frame[1];}catch{}
+  }
+  function visit(node,depth=0){
+   if(!node||typeof node!=='object'||depth>40)return;
+   if(node.user?.id&&String(node.user.username||'').toLocaleLowerCase('tr-TR')===username&&Array.isArray(node.products)){
+    const u=node.user,count=u.total_sales??u.successful_sales??u.sales_count;
+    if(Number.isSafeInteger(count)&&count>=0){
+     const products=node.products.filter(p=>p.slug&&p.category?.slug&&!p.sold_at).map(p=>({url:'https://itemci.com/product/'+p.category.slug+'/'+p.slug,title:p.name||'',price:Number(p.price)||0,seller:u.username,sellerUrl:expected.origin+expected.pathname}));
+     const page=node.pagination;
+     found={url:expected.origin+expected.pathname,sellerId:u.id,seller:u.username,salesCount:count,complete:!!page&&page.current_page===1&&page.last_page===1,products};
+    }
+   }
+   for(const value of Object.values(node))if(value&&typeof value==='object')visit(value,depth+1);
+  }
+  for(const line of flight.split('\n')){const colon=line.indexOf(':');if(colon<1)continue;try{visit(JSON.parse(line.slice(colon+1)));}catch{}}
+  return found;
+ }
+ window.__NiyaziSellerSnapshot=sellerSnapshot;
  // Plan checks using durable measurements, not overlapping URL offsets.
  function watchQueue(activeRows,known,measurements,complete,attempts={}){
   const measured=new Map((measurements||[]).map(o=>[o.url,o]));

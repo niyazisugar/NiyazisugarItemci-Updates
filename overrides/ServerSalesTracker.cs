@@ -93,7 +93,7 @@ public sealed partial class MainForm
             var soldUrls=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var known=state.threePageWindow?state.known.Values.Where(row=>!soldUrls.Contains(row.url)).OrderByDescending(row=>state.pending.TryGetValue(row.url,out var since)?since:DateTime.MinValue).ToList():new List<LiveListing>();
             var repairs=state.sales.Where(s=>!s.priceFromDetail).OrderBy(s=>s.priceCheckAttemptUtc).ThenByDescending(s=>s.detectedAt).Take(1).Select(s=>s.listing).ToList();
-            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
+            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)},{JsonSerializer.Serialize(state.sellers.Values)}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
             return await task.Task.WaitAsync(TimeSpan.FromSeconds(45));
         }
         finally { core.WebMessageReceived -= Message; }
@@ -123,6 +123,9 @@ public sealed partial class MainForm
                     var scan = await ReadServerWatchAsync(server,state);
                     UpdateThreePageWatchWindow(state,scan,DateTime.UtcNow);
                     foreach(var url in scan.attemptedUrls){state.lastChecked[url]=DateTime.UtcNow;foreach(var sale in state.sales.Where(s=>s.listing.url==url))sale.priceCheckAttemptUtc=DateTime.UtcNow;}
+                    foreach(var snapshot in scan.sellerResults)ApplyWatchSellerSnapshot(state,snapshot,DateTime.UtcNow);
+                    foreach(var sellerName in scan.sellerAttempts){var key=sellerName.ToLowerInvariant();if(!state.sellers.TryGetValue(key,out var snapshot))state.sellers[key]=snapshot=new SellerWatchSnapshot {seller=sellerName};snapshot.lastAttemptUtc=DateTime.UtcNow;}
+                    foreach(var key in state.sellers.OrderByDescending(p=>p.Value.lastAttemptUtc).Skip(300).Select(p=>p.Key).ToArray())state.sellers.Remove(key);
                     ApplyWatchObservations(state,scan.observations,DateTime.UtcNow);
                     foreach (var row in scan.sold)
                     {
@@ -137,7 +140,7 @@ public sealed partial class MainForm
                     }
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
-                    state.status = $"İlk 3 sayfa · {scan.pagesRead} okundu · {state.pending.Count} öncelikli · {state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
+                    state.status = $"{state.sellers.Values.Count(s=>s.sellerId.Length>0)} satıcı ölçümü · İlk 3 sayfa · {scan.pagesRead} okundu · {state.pending.Count} öncelikli · {state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
                     var noBaseline=state.observations.Values.Count(o=>!o.available&&o.lastAvailableAtUtc==DateTime.MinValue);
                     if(noBaseline>0)state.status+=$" · {noBaseline} satış dışı: ilk ölçüm eksik";
                     if(!scan.complete)state.status+=" · Pencere taraması eksik";
@@ -174,7 +177,7 @@ public sealed partial class MainForm
         foreach(var current in observations)
         {
             var existingSale=state.sales.FirstOrDefault(s=>s.listing.url==current.url);
-            if(existingSale is not null&&current.price>0){UpdateWatchListingPrice(existingSale.listing,current);existingSale.priceFromDetail=true;existingSale.priceCheckAttemptUtc=nowUtc;}
+            if(existingSale is not null&&current.price>0&&!current.fromStore){UpdateWatchListingPrice(existingSale.listing,current);existingSale.priceFromDetail=true;existingSale.priceCheckAttemptUtc=nowUtc;}
             if(state.known.TryGetValue(current.url,out var knownListing))UpdateWatchListingPrice(knownListing,current);
             state.observations.TryGetValue(current.url,out var previous);
             // Public HTML may be served from a short cache. Retain a recent
@@ -189,7 +192,7 @@ public sealed partial class MainForm
             else if(sameSeller){current.lastAvailableAtUtc=previous!.lastAvailableAtUtc;current.lastAvailableCount=previous.lastAvailableCount;}
             var expired=DateTime.TryParse(current.expiresAt,out var expires)&&expires.ToUniversalTime()<=nowUtc;
             var counterDelta=Math.Max(current.salesCount-current.lastAvailableCount,current.counterRiseUtc>=nowUtc.AddMinutes(-15)?current.counterIncrease:0);
-            if(previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&counterDelta>0&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
+            if(!current.fromStore&&previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&counterDelta>0&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
                 state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=counterDelta,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
                 state.known.Remove(current.url);state.pending.Remove(current.url);
@@ -197,6 +200,39 @@ public sealed partial class MainForm
             state.observations[current.url]=current;
             if(current.available&&state.pending.Remove(current.url)){state.known.Remove(current.url);state.observations.Remove(current.url);}
         }
+    }
+    private void ApplyWatchSellerSnapshot(ServerWatch state,SellerWatchSnapshot snapshot,DateTime nowUtc)
+    {
+        var key=snapshot.seller.ToLowerInvariant();state.sellers.TryGetValue(key,out var previous);
+        if(previous is not null&&previous.sellerId==snapshot.sellerId&&snapshot.salesCount<previous.salesCount)return;
+        snapshot.observedAtUtc=nowUtc;snapshot.lastAttemptUtc=nowUtc;
+        // Bootstrap every monitored product present in this seller snapshot.
+        // Do not create sales just because a store product disappears.
+        var baseline=new List<ProductObservation>();
+        foreach(var row in snapshot.products.Where(r=>state.known.ContainsKey(r.url)))baseline.Add(new ProductObservation {url=row.url,sellerId=snapshot.sellerId,seller=snapshot.seller,salesCount=snapshot.salesCount,available=true,price=row.price,title=row.title,fromStore=true});
+        if(previous is not null&&previous.sellerId==snapshot.sellerId&&previous.complete&&snapshot.complete&&previous.observedAtUtc>=nowUtc.AddHours(-2))
+        {
+            var present=snapshot.products.Select(r=>r.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach(var row in previous.products.Where(r=>state.known.ContainsKey(r.url)&&!present.Contains(r.url)))
+            {
+                if(!state.observations.TryGetValue(row.url,out var measured)||measured.lastAvailableAtUtc==DateTime.MinValue)
+                    state.observations[row.url]=new ProductObservation {url=row.url,sellerId=previous.sellerId,seller=previous.seller,salesCount=previous.salesCount,available=true,lastAvailableCount=previous.salesCount,lastAvailableAtUtc=previous.observedAtUtc,observedAtUtc=previous.observedAtUtc,price=row.price,title=row.title,fromStore=true};
+                if(snapshot.salesCount>previous.salesCount)state.pending[row.url]=nowUtc;
+            }
+        }
+        ApplyWatchObservations(state,baseline,nowUtc);
+        state.sellers[key]=snapshot;
+    }
+    private sealed class SellerWatchSnapshot
+    {
+        public string url {get;set;}="";
+        public string sellerId {get;set;}="";
+        public string seller {get;set;}="";
+        public int salesCount {get;set;}
+        public bool complete {get;set;}
+        public List<LiveListing> products {get;set;}=new();
+        public DateTime observedAtUtc {get;set;}
+        public DateTime lastAttemptUtc {get;set;}
     }
     private static void UpdateWatchListingPrice(LiveListing listing,ProductObservation current)
     {
@@ -208,6 +244,7 @@ public sealed partial class MainForm
     private sealed class ProductObservation
     {
         public string url {get;set;}="";
+        public bool fromStore {get;set;}
         public string sellerId {get;set;}="";
         public decimal price {get;set;}
         public string title {get;set;}="";
@@ -224,6 +261,7 @@ public sealed partial class MainForm
     private sealed class ServerWatch
     {
         public Dictionary<string,DateTime> lastChecked {get;set;}=new();
+        public Dictionary<string,SellerWatchSnapshot> sellers {get;set;}=new();
         public bool threePageWindow {get;set;}
         public List<string> recentWindow {get;set;}=new();
         public Dictionary<string,DateTime> pending {get;set;}=new();
@@ -249,6 +287,8 @@ public sealed partial class MainForm
         public List<LiveListing> sold {get;set;} = new();
         public List<ProductObservation> observations {get;set;}=new();
         public List<string> attemptedUrls {get;set;}=new();
+        public List<SellerWatchSnapshot> sellerResults {get;set;}=new();
+        public List<string> sellerAttempts {get;set;}=new();
         public bool complete {get;set;}
         public int nextCursor {get;set;}
         public int nextPage {get;set;} = 1;

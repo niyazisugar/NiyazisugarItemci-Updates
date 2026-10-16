@@ -145,6 +145,21 @@ public sealed partial class MainForm
         ApplyWatchObservations(fresh,new[]{Observation(false,20)},stamp);if(fresh.sales.Count!=0)throw new Exception("Already unavailable listing fabricated historical sales.");
         var expired=new ServerWatch();expired.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(expired,new[]{Observation(true,10)},stamp);var end=Observation(false,11);end.expiresAt=stamp.AddSeconds(-1).ToString("O");ApplyWatchObservations(expired,new[]{end},stamp.AddMinutes(1));if(expired.sales.Count!=0)throw new Exception("Expired listing was classified as correlated sale.");
+        // A single seller snapshot bootstraps several monitored product baselines.
+        var sellerWatch=new ServerWatch();var storeRow=new LiveListing {url=priceUrl,title="Monitored store item",seller="TestSeller",price=175m};
+        var secondRow=new LiveListing {url="https://itemci.com/product/test/second",title="Second monitored item",seller="TestSeller",price=200m};
+        sellerWatch.known[storeRow.url]=storeRow;sellerWatch.known[secondRow.url]=secondRow;
+        ApplyWatchSellerSnapshot(sellerWatch,new SellerWatchSnapshot {sellerId="seller",seller="TestSeller",salesCount=10,complete=true,products=new(){storeRow,secondRow}},stamp);
+        if(sellerWatch.observations.Count!=2||sellerWatch.sales.Count!=0)throw new Exception("Seller batch did not seed both monitored baselines safely.");
+        ApplyWatchSellerSnapshot(sellerWatch,new SellerWatchSnapshot {sellerId="seller",seller="TestSeller",salesCount=11,complete=true,products=new(){secondRow}},stamp.AddMinutes(1));
+        if(sellerWatch.sales.Count!=0||!sellerWatch.pending.ContainsKey(priceUrl))throw new Exception("Store absence created a sale without product verification.");
+        var verified=Observation(false,11);verified.price=160m;
+        ApplyWatchObservations(sellerWatch,new[]{verified},stamp.AddMinutes(1));
+        if(sellerWatch.sales.Count!=1||sellerWatch.sales[0].listing.price!=160m)throw new Exception("Seller snapshot to unavailable-product verification failed end to end.");
+        var partialStore=new ServerWatch();partialStore.known[priceUrl]=storeRow;
+        ApplyWatchSellerSnapshot(partialStore,new SellerWatchSnapshot {sellerId="seller",seller="TestSeller",salesCount=10,complete=true,products=new(){storeRow}},stamp);
+        ApplyWatchSellerSnapshot(partialStore,new SellerWatchSnapshot {sellerId="seller",seller="TestSeller",salesCount=11,complete=false},stamp.AddMinutes(1));
+        if(partialStore.sales.Count!=0||partialStore.pending.Count!=0)throw new Exception("Partial store pagination fabricated missing products.");
         // Three-page migration and disappearance queue must not convert old history into candidates.
         var scoped=new ServerWatch();scoped.known["old-archive"]=new LiveListing {url="old-archive"};
         var windowA=new WatchScan {complete=true,rows=new(){new(){url="a"},new(){url="b"}}};

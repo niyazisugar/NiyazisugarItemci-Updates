@@ -2991,7 +2991,7 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = []) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = []) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
@@ -3044,9 +3044,35 @@ ${categorySectionsHtml}
         }
         // A sold listing may still be present in a category. Check known URLs
         // directly even when pagination is incomplete; disappearance is never proof.
+        const snapshots=new Map((sellerSnapshots||[]).map(s=>[String(s.seller||'').toLocaleLowerCase('tr-TR'),s]));
+        const stores=new Map();
+        for(const row of [...active.values(),...(known||[])]){
+            const seller=String(row.seller||'').trim();if(!seller||['—','Bilinmiyor','Bilinmeyen satıcı'].includes(seller))continue;
+            const url=row.sellerUrl||'https://itemci.com/user/store/'+encodeURIComponent(seller);
+            try{const u=new URL(url);if(u.origin==='https://itemci.com'&&u.pathname.startsWith('/user/store/'))stores.set(seller.toLocaleLowerCase('tr-TR'),{seller,url:u.origin+u.pathname});}catch{}
+        }
+        const storeQueue=[...stores.entries()].sort(([a],[b])=>(Date.parse(snapshots.get(a)?.lastAttemptUtc||snapshots.get(a)?.observedAtUtc||'')||0)-(Date.parse(snapshots.get(b)?.lastAttemptUtc||snapshots.get(b)?.observedAtUtc||'')||0));
+        const initial=storeQueue.some(([key])=>!snapshots.get(key)?.sellerId);
+        const sellerResults=[],sellerAttempts=[],suspects=[];
+        const knownUrls=new Set([...(known||[]),...active.values()].map(r=>r.url));
+        let storeRequests=0;
+        for(const [key,store] of storeQueue.slice(0,initial?2:1)){
+            if(Date.now()>=deadline||rateLimited)break;
+            storeRequests++;sellerAttempts.push(store.seller);
+            try{
+                const snapshot=window.__NiyaziSellerSnapshot(await read(store.url),store.url);
+                if(!snapshot){failed++;continue;}
+                sellerResults.push(snapshot);
+                const before=snapshots.get(key);
+                if(before?.sellerId===snapshot.sellerId&&snapshot.complete&&before.complete&&snapshot.salesCount>before.salesCount){
+                    const present=new Set(snapshot.products.map(r=>r.url));
+                    suspects.push(...before.products.filter(r=>knownUrls.has(r.url)&&!present.has(r.url)));
+                }
+            }catch{failed++;}
+        }
         let queue=window.__NiyaziSelectWatchQueue([...active.values()],known,measurements,complete,attempts);
         const repair=(priceRepairs||[]).find(row=>{try{const u=new URL(row.url);return u.origin==='https://itemci.com'&&u.pathname.startsWith('/product/');}catch{return false;}});
-        if(repair)queue=[repair,...queue.filter(row=>row.url!==repair.url)].slice(0,3);
+        queue=[...new Map([...suspects,...(repair?[repair]:[]),...queue].map(r=>[r.url,r])).values()].slice(0,Math.max(0,3-storeRequests));
         const sold=[],observations=[],attemptedUrls=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[i];attempted++;attemptedUrls.push(row.url);
@@ -3060,7 +3086,7 @@ ${categorySectionsHtml}
             }catch{failed++;}
             await sleep(250);
         }
-        return {rows:[...active.values()],sold,observations,attemptedUrls,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
+        return {rows:[...active.values()],sold,observations,attemptedUrls,sellerResults,sellerAttempts,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);

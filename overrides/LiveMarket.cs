@@ -79,6 +79,7 @@ public sealed partial class MainForm
         public string title { get; set; } = "";
         public decimal price { get; set; }
         public string seller { get; set; } = "";
+        public string sellerUrl { get; set; } = "";
         public string time { get; set; } = "";
         public string url { get; set; } = "";
         public decimal? quantity { get; set; }

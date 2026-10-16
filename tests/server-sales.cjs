@@ -24,6 +24,10 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const publicState=await page.evaluate(html=>({state:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),confirmed:window.__NiyaziConfirmedPublicSale(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),wrong:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/another')}),realHtml);
  assert.equal(publicState.state.available,false);assert.equal(publicState.state.salesCount,384);assert.equal(publicState.state.seller,'ENUYGUNCOM');assert.equal(publicState.state.price,1090);assert.equal(publicState.confirmed,false);assert.equal(publicState.wrong,null);
  console.log('PASS: real public-page metadata, seller count, exact product identity and unavailable is not confirmed sale.');
+ const sellerHtml=fs.readFileSync('tests/fixtures/itemci-seller-page.html','utf8');
+ const sellerState=await page.evaluate(html=>({valid:window.__NiyaziSellerSnapshot(html,'https://itemci.com/user/store/ENUYGUNCOM'),wrong:window.__NiyaziSellerSnapshot(html,'https://itemci.com/user/store/other-seller')}),sellerHtml);
+ assert.equal(sellerState.valid.salesCount,388);assert.equal(sellerState.valid.complete,true);assert(sellerState.valid.products.length>1);assert.equal(sellerState.wrong,null);
+ console.log('PASS: actual public seller-page schema provides multiple monitored listings and one shared counter; identities are checked.');
  // Regression from the user's file: 119 active URLs, only 39 baselines and
  // unavailable records with DateTime.MinValue baselines must not consume priority slots.
  const planning=await page.evaluate(()=>{
@@ -69,7 +73,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
    return new Response(`<a href="/product/msp2-global-yeni-itemyang/active-${n}"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span></a><a href="?page=${n+1}">Sonraki</a>`);
   };
  });
- const known=[{url:'https://itemci.com/product/msp2-global-yeni-itemyang/sold',title:'Önceden görülen ilan',price:100,seller:'Test'}, {url:'https://itemci.com/product/msp2-global-yeni-itemyang/deleted',title:'Kaldırılan ilan',price:100}];
+ const known=[{url:'https://itemci.com/product/msp2-global-yeni-itemyang/sold',title:'Önceden görülen ilan',price:100,seller:''}, {url:'https://itemci.com/product/msp2-global-yeni-itemyang/deleted',title:'Kaldırılan ilan',price:100}];
  const scan=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
  assert.equal(scan.complete,false);assert.equal(scan.sold.length,1);assert.equal(scan.sold[0].title,'Önceden görülen ilan');assert.equal(scan.failed,2);assert.equal(scan.nextCursor,1);
  await page.evaluate(()=>{window.mode='pages';window.calls=[];});
@@ -89,7 +93,25 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const repairRequests=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
  assert.equal(repairRequests.length,3);assert(repairRequests[0].endsWith('/price-repair'),'Existing recorded price repair must be queued within the same request budget.');
  assert.equal(repairScan.attemptedUrls.length,3);
- await page.evaluate(()=>{window.mode='limit';window.calls=[];});
+ await page.evaluate(()=>{
+  window.calls=[];
+  window.fetch=async url=>{
+   const u=new URL(url);window.calls.push(u.href);
+   if(u.pathname.startsWith('/categories/'))return new Response('<a href="/product/msp2-global-yeni-itemyang/current"><h3>100KT</h3><span class="tabular-nums">160,00 TL</span><span class="truncate font-semibold text-neutral-700">TestSeller</span></a>');
+   if(u.pathname.startsWith('/user/store/')){
+    const props={user:{id:'owner',username:'TestSeller',total_sales:11},products:[{slug:'current',name:'100KT',price:160,category:{slug:'msp2-global-yeni-itemyang'},sold_at:null}],pagination:{current_page:1,last_page:1}};
+    return new Response('<script>self.__next_f.push('+JSON.stringify([1,'1:'+JSON.stringify(['$','$L',null,props])+'\n'])+')</script>');
+   }
+   return new Response('<h2>Bu ilan satıldı.</h2>');
+  };
+ });
+ const missingRow={url:'https://itemci.com/product/msp2-global-yeni-itemyang/just-sold',title:'Observed listing',price:175,seller:'TestSeller'};
+ const batch=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[row],0,1,[],{},[],[{url:'https://itemci.com/user/store/TestSeller',sellerId:'owner',seller:'TestSeller',salesCount:10,complete:true,observedAtUtc:new Date(Date.now()-60000).toISOString(),products:[row]}]),missingRow);
+ assert.equal(batch.sellerResults.length,1);assert.equal(batch.sellerResults[0].salesCount,11);
+ const detailBatch=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));assert(detailBatch[0].endsWith('/just-sold'));
+ assert.equal(await page.evaluate(()=>window.calls.filter(x=>!x.includes('/categories/')).length),3,'Seller snapshots and product verification must share the old request budget.');
+ assert.equal(batch.sold[0].url,missingRow.url);
+ await page.evaluate(()=>{window.mode='limit';window.calls=[];window.fetch=async url=>{window.calls.push(String(url));return new Response('limit',{status:429});};});
  const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
  assert.equal(limit.rateLimited,true);assert.equal(await page.evaluate(()=>window.calls.length),1);
  console.log('PASS: incomplete pagination still verifies sales, deleted pages excluded, retained category listings checked, bounded page rotation and 429 stops requests.');

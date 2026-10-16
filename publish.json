@@ -1,4 +1,4 @@
 {
-  "version": "2.14.13",
-  "notes": "Satış takibinde eski kategori fiyatının gösterilmesi düzeltildi. Satış sinyali tespitinde ürün detayından okunan son fiyat, başlık ve satıcı bilgisi kayda aktarılır. Önceki kayıtların fiyatları mevcut istek bütçesi içinde sırayla kontrol edilir; fiyat değişince panel yenilenir. Gösterilen tutar son ilan fiyatıdır, kesin işlem tutarı değildir."
+  "version": "2.14.14",
+  "notes": "Satış takibine satıcı bazında toplu başlangıç ölçümü eklendi. Bir mağaza sayfasından birden fazla takip ilanının sayaç bilgisi alınır. Mağazadan kaybolan ve sayaç artışıyla eşleşen ilanlar ürün sayfasından doğrulanır. Eksik mağaza sayfaları satış sayılmaz. Mağaza ve ürün kontrolleri aynı istek bütçesini paylaşır; son fiyat ve ilk 3 sayfa kapsamı korunur."
 }
