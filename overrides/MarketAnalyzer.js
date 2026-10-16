@@ -2991,7 +2991,7 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
@@ -3044,17 +3044,10 @@ ${categorySectionsHtml}
         }
         // A sold listing may still be present in a category. Check known URLs
         // directly even when pagination is incomplete; disappearance is never proof.
-        const candidates=new Map((known||[]).map(row=>[row.url,row]));
-        for(const row of active.values())candidates.set(row.url,row);
-        const missing=complete?(known||[]).filter(row=>!active.has(row.url)):[];
-        const normal=[...(complete?active:candidates).values()].sort((a,b)=>a.url.localeCompare(b.url));
-        const queue=[];const offset=Number(cursor)||0;
-        // Reserve a slot for active-listing baselines so pending checks cannot starve them.
-        for(let i=0;i<Math.min(missing.length,normal.length?2:3);i++)queue.push(missing[(offset+i)%missing.length]);
-        for(let i=0;queue.length<3&&i<normal.length;i++)queue.push(normal[(offset+i)%normal.length]);
-        const sold=[],observations=[];let attempted=0;
+        const queue=window.__NiyaziSelectWatchQueue([...active.values()],known,measurements,complete,attempts);
+        const sold=[],observations=[],attemptedUrls=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
-            const row=queue[i];attempted++;
+            const row=queue[i];attempted++;attemptedUrls.push(row.url);
             try{
                 const url=new URL(row.url);
                 if(url.origin!=='https://itemci.com'||!url.pathname.startsWith('/product/'))continue;
@@ -3065,7 +3058,7 @@ ${categorySectionsHtml}
             }catch{failed++;}
             await sleep(250);
         }
-        return {rows:[...active.values()],sold,observations,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
+        return {rows:[...active.values()],sold,observations,attemptedUrls,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);

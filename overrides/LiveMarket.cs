@@ -28,7 +28,7 @@ public sealed partial class MainForm
         header.Controls.Add(metrics);header.Controls.Add(space);header.Controls.Add(selector);header.Controls.Add(subtitle);header.Controls.Add(titleRow);
         var refresh=ReferenceUi.Button("Şimdi Yenile","refresh",()=>_=RefreshLiveMarketAsync());refresh.Dock=DockStyle.Bottom;refresh.Height=42;refresh.GoldOutline=true;
         var disclaimer=ReferenceUi.Label("ⓘ  Sayaç artışıyla eşleşen hareketler güçlü satış sinyalidir. Son ilan fiyatı ve tespit zamanı gösterilir.",8);disclaimer.Dock=DockStyle.Bottom;disclaimer.Height=48;disclaimer.ForeColor=ReferenceUi.Muted;disclaimer.TextAlign=ContentAlignment.MiddleLeft;
-        _liveStatus.Dock=DockStyle.Bottom;_liveStatus.Height=46;_liveStatus.ForeColor=Color.FromArgb(57,214,151);_liveStatus.Font=ReferenceUi.Font(9);_liveStatus.BackColor=ReferenceUi.Background;
+        _liveStatus.Dock=DockStyle.Bottom;_liveStatus.Height=76;_liveStatus.ForeColor=Color.FromArgb(57,214,151);_liveStatus.Font=ReferenceUi.Font(9);_liveStatus.BackColor=ReferenceUi.Background;
         _liveRows.BackColor=ReferenceUi.Background;_liveRows.Padding=new Padding(0,14,0,4);
         collapse.Click+=(_,_)=>{_liveCollapsed=!_liveCollapsed;_liveMarket.Width=LogicalToDeviceUnits(_liveCollapsed?52:360);_liveMarket.Padding=new Padding(LogicalToDeviceUnits(_liveCollapsed?4:18));_liveRows.Visible=_liveStatus.Visible=refresh.Visible=disclaimer.Visible=metrics.Visible=selector.Visible=subtitle.Visible=title.Visible=!_liveCollapsed;header.Height=LogicalToDeviceUnits(_liveCollapsed?42:228);};
         _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(disclaimer);_liveMarket.Controls.Add(header);

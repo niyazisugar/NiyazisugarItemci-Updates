@@ -1,4 +1,4 @@
 {
-  "version": "2.14.9",
-  "notes": "Canlı sunucu takibi yalnızca ilk 3 ilan sayfasını izler. Yeni kaybolan ilanlar öncelikli kontrol edilir; sayfa dışına düşmek tek başına satış sayılmaz. Eski tarama kuyruğu temizlenir, kayıtlı satışlar korunur. Eksik sayfalarda güvenilir pencere değiştirilmez. Satıcı sayacı karşılaştırması ve ortak site beklemesi korunur."
+  "version": "2.14.10",
+  "notes": "Gönderilen gerçek takip kaydındaki ölçüm darboğazı düzeltildi. Kontrol sırası artık kaydedilmiş ölçüm zamanlarını kullanır; henüz ölçülmemiş ilanlara öncelik verir. Önceki aktif ölçümü olmayan satış dışı ilanlar öncelik sırasını sürekli işgal etmez. Panel bu eksik başlangıç ölçümlerini açıkça gösterir. Satış doğrulama koşulları ve istek bütçesi korunur."
 }

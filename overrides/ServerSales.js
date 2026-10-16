@@ -55,6 +55,25 @@
   }
   return found;
  }
+ // Plan checks using durable measurements, not overlapping URL offsets.
+ function watchQueue(activeRows,known,measurements,complete,attempts={}){
+  const measured=new Map((measurements||[]).map(o=>[o.url,o]));
+  const active=new Set(activeRows.map(r=>r.url));
+  const validBaseline=o=>o?.lastAvailableAtUtc&&Date.parse(o.lastAvailableAtUtc)>0;
+  const age=row=>Math.max(Date.parse(measured.get(row.url)?.observedAtUtc||'')||0,Date.parse(attempts[row.url]||'')||0);
+  const missing=complete?(known||[]).filter(row=>!active.has(row.url)).filter(row=>{
+   const o=measured.get(row.url);return !o||o.available||validBaseline(o);
+  }).sort((a,b)=>Number(validBaseline(measured.get(b.url)))-Number(validBaseline(measured.get(a.url)))||age(a)-age(b)):[];
+  const normal=[...new Map((complete?activeRows:[...activeRows,...known]).map(r=>[r.url,r])).values()].sort((a,b)=>age(a)-age(b));
+  const queue=[];
+  // Keep two slots for baseline coverage. A disappeared listing without an
+  // earlier available measurement is inspected once, not retried indefinitely.
+  if(missing.length)queue.push(missing[0]);
+  for(const row of normal){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
+  for(const row of missing){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
+  return queue;
+ }
+ window.__NiyaziSelectWatchQueue=watchQueue;
  window.__NiyaziPublicProductState=productState;
  window.__NiyaziConfirmedPublicSale = confirmedSale;
 })();

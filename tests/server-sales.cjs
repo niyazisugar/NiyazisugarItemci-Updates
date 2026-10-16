@@ -24,6 +24,27 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const publicState=await page.evaluate(html=>({state:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),confirmed:window.__NiyaziConfirmedPublicSale(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),wrong:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/another')}),realHtml);
  assert.equal(publicState.state.available,false);assert.equal(publicState.state.salesCount,384);assert.equal(publicState.state.seller,'ENUYGUNCOM');assert.equal(publicState.state.price,1090);assert.equal(publicState.confirmed,false);assert.equal(publicState.wrong,null);
  console.log('PASS: real public-page metadata, seller count, exact product identity and unavailable is not confirmed sale.');
+ // Regression from the user's file: 119 active URLs, only 39 baselines and
+ // unavailable records with DateTime.MinValue baselines must not consume priority slots.
+ const planning=await page.evaluate(()=>{
+  const rows=Array.from({length:119},(_,i)=>({url:'https://itemci.com/product/test/'+i}));
+  const measured=rows.slice(0,39).map((r,i)=>({...r,available:true,observedAtUtc:new Date(100000+i*1000).toISOString(),lastAvailableAtUtc:new Date(100000+i*1000).toISOString()}));
+  const unknown={url:'https://itemci.com/product/test/first-seen-unavailable'};
+  measured.push({...unknown,available:false,observedAtUtc:new Date(200000).toISOString(),lastAvailableAtUtc:'0001-01-01T00:00:00'});
+  const first=window.__NiyaziSelectWatchQueue(rows,[...rows,unknown],measured,true).map(r=>r.url);
+  const failedRetry=window.__NiyaziSelectWatchQueue(rows,[...rows,unknown],measured,true,Object.fromEntries(first.map(u=>[u,new Date(300000).toISOString()]))).map(r=>r.url);
+  for(const url of first)measured.push({url,available:true,observedAtUtc:new Date(300000).toISOString(),lastAvailableAtUtc:new Date(300000).toISOString()});
+  const second=window.__NiyaziSelectWatchQueue(rows,[...rows,unknown],measured,true).map(r=>r.url);
+  const departed={url:'https://itemci.com/product/test/departed'};
+  measured.push({...departed,available:true,observedAtUtc:new Date(400000).toISOString(),lastAvailableAtUtc:new Date(400000).toISOString()});
+  const priority=window.__NiyaziSelectWatchQueue(rows,[...rows,unknown,departed],measured,true).map(r=>r.url);
+  return {first,second,priority,failedRetry};
+ });
+ assert.deepEqual(planning.first,[39,40,41].map(i=>'https://itemci.com/product/test/'+i));
+ assert.deepEqual(planning.failedRetry,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
+ assert.deepEqual(planning.second,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
+ assert(planning.priority[0].endsWith('/departed'));assert(planning.priority.slice(1).every(u=>!planning.first.includes(u)));
+ console.log('PASS: durable baseline coverage advances without overlaps; unmeasurable inactive records do not starve new checks.');
  // Exercise the actual server scanner, not only its sold-marker helper.
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
  await page.goto('https://itemci.com/categories/msp2-global-yeni-itemyang');
@@ -55,7 +76,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const pending=[1,2,3].map(n=>({url:'https://itemci.com/product/msp2-global-yeni-itemyang/missing-'+n,title:'Önceki pencere ilanı',price:100}));
  await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0,38),pending);
  const detailOrder=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
- assert(detailOrder[0].endsWith('/missing-1'));assert(detailOrder[1].endsWith('/missing-2'));assert(detailOrder[2].includes('/active-'),'Active listing baselines must retain a slot.');
+ assert(detailOrder[0].endsWith('/missing-1'));assert(detailOrder[1].includes('/active-'));assert(detailOrder[2].includes('/active-'),'Active listing baselines must retain a slot.');
  assert.equal(await page.evaluate(()=>window.calls.some(x=>/[?&]page=(?:4|38)/.test(x))),false);
  await page.evaluate(()=>{window.mode='limit';window.calls=[];});
  const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
