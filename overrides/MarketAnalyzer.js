@@ -2991,7 +2991,7 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = []) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
@@ -3044,7 +3044,9 @@ ${categorySectionsHtml}
         }
         // A sold listing may still be present in a category. Check known URLs
         // directly even when pagination is incomplete; disappearance is never proof.
-        const queue=window.__NiyaziSelectWatchQueue([...active.values()],known,measurements,complete,attempts);
+        let queue=window.__NiyaziSelectWatchQueue([...active.values()],known,measurements,complete,attempts);
+        const repair=(priceRepairs||[]).find(row=>{try{const u=new URL(row.url);return u.origin==='https://itemci.com'&&u.pathname.startsWith('/product/');}catch{return false;}});
+        if(repair)queue=[repair,...queue.filter(row=>row.url!==repair.url)].slice(0,3);
         const sold=[],observations=[],attemptedUrls=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[i];attempted++;attemptedUrls.push(row.url);

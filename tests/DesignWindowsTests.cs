@@ -131,6 +131,16 @@ public sealed partial class MainForm
         ApplyWatchObservations(stale,new[]{Observation(true,10)},stamp);ApplyWatchObservations(stale,new[]{Observation(true,14)},stamp.AddMinutes(1));ApplyWatchObservations(stale,new[]{Observation(false,14)},stamp.AddMinutes(30));if(stale.sales.Count!=0)throw new Exception("An old counter rise was reused for an unrelated unavailable listing.");
         var cached=new ServerWatch();cached.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(cached,new[]{Observation(true,14)},stamp);ApplyWatchObservations(cached,new[]{Observation(true,10)},stamp.AddMinutes(1));ApplyWatchObservations(cached,new[]{Observation(false,14)},stamp.AddMinutes(2));if(cached.sales.Count!=0)throw new Exception("An older cached counter created a false rebound signal.");
+        // The final product-detail price must replace the old category price.
+        var priced=new ServerWatch();var priceUrl="https://itemci.com/product/test/test";
+        priced.known[priceUrl]=new LiveListing {url=priceUrl,title="Old title",seller="Test seller",price=175m};
+        var firstPrice=Observation(true,10);firstPrice.price=175m;ApplyWatchObservations(priced,new[]{firstPrice},stamp);
+        var finalPrice=Observation(false,11);finalPrice.price=160m;finalPrice.title="Updated title";finalPrice.seller="Updated seller";ApplyWatchObservations(priced,new[]{finalPrice},stamp.AddMinutes(1));
+        if(priced.sales.Count!=1||priced.sales[0].listing.price!=160m||!priced.sales[0].priceFromDetail||priced.sales[0].listing.title!="Updated title")throw new Exception("Sale retained the obsolete category price instead of final product detail.");
+        priced.sales[0].listing.price=175m;priced.sales[0].priceFromDetail=false;
+        var repairPrice=Observation(false,11);repairPrice.price=160m;ApplyWatchObservations(priced,new[]{repairPrice},stamp.AddMinutes(2));
+        if(priced.sales.Count!=1||priced.sales[0].listing.price!=160m||!priced.sales[0].priceFromDetail)throw new Exception("Existing sale price repair failed or created a duplicate.");
+        var missingPrice=Observation(false,11);missingPrice.price=0;ApplyWatchObservations(priced,new[]{missingPrice},stamp.AddMinutes(3));if(priced.sales[0].listing.price!=160m)throw new Exception("Unavailable price overwrote a valid recorded value.");
         var fresh=new ServerWatch();fresh.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(fresh,new[]{Observation(false,20)},stamp);if(fresh.sales.Count!=0)throw new Exception("Already unavailable listing fabricated historical sales.");
         var expired=new ServerWatch();expired.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};

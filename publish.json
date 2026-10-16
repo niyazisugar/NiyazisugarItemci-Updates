@@ -1,4 +1,4 @@
 {
-  "version": "2.14.12",
-  "notes": "Satış sinyalinde sayaç ve ilan durumunun farklı sıralarda güncellenmesinden doğan kayıt kaybı düzeltildi. Yakın zamanlı sayaç artışı saklanır; eski veya geriye giden önbellek sayaçları satış sayılmaz. İlk ölçümler tamamlandığında kontrol bütçesi bekleyen ilanlara ayrılır. Bekleyen ilanlar 30 dakika yerine 2 saat tutulur. Mevcut veriler, ilk 3 sayfa kapsamı ve site istek sınırları korunur."
+  "version": "2.14.13",
+  "notes": "Satış takibinde eski kategori fiyatının gösterilmesi düzeltildi. Satış sinyali tespitinde ürün detayından okunan son fiyat, başlık ve satıcı bilgisi kayda aktarılır. Önceki kayıtların fiyatları mevcut istek bütçesi içinde sırayla kontrol edilir; fiyat değişince panel yenilenir. Gösterilen tutar son ilan fiyatıdır, kesin işlem tutarı değildir."
 }

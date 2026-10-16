@@ -83,6 +83,12 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const detailOrder=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
  assert(detailOrder[0].endsWith('/missing-1'));assert(detailOrder[1].includes('/active-'));assert(detailOrder[2].includes('/active-'),'Active listing baselines must retain a slot.');
  assert.equal(await page.evaluate(()=>window.calls.some(x=>/[?&]page=(?:4|38)/.test(x))),false);
+ await page.evaluate(()=>window.calls=[]);
+ const repairRow={url:'https://itemci.com/product/msp2-global-yeni-itemyang/price-repair',title:'Existing sale',price:175};
+ const repairScan=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[row]),repairRow);
+ const repairRequests=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
+ assert.equal(repairRequests.length,3);assert(repairRequests[0].endsWith('/price-repair'),'Existing recorded price repair must be queued within the same request budget.');
+ assert.equal(repairScan.attemptedUrls.length,3);
  await page.evaluate(()=>{window.mode='limit';window.calls=[];});
  const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
  assert.equal(limit.rateLimited,true);assert.equal(await page.evaluate(()=>window.calls.length),1);
