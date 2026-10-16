@@ -107,6 +107,13 @@ public sealed partial class MainForm
         ApplyWatchObservations(fresh,new[]{Observation(false,20)},stamp);if(fresh.sales.Count!=0)throw new Exception("Already unavailable listing fabricated historical sales.");
         var expired=new ServerWatch();expired.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(expired,new[]{Observation(true,10)},stamp);var end=Observation(false,11);end.expiresAt=stamp.AddSeconds(-1).ToString("O");ApplyWatchObservations(expired,new[]{end},stamp.AddMinutes(1));if(expired.sales.Count!=0)throw new Exception("Expired listing was classified as correlated sale.");
+        // Three-page migration and disappearance queue must not convert old history into candidates.
+        var scoped=new ServerWatch();scoped.known["old-archive"]=new LiveListing {url="old-archive"};
+        var windowA=new WatchScan {complete=true,rows=new(){new(){url="a"},new(){url="b"}}};
+        UpdateThreePageWatchWindow(scoped,windowA,stamp);if(scoped.known.Count!=2||scoped.pending.Count!=0)throw new Exception("Three-page migration retained old archive or fabricated pending sales.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=false,rows=new(){new(){url="c"}}},stamp.AddMinutes(1));if(scoped.pending.Count!=0||scoped.recentWindow.Count!=2)throw new Exception("Failed page changed the trusted window.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(2));if(!scoped.pending.ContainsKey("a")||scoped.pending.Count!=1||scoped.sales.Count!=0)throw new Exception("Disappeared listing was not prioritized or was falsely marked sold.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(33));if(scoped.pending.Count!=0||scoped.known.ContainsKey("a"))throw new Exception("Stale pending queue was not bounded.");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};

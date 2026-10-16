@@ -1,4 +1,4 @@
 {
-  "version": "2.14.8",
-  "notes": "Satış takibine satıcının gerçek toplam satış sayacı karşılaştırması eklendi. Aynı ilan aktiften satış dışına geçtiğinde satıcı sayacı artmışsa güçlü satış sinyali olarak gösterilir. İlk ölçümden önceki satışlar uydurulmaz; süre dolması, sayaç artışı tek başına ve silinen sayfalar satış sayılmaz. Gerçek Itemci sayfa verisiyle okuyucu kontrol edildi. Son ilan fiyatı ve tespit saati gösterilir; kesin satış olarak etiketlenmez."
+  "version": "2.14.9",
+  "notes": "Canlı sunucu takibi yalnızca ilk 3 ilan sayfasını izler. Yeni kaybolan ilanlar öncelikli kontrol edilir; sayfa dışına düşmek tek başına satış sayılmaz. Eski tarama kuyruğu temizlenir, kayıtlı satışlar korunur. Eksik sayfalarda güvenilir pencere değiştirilmez. Satıcı sayacı karşılaştırması ve ortak site beklemesi korunur."
 }

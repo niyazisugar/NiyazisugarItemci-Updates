@@ -3020,15 +3020,16 @@ ${categorySectionsHtml}
             if(!base)throw new Error('ItemYang kategorisi bulunamadı.');
         }
         const active = new Map();
-        let nextPage=Math.max(1,Math.min(MAX_PAGES,Number(pageCursor)||1));
-        // Refresh new listings on page one, then advance through older pages.
-        const pages=[...new Set([1,nextPage])].filter(p=>p<=MAX_PAGES);
+        let nextPage=1,pagesRead=0;
+        // Live monitoring deliberately covers only the latest three pages.
+        const pages=[1,2,3];
         for (const page of pages) {
             if(Date.now()>=deadline||rateLimited)break;
             try {
                 const url=page===1?base:`${base}?page=${page}`;
                 const doc=new DOMParser().parseFromString(await read(url),'text/html');
                 const cards=cardsFromDocument(doc,base);
+                pagesRead++;
                 if(!cards.length){
                     const body=normalizeSearchText(doc.body.textContent);
                     if(/ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)){complete=true;nextPage=1;break;}
@@ -3037,7 +3038,7 @@ ${categorySectionsHtml}
                 for(const card of cards){card.href=new URL(card.getAttribute('href'),url).href;const row=parseCard(card);if(row)active.set(row.url,row);}
                 nextPage=page>=MAX_PAGES?1:page+1;
                 const hasNext=[...doc.querySelectorAll('a[href]')].some(a=>{try{const u=new URL(a.getAttribute('href'),url);return u.pathname===new URL(base).pathname&&Number(u.searchParams.get('page'))>page;}catch{return false;}});
-                if(!hasNext){complete=true;nextPage=1;break;}
+                if(!hasNext||page===3){complete=true;nextPage=1;break;}
             } catch {failed++;break;}
             await sleep(250);
         }
@@ -3045,10 +3046,15 @@ ${categorySectionsHtml}
         // directly even when pagination is incomplete; disappearance is never proof.
         const candidates=new Map((known||[]).map(row=>[row.url,row]));
         for(const row of active.values())candidates.set(row.url,row);
-        const queue=[...candidates.values()].sort((a,b)=>a.url.localeCompare(b.url));
+        const missing=complete?(known||[]).filter(row=>!active.has(row.url)):[];
+        const normal=[...(complete?active:candidates).values()].sort((a,b)=>a.url.localeCompare(b.url));
+        const queue=[];const offset=Number(cursor)||0;
+        // Reserve a slot for active-listing baselines so pending checks cannot starve them.
+        for(let i=0;i<Math.min(missing.length,normal.length?2:3);i++)queue.push(missing[(offset+i)%missing.length]);
+        for(let i=0;queue.length<3&&i<normal.length;i++)queue.push(normal[(offset+i)%normal.length]);
         const sold=[],observations=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
-            const row=queue[((Number(cursor)||0)+i)%queue.length];attempted++;
+            const row=queue[i];attempted++;
             try{
                 const url=new URL(row.url);
                 if(url.origin!=='https://itemci.com'||!url.pathname.startsWith('/product/'))continue;
@@ -3059,7 +3065,7 @@ ${categorySectionsHtml}
             }catch{failed++;}
             await sleep(250);
         }
-        return {rows:[...active.values()],sold,observations,complete,nextCursor:(Number(cursor)||0)+attempted,nextPage,checked,failed,rateLimited};
+        return {rows:[...active.values()],sold,observations,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);

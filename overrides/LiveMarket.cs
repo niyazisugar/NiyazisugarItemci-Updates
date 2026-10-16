@@ -37,7 +37,7 @@ public sealed partial class MainForm
         LoadServerSalesWatch();
         RefreshLiveMarketServers();
         RenderServerSalesWatch();
-        _liveStatus.Text = "Sunucular sırayla izleniyor · Her turda tek sunucu";
+        _liveStatus.Text = "İlk 3 sayfa izleniyor · Sunucular sırayla kontrol edilir";
         _liveTimer.Tick += (_, _) => { PositionLiveMarket(); _ = RefreshLiveMarketAsync(); };
         _liveTimer.Start();
         _browserPanel.VisibleChanged += (_, _) => { if (_browserPanel.Visible) { _ = RefreshLiveMarketAsync(); } };

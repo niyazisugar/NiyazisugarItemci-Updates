@@ -91,7 +91,7 @@ public sealed partial class MainForm
         try
         {
             var soldUrls=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var known=state.known.Values.Where(row=>!soldUrls.Contains(row.url)).ToList();
+            var known=state.threePageWindow?state.known.Values.Where(row=>!soldUrls.Contains(row.url)).OrderByDescending(row=>state.pending.TryGetValue(row.url,out var since)?since:DateTime.MinValue).ToList():new List<LiveListing>();
             await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
             return await task.Task.WaitAsync(TimeSpan.FromSeconds(45));
         }
@@ -120,7 +120,7 @@ public sealed partial class MainForm
                     state.status = "Taranıyor…";
                     if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
                     var scan = await ReadServerWatchAsync(server,state);
-                    foreach (var row in scan.rows) state.known[row.url] = row;
+                    UpdateThreePageWatchWindow(state,scan,DateTime.UtcNow);
                     ApplyWatchObservations(state,scan.observations,DateTime.UtcNow);
                     foreach (var row in scan.sold)
                     {
@@ -129,11 +129,12 @@ public sealed partial class MainForm
                             var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time"));
                             state.sales.Add(new WatchSale { listing=row,detectedAt=now,evidence="explicit" });
                         }
-                        state.known.Remove(row.url);
+                        state.known.Remove(row.url);state.pending.Remove(row.url);
                     }
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
-                    state.status = $"{state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
+                    state.status = $"İlk 3 sayfa · {scan.pagesRead} okundu · {state.pending.Count} öncelikli · {state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
+                    if(!scan.complete)state.status+=" · Pencere taraması eksik";
                     if(scan.rateLimited){PauseSiteAutomation(300);_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
                 }
                 catch(Exception ex) { state.status = "Kontrol başarısız: "+ex.Message; }
@@ -144,6 +145,22 @@ public sealed partial class MainForm
         }
         catch { _liveStatus.Text = "Takip kaydı güncellenemedi · ↻ ile tekrar dene"; }
         finally { _liveBusy=false;await SuspendIdleMarketAsync(); }
+    }
+    private void UpdateThreePageWatchWindow(ServerWatch state,WatchScan scan,DateTime nowUtc)
+    {
+        if(scan.complete)
+        {
+            var current=scan.rows.Select(r=>r.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if(!state.threePageWindow){state.known.Clear();state.observations.Clear();state.pending.Clear();}
+            else foreach(var url in state.recentWindow.Where(url=>!current.Contains(url)))if(!state.pending.ContainsKey(url))state.pending[url]=nowUtc;
+            foreach(var url in current)state.pending.Remove(url);
+            foreach(var url in state.pending.Where(p=>p.Value<nowUtc.AddMinutes(-30)).Select(p=>p.Key).ToArray())state.pending.Remove(url);
+            foreach(var url in state.pending.OrderByDescending(p=>p.Value).Skip(200).Select(p=>p.Key).ToArray())state.pending.Remove(url);
+            foreach(var url in state.known.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.known.Remove(url);
+            foreach(var url in state.observations.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.observations.Remove(url);
+            state.recentWindow=current.ToList();state.threePageWindow=true;
+        }
+        foreach(var row in scan.rows)state.known[row.url]=row;
     }
     private void ApplyWatchObservations(ServerWatch state,IEnumerable<ProductObservation> observations,DateTime nowUtc)
     {
@@ -157,9 +174,10 @@ public sealed partial class MainForm
             if(previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&current.salesCount>current.lastAvailableCount&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
                 state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=current.salesCount-current.lastAvailableCount});
-                state.known.Remove(current.url);
+                state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
+            if(current.available&&state.pending.Remove(current.url)){state.known.Remove(current.url);state.observations.Remove(current.url);}
         }
     }
     private sealed class ProductObservation
@@ -175,6 +193,9 @@ public sealed partial class MainForm
     }
     private sealed class ServerWatch
     {
+        public bool threePageWindow {get;set;}
+        public List<string> recentWindow {get;set;}=new();
+        public Dictionary<string,DateTime> pending {get;set;}=new();
         public Dictionary<string,ProductObservation> observations {get;set;}=new();
         public Dictionary<string,LiveListing> known {get;set;} = new();
         public List<WatchSale> sales {get;set;} = new();
@@ -197,6 +218,7 @@ public sealed partial class MainForm
         public bool complete {get;set;}
         public int nextCursor {get;set;}
         public int nextPage {get;set;} = 1;
+        public int pagesRead {get;set;}
         public int @checked {get;set;}
         public int failed {get;set;}
         public bool rateLimited {get;set;}
