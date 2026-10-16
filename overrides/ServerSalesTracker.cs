@@ -50,14 +50,15 @@ public sealed partial class MainForm
         foreach (var sale in rows.Take(_serverWatchVisibleCount))
         {
             var row = sale.listing;
-            var card = new ReferencePanel { Width = _liveRows.ClientSize.Width - 4, Height = 65, BackColor = ReferenceUi.Surface, Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
+            var card = new ReferencePanel { Width = _liveRows.ClientSize.Width - 4, Height = 88, BackColor = ReferenceUi.Surface, Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
             var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
             var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
             var info = new Label { Dock = DockStyle.Fill, Text = $"{row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = PremiumTheme.Turquoise, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
-            card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
-            foreach (Control target in new Control[] {card,name,seller,info})
+            var evidence=new Label {Dock=DockStyle.Bottom,Height=23,Text=sale.evidence=="counter"?$"Güçlü sinyal · Satış sayacı +{sale.sellerIncrease}":"Sitede satıldı işareti",ForeColor=PremiumTheme.Gold,Font=_watchInfoFont,Padding=new Padding(4,0,0,0)};
+            card.Controls.Add(evidence);card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
+            foreach (Control target in new Control[] {card,name,seller,info,evidence})
             {
-                _sidebarToolTip.SetToolTip(target, $"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price:N2} TL\nSatıldı işareti tespit edildi: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.");
+                _sidebarToolTip.SetToolTip(target, $"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price:N2} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.");
                 target.Click += (_, _) => _ = OpenOrActivateBrowserTabAsync(row.url,row.title);
             }
             _liveRows.Controls.Add(card);
@@ -120,18 +121,19 @@ public sealed partial class MainForm
                     if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
                     var scan = await ReadServerWatchAsync(server,state);
                     foreach (var row in scan.rows) state.known[row.url] = row;
+                    ApplyWatchObservations(state,scan.observations,DateTime.UtcNow);
                     foreach (var row in scan.sold)
                     {
                         if (!state.sales.Any(s=>s.listing.url==row.url))
                         {
                             var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time"));
-                            state.sales.Add(new WatchSale { listing=row,detectedAt=now });
+                            state.sales.Add(new WatchSale { listing=row,detectedAt=now,evidence="explicit" });
                         }
                         state.known.Remove(row.url);
                     }
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
-                    state.status = $"{state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
+                    state.status = $"{state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
                     if(scan.rateLimited){PauseSiteAutomation(300);_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
                 }
                 catch(Exception ex) { state.status = "Kontrol başarısız: "+ex.Message; }
@@ -143,8 +145,37 @@ public sealed partial class MainForm
         catch { _liveStatus.Text = "Takip kaydı güncellenemedi · ↻ ile tekrar dene"; }
         finally { _liveBusy=false;await SuspendIdleMarketAsync(); }
     }
+    private void ApplyWatchObservations(ServerWatch state,IEnumerable<ProductObservation> observations,DateTime nowUtc)
+    {
+        foreach(var current in observations)
+        {
+            state.observations.TryGetValue(current.url,out var previous);
+            current.observedAtUtc=nowUtc;
+            if(current.available){current.lastAvailableAtUtc=nowUtc;current.lastAvailableCount=current.salesCount;}
+            else if(previous is not null){current.lastAvailableAtUtc=previous.lastAvailableAtUtc;current.lastAvailableCount=previous.lastAvailableCount;}
+            var expired=DateTime.TryParse(current.expiresAt,out var expires)&&expires.ToUniversalTime()<=nowUtc;
+            if(previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&current.salesCount>current.lastAvailableCount&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
+            {
+                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=current.salesCount-current.lastAvailableCount});
+                state.known.Remove(current.url);
+            }
+            state.observations[current.url]=current;
+        }
+    }
+    private sealed class ProductObservation
+    {
+        public string url {get;set;}="";
+        public string sellerId {get;set;}="";
+        public bool available {get;set;}
+        public int salesCount {get;set;}
+        public string expiresAt {get;set;}="";
+        public DateTime observedAtUtc {get;set;}
+        public DateTime lastAvailableAtUtc {get;set;}
+        public int lastAvailableCount {get;set;}
+    }
     private sealed class ServerWatch
     {
+        public Dictionary<string,ProductObservation> observations {get;set;}=new();
         public Dictionary<string,LiveListing> known {get;set;} = new();
         public List<WatchSale> sales {get;set;} = new();
         public int pageCursor {get;set;} = 1;
@@ -155,11 +186,14 @@ public sealed partial class MainForm
     {
         public LiveListing listing {get;set;} = new();
         public DateTime detectedAt {get;set;}
+        public string evidence {get;set;}="explicit";
+        public int sellerIncrease {get;set;}
     }
     private sealed class WatchScan
     {
         public List<LiveListing> rows {get;set;} = new();
         public List<LiveListing> sold {get;set;} = new();
+        public List<ProductObservation> observations {get;set;}=new();
         public bool complete {get;set;}
         public int nextCursor {get;set;}
         public int nextPage {get;set;} = 1;

@@ -93,6 +93,20 @@ public sealed partial class MainForm
         _listingSearch.Text="02";if(_listingsList.Controls.OfType<ReferenceRow>().Count()!=1)throw new Exception("Listing title filter failed.");_listingSearch.Clear();
         photos=Descendants(_listingsList).OfType<PictureBox>().ToArray();for(int i=0;i<photos.Length;i++)photos[i].Image=TestThumbnail(i+1);
         ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
+        // Seller-counter correlation: both signals required; no first-observation backfill.
+        var watch=new ServerWatch();var stamp=DateTime.UtcNow;
+        ProductObservation Observation(bool available,int count)=>new(){url="https://itemci.com/product/test/test",sellerId="seller",available=available,salesCount=count,expiresAt=stamp.AddDays(1).ToString("O")};
+        watch.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test",title="Test takip ilanı",seller="Test satıcı",price=100};
+        ApplyWatchObservations(watch,new[]{Observation(true,10)},stamp);
+        ApplyWatchObservations(watch,new[]{Observation(true,14)},stamp.AddMinutes(1));if(watch.sales.Count!=0)throw new Exception("Seller count alone was classified as a sale.");
+        ApplyWatchObservations(watch,new[]{Observation(false,14)},stamp.AddMinutes(2));if(watch.sales.Count!=0)throw new Exception("Unavailable without counter rise was classified as a sale.");
+        watch=System.Text.Json.JsonSerializer.Deserialize<ServerWatch>(System.Text.Json.JsonSerializer.Serialize(watch))!;
+        ApplyWatchObservations(watch,new[]{Observation(false,15)},stamp.AddMinutes(3));if(watch.sales.Count!=1||watch.sales[0].evidence!="counter"||watch.sales[0].sellerIncrease!=1)throw new Exception("Delayed seller-counter rise failed after durable baseline reload.");
+        ApplyWatchObservations(watch,new[]{Observation(false,16)},stamp.AddMinutes(4));if(watch.sales.Count!=1)throw new Exception("Counter signal duplicated a listing.");
+        var fresh=new ServerWatch();fresh.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
+        ApplyWatchObservations(fresh,new[]{Observation(false,20)},stamp);if(fresh.sales.Count!=0)throw new Exception("Already unavailable listing fabricated historical sales.");
+        var expired=new ServerWatch();expired.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
+        ApplyWatchObservations(expired,new[]{Observation(true,10)},stamp);var end=Observation(false,11);end.expiresAt=stamp.AddSeconds(-1).ToString("O");ApplyWatchObservations(expired,new[]{end},stamp.AddMinutes(1));if(expired.sales.Count!=0)throw new Exception("Expired listing was classified as correlated sale.");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};

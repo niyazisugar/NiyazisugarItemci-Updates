@@ -1,4 +1,4 @@
 {
-    "version": "2.14.7",
-    "notes": "Itemci işlem sınırına karşı ortak otomasyon beklemesi eklendi. Sitedeki çok fazla deneme uyarısı veya HTTP 429 yanıtında bütün otomatik işlemler durur; bekleme yeniden başlatmada korunur. Satış geçmişi ve sunucu takibi aynı anda tarama yapmaz. Sunucular tek tek ve daha az istekle izlenir; analiz ve satış ayrıntısı istekleri aralıklı çalışır. İlan başına saatlik ve ilanlar arası 90 saniyelik öne çıkarma sınırları korunur."
+  "version": "2.14.8",
+  "notes": "Satış takibine satıcının gerçek toplam satış sayacı karşılaştırması eklendi. Aynı ilan aktiften satış dışına geçtiğinde satıcı sayacı artmışsa güçlü satış sinyali olarak gösterilir. İlk ölçümden önceki satışlar uydurulmaz; süre dolması, sayaç artışı tek başına ve silinen sayfalar satış sayılmaz. Gerçek Itemci sayfa verisiyle okuyucu kontrol edildi. Son ilan fiyatı ve tespit saati gösterilir; kesin satış olarak etiketlenmez."
 }

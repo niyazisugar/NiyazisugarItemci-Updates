@@ -20,6 +20,10 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  });
  assert.deepEqual(results,[true,false,false,false,false,true,true,false,true,false]);
  console.log('PASS: deleted/missing pages, generic text and out-of-stock excluded; explicit sold marker and matching sold-out product accepted.');
+ const realHtml=fs.readFileSync('tests/fixtures/itemci-unavailable-product.html','utf8');
+ const publicState=await page.evaluate(html=>({state:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),confirmed:window.__NiyaziConfirmedPublicSale(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),wrong:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/another')}),realHtml);
+ assert.equal(publicState.state.available,false);assert.equal(publicState.state.salesCount,384);assert.equal(publicState.state.seller,'ENUYGUNCOM');assert.equal(publicState.state.price,1090);assert.equal(publicState.confirmed,false);assert.equal(publicState.wrong,null);
+ console.log('PASS: real public-page metadata, seller count, exact product identity and unavailable is not confirmed sale.');
  // Exercise the actual server scanner, not only its sold-marker helper.
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
  await page.goto('https://itemci.com/categories/msp2-global-yeni-itemyang');

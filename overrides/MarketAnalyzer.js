@@ -3046,18 +3046,20 @@ ${categorySectionsHtml}
         const candidates=new Map((known||[]).map(row=>[row.url,row]));
         for(const row of active.values())candidates.set(row.url,row);
         const queue=[...candidates.values()].sort((a,b)=>a.url.localeCompare(b.url));
-        const sold=[];let attempted=0;
+        const sold=[],observations=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[((Number(cursor)||0)+i)%queue.length];attempted++;
             try{
                 const url=new URL(row.url);
                 if(url.origin!=='https://itemci.com'||!url.pathname.startsWith('/product/'))continue;
                 const html=await read(url.href);checked++;
+                const observation=window.__NiyaziPublicProductState(html,url.href);
+                if(observation)observations.push(observation);
                 if(window.__NiyaziConfirmedPublicSale(html,url.href))sold.push(row);
             }catch{failed++;}
             await sleep(250);
         }
-        return {rows:[...active.values()],sold,complete,nextCursor:(Number(cursor)||0)+attempted,nextPage,checked,failed,rateLimited};
+        return {rows:[...active.values()],sold,observations,complete,nextCursor:(Number(cursor)||0)+attempted,nextPage,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);
