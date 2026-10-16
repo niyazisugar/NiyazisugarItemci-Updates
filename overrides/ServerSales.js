@@ -66,9 +66,11 @@
   }).sort((a,b)=>Number(validBaseline(measured.get(b.url)))-Number(validBaseline(measured.get(a.url)))||age(a)-age(b)):[];
   const normal=[...new Map((complete?activeRows:[...activeRows,...known]).map(r=>[r.url,r])).values()].sort((a,b)=>age(a)-age(b));
   const queue=[];
-  // Keep two slots for baseline coverage. A disappeared listing without an
-  // earlier available measurement is inspected once, not retried indefinitely.
-  if(missing.length)queue.push(missing[0]);
+  // During initial coverage keep two baseline slots. Once every current
+  // listing is measured, spend the same budget on the disappearance backlog.
+  const newRows=normal.filter(r=>!measured.has(r.url));
+  const missingSlots=newRows.length?1:3;
+  for(const row of missing){if(queue.length>=missingSlots)break;queue.push(row);}
   for(const row of normal){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
   for(const row of missing){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
   return queue;

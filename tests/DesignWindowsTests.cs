@@ -120,10 +120,17 @@ public sealed partial class MainForm
         watch.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test",title="Test takip ilanı",seller="Test satıcı",price=100};
         ApplyWatchObservations(watch,new[]{Observation(true,10)},stamp);
         ApplyWatchObservations(watch,new[]{Observation(true,14)},stamp.AddMinutes(1));if(watch.sales.Count!=0)throw new Exception("Seller count alone was classified as a sale.");
-        ApplyWatchObservations(watch,new[]{Observation(false,14)},stamp.AddMinutes(2));if(watch.sales.Count!=0)throw new Exception("Unavailable without counter rise was classified as a sale.");
         watch=System.Text.Json.JsonSerializer.Deserialize<ServerWatch>(System.Text.Json.JsonSerializer.Serialize(watch))!;
-        ApplyWatchObservations(watch,new[]{Observation(false,15)},stamp.AddMinutes(3));if(watch.sales.Count!=1||watch.sales[0].evidence!="counter"||watch.sales[0].sellerIncrease!=1)throw new Exception("Delayed seller-counter rise failed after durable baseline reload.");
+        ApplyWatchObservations(watch,new[]{Observation(false,14)},stamp.AddMinutes(2));if(watch.sales.Count!=1||watch.sales[0].sellerIncrease!=4)throw new Exception("Counter-before-availability ordering lost the sale signal.");
         ApplyWatchObservations(watch,new[]{Observation(false,16)},stamp.AddMinutes(4));if(watch.sales.Count!=1)throw new Exception("Counter signal duplicated a listing.");
+        var delayed=new ServerWatch();delayed.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
+        ApplyWatchObservations(delayed,new[]{Observation(true,10)},stamp);
+        ApplyWatchObservations(delayed,new[]{Observation(false,10)},stamp.AddMinutes(1));if(delayed.sales.Count!=0)throw new Exception("Unavailable without counter rise was classified as a sale.");
+        ApplyWatchObservations(delayed,new[]{Observation(false,11)},stamp.AddMinutes(2));if(delayed.sales.Count!=1||delayed.sales[0].sellerIncrease!=1)throw new Exception("Availability-before-counter ordering lost the sale signal.");
+        var stale=new ServerWatch();stale.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
+        ApplyWatchObservations(stale,new[]{Observation(true,10)},stamp);ApplyWatchObservations(stale,new[]{Observation(true,14)},stamp.AddMinutes(1));ApplyWatchObservations(stale,new[]{Observation(false,14)},stamp.AddMinutes(30));if(stale.sales.Count!=0)throw new Exception("An old counter rise was reused for an unrelated unavailable listing.");
+        var cached=new ServerWatch();cached.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
+        ApplyWatchObservations(cached,new[]{Observation(true,14)},stamp);ApplyWatchObservations(cached,new[]{Observation(true,10)},stamp.AddMinutes(1));ApplyWatchObservations(cached,new[]{Observation(false,14)},stamp.AddMinutes(2));if(cached.sales.Count!=0)throw new Exception("An older cached counter created a false rebound signal.");
         var fresh=new ServerWatch();fresh.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(fresh,new[]{Observation(false,20)},stamp);if(fresh.sales.Count!=0)throw new Exception("Already unavailable listing fabricated historical sales.");
         var expired=new ServerWatch();expired.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
@@ -134,7 +141,8 @@ public sealed partial class MainForm
         UpdateThreePageWatchWindow(scoped,windowA,stamp);if(scoped.known.Count!=2||scoped.pending.Count!=0)throw new Exception("Three-page migration retained old archive or fabricated pending sales.");
         UpdateThreePageWatchWindow(scoped,new WatchScan {complete=false,rows=new(){new(){url="c"}}},stamp.AddMinutes(1));if(scoped.pending.Count!=0||scoped.recentWindow.Count!=2)throw new Exception("Failed page changed the trusted window.");
         UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(2));if(!scoped.pending.ContainsKey("a")||scoped.pending.Count!=1||scoped.sales.Count!=0)throw new Exception("Disappeared listing was not prioritized or was falsely marked sold.");
-        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(33));if(scoped.pending.Count!=0||scoped.known.ContainsKey("a"))throw new Exception("Stale pending queue was not bounded.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(33));if(!scoped.pending.ContainsKey("a"))throw new Exception("Backlog expired before a bounded checker could reach it.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddHours(3));if(scoped.pending.Count!=0||scoped.known.ContainsKey("a"))throw new Exception("Stale pending queue was not bounded.");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};

@@ -1,4 +1,4 @@
 {
-  "version": "2.14.11",
-  "notes": "Windows açılışında saat yanına gizleme sırasında oluşan WebView2 ObjectDisposedException hatası düzeltildi. Gizleme ve geri açma artık ana pencereyi yeniden oluşturmaz. Windows kapanışı normal çıkış olarak ele alınır; açılış beklemeleri pencere kapatıldıktan sonra devam etmez. Oturum ve kayıtlı veriler korunur."
+  "version": "2.14.12",
+  "notes": "Satış sinyalinde sayaç ve ilan durumunun farklı sıralarda güncellenmesinden doğan kayıt kaybı düzeltildi. Yakın zamanlı sayaç artışı saklanır; eski veya geriye giden önbellek sayaçları satış sayılmaz. İlk ölçümler tamamlandığında kontrol bütçesi bekleyen ilanlara ayrılır. Bekleyen ilanlar 30 dakika yerine 2 saat tutulur. Mevcut veriler, ilk 3 sayfa kapsamı ve site istek sınırları korunur."
 }

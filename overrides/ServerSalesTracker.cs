@@ -157,7 +157,7 @@ public sealed partial class MainForm
             if(!state.threePageWindow){state.known.Clear();state.observations.Clear();state.pending.Clear();state.lastChecked.Clear();}
             else foreach(var url in state.recentWindow.Where(url=>!current.Contains(url)))if(!state.pending.ContainsKey(url))state.pending[url]=nowUtc;
             foreach(var url in current)state.pending.Remove(url);
-            foreach(var url in state.pending.Where(p=>p.Value<nowUtc.AddMinutes(-30)).Select(p=>p.Key).ToArray())state.pending.Remove(url);
+            foreach(var url in state.pending.Where(p=>p.Value<nowUtc.AddHours(-2)).Select(p=>p.Key).ToArray())state.pending.Remove(url);
             foreach(var url in state.pending.OrderByDescending(p=>p.Value).Skip(200).Select(p=>p.Key).ToArray())state.pending.Remove(url);
             foreach(var url in state.known.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.known.Remove(url);
             foreach(var url in state.observations.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.observations.Remove(url);
@@ -171,13 +171,21 @@ public sealed partial class MainForm
         foreach(var current in observations)
         {
             state.observations.TryGetValue(current.url,out var previous);
+            // Public HTML may be served from a short cache. Retain a recent
+            // counter rise independently of when availability catches up.
+            var sameSeller=previous is not null&&previous.sellerId==current.sellerId;
+            if(sameSeller&&current.salesCount<previous!.salesCount)continue;
             current.observedAtUtc=nowUtc;
+            if(sameSeller&&current.salesCount>previous!.salesCount){current.counterRiseUtc=nowUtc;current.counterIncrease=current.salesCount-previous.salesCount;}
+            else if(sameSeller&&previous!.counterRiseUtc>=nowUtc.AddMinutes(-15)){current.counterRiseUtc=previous.counterRiseUtc;current.counterIncrease=previous.counterIncrease;}
+
             if(current.available){current.lastAvailableAtUtc=nowUtc;current.lastAvailableCount=current.salesCount;}
-            else if(previous is not null){current.lastAvailableAtUtc=previous.lastAvailableAtUtc;current.lastAvailableCount=previous.lastAvailableCount;}
+            else if(sameSeller){current.lastAvailableAtUtc=previous!.lastAvailableAtUtc;current.lastAvailableCount=previous.lastAvailableCount;}
             var expired=DateTime.TryParse(current.expiresAt,out var expires)&&expires.ToUniversalTime()<=nowUtc;
-            if(previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&current.salesCount>current.lastAvailableCount&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
+            var counterDelta=Math.Max(current.salesCount-current.lastAvailableCount,current.counterRiseUtc>=nowUtc.AddMinutes(-15)?current.counterIncrease:0);
+            if(previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&counterDelta>0&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
-                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=current.salesCount-current.lastAvailableCount});
+                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=counterDelta});
                 state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
@@ -194,6 +202,8 @@ public sealed partial class MainForm
         public DateTime observedAtUtc {get;set;}
         public DateTime lastAvailableAtUtc {get;set;}
         public int lastAvailableCount {get;set;}
+        public DateTime counterRiseUtc {get;set;}
+        public int counterIncrease {get;set;}
     }
     private sealed class ServerWatch
     {

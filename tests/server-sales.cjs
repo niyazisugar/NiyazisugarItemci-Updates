@@ -38,11 +38,16 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
   const departed={url:'https://itemci.com/product/test/departed'};
   measured.push({...departed,available:true,observedAtUtc:new Date(400000).toISOString(),lastAvailableAtUtc:new Date(400000).toISOString()});
   const priority=window.__NiyaziSelectWatchQueue(rows,[...rows,unknown,departed],measured,true).map(r=>r.url);
-  return {first,second,priority,failedRetry};
+  const covered=rows.map(r=>({...r,available:true,observedAtUtc:new Date(400000).toISOString(),lastAvailableAtUtc:new Date(400000).toISOString()}));
+  const backlog=Array.from({length:50},(_,i)=>({url:'https://itemci.com/product/test/backlog-'+i}));
+  covered.push(...backlog.map(r=>({...r,available:true,observedAtUtc:new Date(200000).toISOString(),lastAvailableAtUtc:new Date(200000).toISOString()})));
+  const draining=window.__NiyaziSelectWatchQueue(rows,[...rows,...backlog],covered,true).map(r=>r.url);
+  return {first,second,priority,failedRetry,draining};
  });
  assert.deepEqual(planning.first,[39,40,41].map(i=>'https://itemci.com/product/test/'+i));
  assert.deepEqual(planning.failedRetry,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
  assert.deepEqual(planning.second,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
+ assert.equal(planning.draining.length,3);assert(planning.draining.every(u=>u.includes('/backlog-')),'Covered windows must use all slots to drain missing-listing backlog.');
  assert(planning.priority[0].endsWith('/departed'));assert(planning.priority.slice(1).every(u=>!planning.first.includes(u)));
  console.log('PASS: durable baseline coverage advances without overlaps; unmeasurable inactive records do not starve new checks.');
  // Exercise the actual server scanner, not only its sold-marker helper.
