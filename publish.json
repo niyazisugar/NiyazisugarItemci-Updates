@@ -1,4 +1,4 @@
 {
-  "version": "2.14.14",
-  "notes": "Satış takibine satıcı bazında toplu başlangıç ölçümü eklendi. Bir mağaza sayfasından birden fazla takip ilanının sayaç bilgisi alınır. Mağazadan kaybolan ve sayaç artışıyla eşleşen ilanlar ürün sayfasından doğrulanır. Eksik mağaza sayfaları satış sayılmaz. Mağaza ve ürün kontrolleri aynı istek bütçesini paylaşır; son fiyat ve ilk 3 sayfa kapsamı korunur."
+  "version": "2.14.15",
+  "notes": "Satış yenilemede sessiz bekleme durumları açıklanır. Hızlı ilan ve arka plan taramalarının çakışması engellenir; ilan penceresi açılınca satış taraması sayfa sonunda duraklar ve okunan kayıtlar korunur. Yayınlama tarayıcısı ortak reklam ve işlem sınırı korumasına bağlandı. Site bekleme süresi tüm sekmelere ve yeni açılan sayfalara aktarılır."
 }

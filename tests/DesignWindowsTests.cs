@@ -82,7 +82,31 @@ public sealed partial class MainForm
         if(!SiteAutomationBlocked||_sitePauseUntilUtc<DateTime.UtcNow.AddSeconds(80)||_composerCooldownUntilUtc<_sitePauseUntilUtc)throw new Exception("Site rate-limit toast did not pause all automation and publication.");
         var savedGate=_sitePauseUntilUtc;_sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=false;
         if(!SiteAutomationBlocked||_sitePauseUntilUtc!=savedGate)throw new Exception("Shared site cooldown did not survive state reload.");
+        // A new publishing worker must inherit the shared deadline after navigation.
+        _composerTransport=new Microsoft.Web.WebView2.WinForms.WebView2 {Size=new Size(200,100),Location=new Point(-4000,-4000)};
+        Controls.Add(_composerTransport);await _composerTransport.EnsureCoreWebView2Async(_browserEnvironment);
+        _composerTransport.CoreWebView2.SetVirtualHostNameToFolderMapping("itemci.com",rateFixture,CoreWebView2HostResourceAccessKind.DenyCors);
+        InstallSiteTrafficGuard(_composerTransport);
+        var workerLoaded=new TaskCompletionSource<bool>();
+        _composerTransport.CoreWebView2.NavigationCompleted+=(_,e)=>workerLoaded.TrySetResult(e.IsSuccess);
+        _composerTransport.CoreWebView2.Navigate("https://itemci.com/rate-test.html");await workerLoaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var expectedStamp=new DateTimeOffset(savedGate).ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string workerStamp="";for(int n=0;n<30;n++){workerStamp=await _composerTransport.CoreWebView2.ExecuteScriptAsync("String(window.__niyaziSitePauseUntil||0)");if(workerStamp=="\""+expectedStamp+"\"")break;await Task.Delay(50);}
+        if(workerStamp!="\""+expectedStamp+"\"")throw new Exception("A newly navigated publishing worker lost the persisted site cooldown.");
+        Controls.Remove(_composerTransport);_composerTransport.Dispose();_composerTransport=null;
         _sitePauseUntilUtc=DateTime.MinValue;_sitePauseLoaded=true;File.Delete(SitePausePath);_webView.CoreWebView2.ClearVirtualHostNameToFolderMapping("itemci.com");
+        // Busy/cooldown clicks must explain their state without starting another worker.
+        _composerCooldownUntilUtc=DateTime.MinValue;var wasReady=_webReady;_webReady=true;
+        _liveBusy=true;await RefreshSoldListingsAsync(true);
+        if(!_salesStatusLabel.Text.Contains("Başka bir işlem")||_soldScanView is not null)throw new Exception("Busy sales refresh silently returned or opened another browser.");
+        _composerStatus.Text="";await PublishComposerAsync();
+        if(!_composerStatus.Text.Contains("ilan henüz gönderilmedi")||_composerTransport is not null)throw new Exception("Publish overlapped a background scan or failed to explain the block.");
+        _liveBusy=false;_soldScanBusy=true;await RefreshSoldListingsAsync(true);
+        if(!_salesStatusLabel.Text.Contains("zaten devam ediyor"))throw new Exception("Duplicate refresh was not explained.");
+        _soldScanBusy=false;_salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(90);await RefreshSoldListingsAsync(true);
+        if(!_salesStatusLabel.Text.Contains("saniye bekle")||_soldScanView is not null)throw new Exception("Sales cooldown was silent or started another scan.");
+        _salesNextRefreshUtc=DateTime.MinValue;_webReady=wasReady;
+        Console.WriteLine("PASS: shared cooldown survives worker navigation; busy publication and refresh do not overlap or silently fail.");
         // Regression for --tray startup: the real shown form must retain its
         // HWND and initialized WebView controllers over hide/restore cycles.
         await _messageMonitorWebView.EnsureCoreWebView2Async(_browserEnvironment);

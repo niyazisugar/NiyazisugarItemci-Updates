@@ -113,7 +113,17 @@ public sealed partial class MainForm
     }
     private async Task PublishComposerAsync()
     {
-        if(SiteAutomationBlocked||_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc||_composerServer.SelectedItem is not MarketServerInfo server){await PushComposerStateAsync();return;}
+        if(SiteAutomationBlocked||_composerBusy||_composerUncertain||DateTime.UtcNow<_composerCooldownUntilUtc){await PushComposerStateAsync();return;}
+        if(_liveBusy||_soldScanBusy||_autoBumpBusy)
+        {
+            _composerStatusKind="error";_composerStatus.Text="Arka plandaki kontrol tamamlanıyor. Bittikten sonra İlanı Yayınla düğmesine tekrar basabilirsin; ilan henüz gönderilmedi.";
+            await PushComposerStateAsync();return;
+        }
+        if(_composerServer.SelectedItem is not MarketServerInfo server)
+        {
+            _composerStatusKind="error";_composerStatus.Text="Yayınlamak için önce bir sunucu seçmelisin.";
+            await PushComposerStateAsync();return;
+        }
         var draft=CurrentComposerDraft();if(string.IsNullOrWhiteSpace(draft.title)||string.IsNullOrWhiteSpace(draft.description)||(!draft.stock&&draft.paths.Count==0)){_composerStatusKind="error";_composerStatus.Text="Başlık, açıklama ve en az bir görsel gerekli.";await PushComposerStateAsync();return;}
         _composerSaveTimer.Stop();_composerBusy=true;_composerPublish!.Enabled=false;_composerPanel.Enabled=false;SaveComposerDrafts();
         var submissionStarted=false;
@@ -125,11 +135,13 @@ public sealed partial class MainForm
             if(_browserEnvironment is null)throw new IOException("Itemci oturumu hazır değil.");
             if(_composerTransport is not null){Controls.Remove(_composerTransport);_composerTransport.Dispose();}
             _composerTransport=new WebView2{Size=new Size(1280,900),Location=new Point(-6000,-6000),Visible=true,TabStop=false};Controls.Add(_composerTransport);await _composerTransport.EnsureCoreWebView2Async(_browserEnvironment);
+            ConfigureAdBlocking(_composerTransport);
             var core=_composerTransport.CoreWebView2;core.NewWindowRequested+=(_,e)=>e.Handled=true;
             var loaded=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);core.NavigationCompleted+=(_,e)=>{if(e.IsSuccess)loaded.TrySetResult(true);else loaded.TrySetException(new IOException("Itemci formu yüklenemedi."));};core.Navigate("https://itemci.com/panel/ilan-ekle");await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30));
             var resultTask=new TaskCompletionSource<ComposerResult>(TaskCreationOptions.RunContinuationsAsynchronously);var token=Guid.NewGuid().ToString("N");
             core.WebMessageReceived+=(_,e)=>{try{using var json=JsonDocument.Parse(e.WebMessageAsJson);var root=json.RootElement;if(!root.TryGetProperty("composerToken",out var t)||t.GetString()!=token)return;if(root.TryGetProperty("stage",out var stage)&&stage.GetString()=="sending"){submissionStarted=true;_composerUncertain=true;SaveComposerDrafts();return;}if(root.TryGetProperty("error",out var error))resultTask.TrySetException(new IOException(error.GetString()));else resultTask.TrySetResult(root.GetProperty("result").Deserialize<ComposerResult>()??new());}catch(Exception ex){resultTask.TrySetException(ex);}};
             await core.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"QuickListing.js")));await core.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"ListingComposer.js")));
+            if(SiteAutomationBlocked)throw new IOException(SitePauseMessage);
             var payload=JsonSerializer.Serialize(new{server=server.Name,categoryUrl=server.Url,draft.title,draft.description,draft.price,draft.delivery,draft.validity,draft.stock,draft.orders,images});
             await core.ExecuteScriptAsync($"(async()=>{{try{{const p={payload};await window.__NiyaziPrepareOwnListing(p);chrome.webview.postMessage({{composerToken:'{token}',stage:'sending'}});const result=await window.__NiyaziSubmitOwnListing(p);chrome.webview.postMessage({{composerToken:'{token}',result}});}}catch(e){{chrome.webview.postMessage({{composerToken:'{token}',error:String(e.message||e)}});}}}})();");
             var result=await resultTask.Task.WaitAsync(TimeSpan.FromSeconds(130));_composerUncertain=result.uncertain;

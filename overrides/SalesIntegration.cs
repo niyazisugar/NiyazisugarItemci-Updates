@@ -175,9 +175,19 @@ public sealed partial class MainForm
     private async Task RefreshSoldListingsAsync(bool showErrors, bool fullHistory = false)
     {
         if(SiteAutomationBlocked){if(showErrors)_salesStatusLabel.Text=SitePauseMessage;return;}
-        if (_liveBusy||_autoBumpBusy||_composerBusy||_soldScanBusy || (!showErrors&&(_autoBumpBusy||AutoBumpDue)) || IsDisposed) return;
+        if(IsDisposed||Disposing)return;
+        if(_soldScanBusy){if(showErrors)_salesStatusLabel.Text="Satış taraması zaten devam ediyor; kayıtlar geldikçe tablo güncellenir.";return;}
+        if(_liveBusy||_autoBumpBusy||_composerBusy||_composerPopup is not null||(!showErrors&&AutoBumpDue))
+        {
+            if(showErrors)_salesStatusLabel.Text="Başka bir işlem devam ediyor. İşlem bittikten sonra satışları yenileyebilirsin.";
+            return;
+        }
         if (!_webReady) { _salesStatusLabel.Text = "Itemci oturumu henüz hazır değil."; return; }
-        if(!fullHistory&&DateTime.UtcNow<_salesNextRefreshUtc){if(showErrors)RenderSoldSalesPanel();return;}
+        if(!fullHistory&&DateTime.UtcNow<_salesNextRefreshUtc)
+        {
+            if(showErrors){RenderSoldSalesPanel();_salesStatusLabel.Text=$"Kayıtlı satışlar gösteriliyor · Yeni tarama için {Math.Max(1,(int)Math.Ceiling((_salesNextRefreshUtc-DateTime.UtcNow).TotalSeconds))} saniye bekle.";}
+            return;
+        }
         _salesNextRefreshUtc=DateTime.UtcNow.AddMinutes(3);
         _soldScanBusy = true;
         try
@@ -196,13 +206,15 @@ public sealed partial class MainForm
             // Check every page, skipping details of already completed orders.
             int max = 150;
             int pages = 0, failed = 0;
-            bool reachedEnd = false;
+            bool reachedEnd = false, interrupted = false;
             string firstError = "";
             var fingerprints = new HashSet<string>();
             for (int page = 1; page <= max; page++)
             {
                 if(SiteAutomationBlocked)throw new IOException(SitePauseMessage);
                 await Task.Delay(3000);
+                if(_composerPopup is not null||_composerBusy){interrupted=true;break;}
+                if(SiteAutomationBlocked)throw new IOException(SitePauseMessage);
                 _salesStatusLabel.Text = $"Satılan ilanlar okunuyor · Sayfa {page} · Tüm sunucular";
                 _salesStatusLabel.ForeColor = TextMuted;
                 await NavigateSoldPageAsync(page);
@@ -231,7 +243,13 @@ public sealed partial class MainForm
             RenderSoldSalesPanel();
             _salesStatusLabel.Text = $"Tüm sunucular · {pages} sayfa · {_salesHistory.Count} kayıt · Tüm Zamanlar ile bütün kayıtların toplamını görebilirsin.";
             _salesStatusLabel.ForeColor = Green;
-            if (failed > 0)
+            if(interrupted)
+            {
+                _salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(30);
+                _salesStatusLabel.Text="İlan penceresi açıldığı için tarama duraklatıldı. Okunan satışlar kaydedildi; pencereyi kapattıktan sonra yeniden tarayabilirsin.";
+                _salesStatusLabel.ForeColor=Color.Orange;
+            }
+            else if (failed > 0)
             {
                 _salesStatusLabel.Text = $"{failed} ayrıntı okunamadı; toplam eksik olabilir. {firstError}";
                 _salesStatusLabel.ForeColor = Color.Orange;
@@ -246,6 +264,7 @@ public sealed partial class MainForm
         }
         catch (Exception ex)
         {
+            _salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(30);
             _salesStatusLabel.Text = "Satışlar okunamadı; kayıtlı toplam eksik olabilir. " + ex.Message;
             _salesStatusLabel.ForeColor = Color.IndianRed;
             if (_soldScanView is not null) { Controls.Remove(_soldScanView); _soldScanView.Dispose(); _soldScanView = null; }

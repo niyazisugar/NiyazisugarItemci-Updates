@@ -28,7 +28,7 @@ public sealed partial class MainForm
         if(_composerCooldownUntilUtc<until)_composerCooldownUntilUtc=until;
         _autoBumpStatus.Text=_liveStatus.Text=_salesStatusLabel.Text=SitePauseMessage;
         var stamp=new DateTimeOffset(until).ToUnixTimeMilliseconds();
-        foreach(var view in new[]{_webView,_marketWebView,_soldScanView,_autoBumpView}.Where(v=>v?.CoreWebView2 is not null).Distinct())
+        foreach(var view in _browserTabs.Select(t=>(WebView2?)t.WebView).Concat(new[]{_webView,_marketWebView,_soldScanView,_autoBumpView,_composerTransport}).Where(v=>v?.CoreWebView2 is not null).Distinct())
             _=SetSitePauseInViewAsync(view!,stamp);
         try{Directory.CreateDirectory(Path.GetDirectoryName(SitePausePath)!);File.WriteAllText(SitePausePath+".tmp",JsonSerializer.Serialize(until));File.Move(SitePausePath+".tmp",SitePausePath,true);}catch{}
     }
@@ -36,8 +36,14 @@ public sealed partial class MainForm
     private void InstallSiteTrafficGuard(WebView2 view)
     {
         if(_siteGuardViews.TryGetValue(view,out _))return;
-        _siteGuardViews.Add(view,new object());
         var core=view.CoreWebView2;if(core is null)return;
+        _siteGuardViews.Add(view,new object());
+        // Each navigation creates a new JavaScript window. Restore the shared
+        // deadline there too, including newly created publishing workers.
+        core.NavigationCompleted+=(_,_)=>{
+            if(SiteAutomationBlocked)_=SetSitePauseInViewAsync(view,new DateTimeOffset(_sitePauseUntilUtc).ToUnixTimeMilliseconds());
+        };
+        if(SiteAutomationBlocked)_=SetSitePauseInViewAsync(view,new DateTimeOffset(_sitePauseUntilUtc).ToUnixTimeMilliseconds());
         core.WebResourceResponseReceived+=(_,e)=>{
             if(Uri.TryCreate(e.Request.Uri,UriKind.Absolute,out var url)&&url.Host=="itemci.com"&&e.Response.StatusCode==429){
                 int seconds=300;
