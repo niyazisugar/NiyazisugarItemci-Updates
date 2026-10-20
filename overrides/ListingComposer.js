@@ -4,6 +4,80 @@
  const norm=s=>String(s||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/\s+/g,' ').trim();
  function set(el,value){if(!el)throw new Error('İlan alanı bulunamadı.');Object.getOwnPropertyDescriptor(el instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,String(value));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}
  function controls(){const form=[...document.forms].find(f=>f.querySelector('input[type="text"][maxlength="150"]'));if(!form)throw new Error('Itemci ilan formu bulunamadı. Oturumunu kontrol et.');return {form,title:form.querySelector('input[type="text"][maxlength="150"]'),price:form.querySelector('input[type="number"][required]'),delivery:[...form.querySelectorAll('select')].find(s=>[...s.options].some(o=>o.value==='12'&&norm(o.textContent).includes('saat'))),validity:[...form.querySelectorAll('select')].find(s=>[...s.options].some(o=>o.value==='30'&&norm(o.textContent).includes('gun'))),editor:form.querySelector('.ql-editor'),toggle:form.querySelector('[role="switch"]#sellByUs'),file:form.querySelector('input[type="file"]'),submit:form.querySelector('button[type="submit"]')};}
+
+ // Do not depend on one translated heading or assume the site processes all
+ // files from a single change event. Only accept a count or a server-returned
+ // image URL that also appears in this form's preview.
+ function imageCount(form){
+  const text=norm(form.innerText);
+  const count=text.match(/(?:yuklenen|eklenen)\s*(?:resim(?:ler)?|gorsel(?:ler)?|fotograf(?:lar)?)\s*[:(]?\s*(\d+)\s*\/\s*4\b/)||
+   text.match(/(?:uploaded|selected)\s*(?:images|photos)\s*[:(]?\s*(\d+)\s*\/\s*4\b/);
+  return count&&Number(count[1])<=4?Number(count[1]):null;
+ }
+ function imageKey(value){
+  try{const url=new URL(value,location.href);return /^https?:$/.test(url.protocol)?url.origin+url.pathname:'';}catch{return '';}
+ }
+ function responseImages(value,key='',depth=0){
+  if(depth>8||value==null)return [];
+  if(typeof value==='string')return /(?:url|src|path|image|location)/i.test(key)||/\.(?:png|jpe?g|webp)(?:[?#]|$)/i.test(value)?[imageKey(value)].filter(Boolean):[];
+  if(typeof value!=='object')return [];
+  return Object.entries(value).flatMap(([name,child])=>responseImages(child,name,depth+1));
+ }
+ async function prepareImages(c,p){
+  const expected=p.stock?1:p.images?.length;
+  if(!p.stock&&(!expected||expected>4||!c.file))throw new Error('1–4 görsel seçmelisin.');
+  const deadline=Date.now()+48000;
+  const original=window.fetch,accepted=new Set();let uploadError='';
+  const previousAlerts=new Set([...document.querySelectorAll('[role="alert"],[data-sonner-toast],.Toastify__toast')].map(el=>norm(el.innerText)));
+  if(!p.stock)window.fetch=async function(input,options){
+   const body=options?.body;
+   const fileUpload=body instanceof File||body instanceof Blob||(body instanceof FormData&&[...body.values()].some(v=>v instanceof Blob));
+   let response;
+   try{response=await original.apply(this,arguments);}catch(error){if(fileUpload)uploadError='Görsel aktarılırken bağlantı kesildi.';throw error;}
+   if(fileUpload){
+    let json={};try{json=await response.clone().json()||{};}catch{}
+    if(!response.ok||json.status===false||json.success===false||typeof json.error==='string'&&json.error)
+     uploadError=platformMessage(json,response.status);
+    else for(const url of responseImages(json))accepted.add(url);
+   }
+   return response;
+  };
+  const waitForCount=async count=>{
+   while(Date.now()<deadline){
+    if(Date.now()<(window.__niyaziSitePauseUntil||0))throw new Error('Itemci işlem sınırı nedeniyle görsel yüklemesi durdu; ilan gönderilmedi. Bekleme süresi bittikten sonra tekrar dene.');
+    if(uploadError)throw new Error('Görsel yüklenemedi: '+uploadError+' İlan gönderilmedi.');
+    for(const el of document.querySelectorAll('[role="alert"],[data-sonner-toast],.Toastify__toast')){
+     const text=norm(el.innerText);
+     if(el.getClientRects().length&&!previousAlerts.has(text)&&/(?:gorsel|resim|fotograf|dosya|image|file)/.test(text)&&/(?:hata|basarisiz|yuklenem|buyuk|boyut|sinir|gecersiz|error|failed|large|invalid)/.test(text))
+      throw new Error('Itemci görseli kabul etmedi: '+String(el.innerText).trim()+' İlan gönderilmedi.');
+    }
+    const current=controls().form;
+    const previewKeys=new Set([...current.querySelectorAll('img[src]')].map(img=>imageKey(img.getAttribute('src'))));
+    const confirmed=[...accepted].filter(url=>previewKeys.has(url)).length;
+    if(imageCount(current)===count||confirmed===count)return;
+    await sleep(200);
+   }
+   throw new Error('Görsel yüklemesi doğrulanamadı; ilan gönderilmedi. '+(accepted.size?'Itemci yüklemeye yanıt verdi ancak formdaki görsel önizlemesi doğrulanamadı.':'Itemci görsel yüklemesinin tamamlandığını göstermedi. Bağlantını ve görsel dosyasını kontrol et.'));
+  };
+  try{
+   if(p.stock){
+    const button=c.form.querySelector('button img[alt="yang"]')?.closest('button');
+    if(!button)throw new Error('Stok Yang görseli bulunamadı.');
+    button.click();await waitForCount(1);
+   }else{
+    for(let index=0;index<p.images.length;index++){
+     const image=p.images[index],bytes=Uint8Array.from(atob(image.base64),c=>c.charCodeAt(0));
+     if(!bytes.length||bytes.length>5*1024*1024)throw new Error('Görsel boş veya 5 MB sınırını aşıyor.');
+     const file=controls().file;if(!file)throw new Error('Itemci görsel yükleme alanı bulunamadı; ilan gönderilmedi.');
+     const transfer=new DataTransfer();transfer.items.add(new File([bytes],image.name,{type:image.type}));
+     file.value='';file.files=transfer.files;
+     file.dispatchEvent(new Event('input',{bubbles:true}));
+     file.dispatchEvent(new Event('change',{bubbles:true}));
+     await waitForCount(index+1);
+    }
+   }
+  }finally{if(!p.stock)window.fetch=original;}
+ }
  window.__NiyaziPrepareOwnListing=async p=>{
   if(!p.title?.trim()||p.title.length>150||!Number.isInteger(p.price)||p.price<1||String(p.description||'').length>1200)throw new Error('Başlık, fiyat veya açıklama geçersiz.');
   const selected=await window.__NiyaziQuickListing(p.server);
@@ -14,16 +88,7 @@
   if(quill?.setText)quill.setText(p.description,'user');
   else {c.editor.focus();const range=document.createRange();range.selectNodeContents(c.editor);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);if(!document.execCommand('insertText',false,p.description))throw new Error('Açıklama editörü doldurulamadı.');}
   if((c.toggle.getAttribute('aria-checked')==='true')!==p.orders)c.toggle.click();
-  if(p.stock){const button=c.form.querySelector('button img[alt="yang"]')?.closest('button');if(!button)throw new Error('Stok Yang görseli bulunamadı.');button.click();}
-  else {
-   if(!p.images?.length||p.images.length>4||!c.file)throw new Error('1–4 görsel seçmelisin.');
-   const transfer=new DataTransfer();
-   for(const image of p.images){const bytes=Uint8Array.from(atob(image.base64),c=>c.charCodeAt(0));if(bytes.length>5*1024*1024)throw new Error('Görsel 5 MB sınırını aşıyor.');transfer.items.add(new File([bytes],image.name,{type:image.type}));}
-   c.file.files=transfer.files;c.file.dispatchEvent(new Event('change',{bubbles:true}));
-  }
-  const expected=p.stock?1:p.images.length;let uploaded=false;
-  for(let attempt=0;attempt<240;attempt++){const count=norm(c.form.innerText).match(/yuklenen resimler\s*\(\s*(\d+)\s*\/\s*4\s*\)/);if(count&&Number(count[1])===expected){uploaded=true;break;}await sleep(200);}
-  if(!uploaded)throw new Error('Görsel yüklemesi doğrulanamadı; ilan gönderilmedi.');
+  await prepareImages(c,p);
   await sleep(300);
   if(c.title.value!==p.title||Number(c.price.value)!==p.price||c.delivery.value!==String(p.delivery)||c.validity.value!==String(p.validity)||(c.toggle.getAttribute('aria-checked')==='true')!==p.orders||norm(c.editor.innerText)!==norm(p.description))throw new Error('Form alanları doğrulanamadı; ilan gönderilmedi.');
   return {ok:true};

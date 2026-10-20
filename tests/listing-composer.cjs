@@ -35,6 +35,55 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  await page.evaluate(()=>window.fetch=async()=>{await new Promise(r=>setTimeout(r,200));return new Response(JSON.stringify({status:true,data:{url:'/product/sezar2/verified'}}),{headers:{'Content-Type':'application/json'}});});
  const double=await page.evaluate(p=>Promise.all([window.__NiyaziSubmitOwnListing(p),window.__NiyaziSubmitOwnListing(p)]),payload);assert.equal(double[0].ok,true);assert.equal(double[1].ok,false);assert.match(double[1].message,/zaten gönderiliyor/);
  await assert.rejects(page.evaluate(p=>window.__NiyaziPrepareOwnListing({...p,title:'a'.repeat(151)}),payload));
+
+ // Custom photos: the platform may read only files[0] per change and re-render
+ // its file input. Upload sequentially and wait for each completed preview.
+ const photo={name:'test.png',type:'image/png',base64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6wdkAAAAASUVORK5CYII='};
+ await page.evaluate(()=>{
+  window.photoChanges=[];window.photoUploads=0;window.photoPending=false;window.photoOverlap=false;
+  document.querySelector('#count').textContent='Yüklenen Görseller (0 / 4)';
+  window.fetch=async(input,options)=>{
+   window.photoUploads++;
+   await new Promise(r=>setTimeout(r,70));
+   return new Response(JSON.stringify({success:true,data:{url:'https://assets.itemci.com/uploads/photo-'+window.photoUploads+'.png'}}),{headers:{'Content-Type':'application/json'}});
+  };
+  document.querySelector('form').addEventListener('change',async e=>{
+   if(e.target.type!=='file')return;
+   window.photoChanges.push(e.target.files.length);
+   if(window.photoPending)window.photoOverlap=true;
+   window.photoPending=true;
+   const body=new FormData();body.append('file',e.target.files[0]);
+   const result=await (await fetch('/test-upload',{method:'POST',body})).json();
+   window.photoPending=false;
+   if(!result.success)return;
+   const img=document.createElement('img');img.src=result.data.url;img.className='uploaded-preview';document.querySelector('form').append(img);
+   document.querySelector('#count').textContent='Yüklenen Görseller ('+window.photoUploads+' / 4)';
+   const replacement=e.target.cloneNode();e.target.replaceWith(replacement);
+  });
+ });
+ const beforeCustom=await page.evaluate(()=>window.sent);
+ const custom=await page.evaluate(p=>window.__NiyaziPrepareOwnListing(p),{...payload,stock:false,images:[photo,{...photo,name:'second.png'}]});
+ assert(custom.ok);assert.deepEqual(await page.evaluate(()=>window.photoChanges),[1,1]);
+ assert.equal(await page.evaluate(()=>window.photoOverlap),false);
+ assert.equal(await page.evaluate(()=>window.sent),beforeCustom);
+ // The translated heading is optional only when the successful upload response
+ // and the actual form preview contain the same image URL.
+ await page.evaluate(()=>{
+  document.querySelector('#count').textContent='';document.querySelectorAll('.uploaded-preview').forEach(el=>el.remove());window.photoUploads=0;
+  window.noHeadingFetch=window.fetch;
+  window.fetch=async(input,options)=>{const response=await window.noHeadingFetch(input,options);setTimeout(()=>document.querySelector('#count').textContent='',0);return response;};
+ });
+ assert((await page.evaluate(p=>window.__NiyaziPrepareOwnListing(p),{...payload,stock:false,images:[photo]})).ok);
+ // A rejected upload must never submit a listing or leak the fetch observer.
+ await page.evaluate(()=>{
+  document.querySelector('#count').textContent='Yüklenen Görseller (0/4)';document.querySelectorAll('.uploaded-preview').forEach(el=>el.remove());
+  window.fetch=window.rejectedUploadFetch=async()=>new Response(JSON.stringify({success:false,message:'Görsel boyutu kabul edilmedi.'}),{status:422,headers:{'Content-Type':'application/json'}});
+ });
+ const beforeFailure=await page.evaluate(()=>window.sent);
+ await assert.rejects(page.evaluate(p=>window.__NiyaziPrepareOwnListing(p),{...payload,stock:false,images:[photo]}),/Görsel boyutu kabul edilmedi/);
+ assert.equal(await page.evaluate(()=>window.sent),beforeFailure);
+ assert(await page.evaluate(()=>window.fetch===window.rejectedUploadFetch));
+ console.log('PASS: custom photos upload one at a time across input replacement; translated counters, response/preview verification and rejected uploads without submission.');
  console.log('PASS: real-form selectors, Quill-compatible editing, stock picture, durations/order toggle, separate prepare/submit and confirmed response.');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
