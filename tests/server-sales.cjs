@@ -24,6 +24,14 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const publicState=await page.evaluate(html=>({state:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),confirmed:window.__NiyaziConfirmedPublicSale(html,'https://itemci.com/product/sezar2-itemyang/486m-yang-6ad153435405c'),wrong:window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/another')}),realHtml);
  assert.equal(publicState.state.available,false);assert.equal(publicState.state.salesCount,384);assert.equal(publicState.state.seller,'ENUYGUNCOM');assert.equal(publicState.state.price,1090);assert.equal(publicState.confirmed,false);assert.equal(publicState.wrong,null);
  console.log('PASS: real public-page metadata, seller count, exact product identity and unavailable is not confirmed sale.');
+ const shortHtml=fs.readFileSync('tests/fixtures/itemci-short-lived-unavailable.html','utf8');
+ const short=await page.evaluate(html=>window.__NiyaziPublicProductState(html,'https://itemci.com/product/sezar2-itemyang/2t-yang-6ad8a670cd8fa'),shortHtml);
+ assert.equal(short.title,'2T YANG');assert.equal(short.price,1100);assert.equal(short.seller,'ENUYGUNCOM');assert.equal(short.available,false);
+ assert.equal(short.createdAt,'2026-10-21T14:48:00+03:00');assert.equal(short.updatedAt,'2026-10-21T14:51:07+03:00');
+ assert.equal(await page.evaluate(html=>window.__NiyaziConfirmedPublicSale(html,'https://itemci.com/product/sezar2-itemyang/2t-yang-6ad8a670cd8fa'),shortHtml),false);
+ const categoryPriority=await page.evaluate(()=>window.__NiyaziSelectWatchQueue([], [{url:'category-only'}], [{url:'category-only',available:false,categoryOnly:true,categorySeenAtUtc:new Date().toISOString()}],true));
+ assert.equal(categoryPriority[0].url,'category-only','Category-counter baselines were excluded from detail verification.');
+ console.log('PASS: actual missed 2T product identity, price and lifecycle dates parsed; unavailable alone is not sold.');
  const sellerHtml=fs.readFileSync('tests/fixtures/itemci-seller-page.html','utf8');
  const sellerState=await page.evaluate(html=>({valid:window.__NiyaziSellerSnapshot(html,'https://itemci.com/user/store/ENUYGUNCOM'),wrong:window.__NiyaziSellerSnapshot(html,'https://itemci.com/user/store/other-seller')}),sellerHtml);
  assert.equal(sellerState.valid.salesCount,388);assert.equal(sellerState.valid.complete,true);assert(sellerState.valid.products.length>1);assert.equal(sellerState.wrong,null);

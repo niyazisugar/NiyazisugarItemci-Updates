@@ -207,6 +207,24 @@ public sealed partial class MainForm
         UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true,rows=new(){new(){url=priceUrl}}},stamp.AddHours(3).AddMinutes(1));
         if(pushed.known.ContainsKey(priceUrl)||pushed.pending.ContainsKey(priceUrl))throw new Exception("Recorded sale was reintroduced into the live check queue.");
         Console.WriteLine("PASS: departed active listings retain baselines and later sales; recorded sales do not re-enter live queues.");
+        // Current real 2T page metadata, with a synthetic prior seller counter:
+        // no fabricated historical baseline is inferred from the current page.
+        var firstSighting=new DateTime(2026,10,21,11,49,0,DateTimeKind.Utc);
+        var shortUrl="https://itemci.com/product/sezar2-itemyang/2t-yang-6ad8a670cd8fa";
+        ServerWatch ShortWatch(DateTime sighting,int count=415) {
+            var state=new ServerWatch {threePageWindow=true};state.sellers["enuyguncom"]=new SellerWatchSnapshot {seller="ENUYGUNCOM",sellerId="owner",salesCount=count,observedAtUtc=sighting.AddMinutes(-1)};
+            UpdateThreePageWatchWindow(state,new WatchScan {complete=true,rows=new(){new(){url=shortUrl,seller="ENUYGUNCOM",title="2T YANG",price=1100}}},sighting);return state;
+        }
+        ProductObservation ShortDetail()=>new() {url=shortUrl,sellerId="owner",seller="ENUYGUNCOM",available=false,salesCount=416,price=1100,title="2T YANG",createdAt="2026-10-21T14:48:00+03:00",updatedAt="2026-10-21T14:51:07+03:00",expiresAt="2026-11-05T14:48:00+03:00"};
+        var fastSale=ShortWatch(firstSighting);
+        if(!fastSale.observations[shortUrl].categoryOnly||fastSale.observations[shortUrl].lastAvailableAtUtc!=DateTime.MinValue)throw new Exception("Category sighting was falsely treated as verified availability.");
+        ApplyWatchObservations(fastSale,new[]{ShortDetail()},firstSighting.AddMinutes(3));
+        if(fastSale.sales.Count!=1||fastSale.sales[0].evidence!="category-counter"||fastSale.sales[0].listing.price!=1100)throw new Exception("Short-lived category/counter candidate was lost before an individual availability check.");
+        ApplyWatchObservations(fastSale,new[]{ShortDetail()},firstSighting.AddMinutes(4));if(fastSale.sales.Count!=1)throw new Exception("Short-lived candidate was duplicated.");
+        var tooLate=ShortWatch(firstSighting.AddHours(1));ApplyWatchObservations(tooLate,new[]{ShortDetail()},firstSighting.AddHours(1).AddMinutes(1));if(tooLate.sales.Count!=0)throw new Exception("A historical unavailable listing fabricated a category sighting before its update.");
+        var noRise=ShortWatch(firstSighting,416);ApplyWatchObservations(noRise,new[]{ShortDetail()},firstSighting.AddMinutes(3));if(noRise.sales.Count!=0)throw new Exception("Category presence without a counter increase became a sale.");
+        var staleCounter=ShortWatch(firstSighting);staleCounter.observations.Clear();staleCounter.sellers["enuyguncom"].observedAtUtc=firstSighting.AddHours(-1);SeedCategoryCounterBaseline(staleCounter,staleCounter.known[shortUrl],firstSighting);if(staleCounter.observations.Count!=0)throw new Exception("Stale seller count seeded a fresh category baseline.");
+        Console.WriteLine("PASS: short-lived category/counter candidates are explicitly weaker evidence; historical, stale-counter and no-increase cases excluded.");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};

@@ -54,11 +54,11 @@ public sealed partial class MainForm
             var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
             var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
             var info = new Label { Dock = DockStyle.Fill, Text = $"Son fiyat: {row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = PremiumTheme.Turquoise, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
-            var evidence=new Label {Dock=DockStyle.Bottom,Height=23,Text=sale.evidence=="counter"?$"Güçlü sinyal · Satış sayacı +{sale.sellerIncrease}":"Sitede satıldı işareti",ForeColor=PremiumTheme.Gold,Font=_watchInfoFont,Padding=new Padding(4,0,0,0)};
+            var evidence=new Label {Dock=DockStyle.Bottom,Height=23,Text=sale.evidence=="category-counter"?$"Olası satış · Liste + sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü sinyal · Satış sayacı +{sale.sellerIncrease}":"Sitede satıldı işareti",ForeColor=PremiumTheme.Gold,Font=_watchInfoFont,Padding=new Padding(4,0,0,0)};
             card.Controls.Add(evidence);card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
             foreach (Control target in new Control[] {card,name,seller,info,evidence})
             {
-                _sidebarToolTip.SetToolTip(target, $"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price:N2} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.");
+                _sidebarToolTip.SetToolTip(target, $"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price:N2} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="category-counter"?"İlan listede görüldükten sonra güncellendi, satışa kapandı ve satıcı sayacı arttı. İlanın açık olduğu ayrı bir ürün ölçümü yok; satış kesinleşmedi.":sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.");
                 target.Click += (_, _) => _ = OpenOrActivateBrowserTabAsync(row.url,row.title);
             }
             _liveRows.Controls.Add(card);
@@ -141,7 +141,7 @@ public sealed partial class MainForm
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
                     state.status = $"{state.sellers.Values.Count(s=>s.sellerId.Length>0)} satıcı ölçümü · İlk 3 sayfa · {scan.pagesRead} okundu · {state.pending.Count} öncelikli · {state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
-                    var noBaseline=state.observations.Values.Count(o=>!o.available&&o.lastAvailableAtUtc==DateTime.MinValue);
+                    var noBaseline=state.observations.Values.Count(o=>!o.available&&!o.categoryOnly&&o.lastAvailableAtUtc==DateTime.MinValue);
                     if(noBaseline>0)state.status+=$" · {noBaseline} satış dışı: ilk ölçüm eksik";
                     if(!scan.complete)state.status+=" · Pencere taraması eksik";
                     if(scan.rateLimited){PauseSiteAutomation(300);_serverWatchRetryUtc=DateTime.UtcNow.AddMinutes(5);state.status="Site işlem sınırı · 5 dakika bekleniyor";}
@@ -172,8 +172,21 @@ public sealed partial class MainForm
             state.recentWindow=current.ToList();state.threePageWindow=true;
         }
         var sold=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in scan.rows.Where(r=>!sold.Contains(r.url)))state.known[row.url]=row;
+        foreach(var row in scan.rows.Where(r=>!sold.Contains(r.url)))
+        {
+            state.known[row.url]=row;
+            SeedCategoryCounterBaseline(state,row,nowUtc);
+        }
         foreach(var url in sold){state.known.Remove(url);state.pending.Remove(url);}
+    }
+    private static void SeedCategoryCounterBaseline(ServerWatch state,LiveListing row,DateTime nowUtc)
+    {
+        if(state.observations.ContainsKey(row.url)||string.IsNullOrWhiteSpace(row.seller))return;
+        var seller=state.sellers.Values.FirstOrDefault(s=>s.sellerId.Length>0&&string.Equals(s.seller,row.seller,StringComparison.OrdinalIgnoreCase)&&s.observedAtUtc>=nowUtc.AddMinutes(-10)&&s.observedAtUtc<=nowUtc);
+        if(seller is null)return;
+        // This is a category sighting with an independently measured counter,
+        // not a claim that the product was individually verified as available.
+        state.observations[row.url]=new ProductObservation {url=row.url,sellerId=seller.sellerId,seller=seller.seller,salesCount=seller.salesCount,price=row.price,title=row.title,categoryOnly=true,categorySeenAtUtc=nowUtc,categoryCount=seller.salesCount,categoryCounterAtUtc=seller.observedAtUtc,observedAtUtc=nowUtc};
     }
     private void ApplyWatchObservations(ServerWatch state,IEnumerable<ProductObservation> observations,DateTime nowUtc)
     {
@@ -187,6 +200,11 @@ public sealed partial class MainForm
             // counter rise independently of when availability catches up.
             var sameSeller=previous is not null&&previous.sellerId==current.sellerId;
             if(sameSeller&&current.salesCount<previous!.salesCount)continue;
+            if(sameSeller&&previous!.categoryOnly&&!current.available)
+            {
+                current.categoryOnly=true;current.categorySeenAtUtc=previous.categorySeenAtUtc;
+                current.categoryCount=previous.categoryCount;current.categoryCounterAtUtc=previous.categoryCounterAtUtc;
+            }
             current.observedAtUtc=nowUtc;
             if(sameSeller&&current.salesCount>previous!.salesCount){current.counterRiseUtc=nowUtc;current.counterIncrease=current.salesCount-previous.salesCount;}
             else if(sameSeller&&previous!.counterRiseUtc>=nowUtc.AddMinutes(-15)){current.counterRiseUtc=previous.counterRiseUtc;current.counterIncrease=previous.counterIncrease;}
@@ -195,9 +213,15 @@ public sealed partial class MainForm
             else if(sameSeller){current.lastAvailableAtUtc=previous!.lastAvailableAtUtc;current.lastAvailableCount=previous.lastAvailableCount;}
             var expired=DateTime.TryParse(current.expiresAt,out var expires)&&expires.ToUniversalTime()<=nowUtc;
             var counterDelta=Math.Max(current.salesCount-current.lastAvailableCount,current.counterRiseUtc>=nowUtc.AddMinutes(-15)?current.counterIncrease:0);
-            if(!current.fromStore&&previous is not null&&!current.available&&!expired&&previous.sellerId==current.sellerId&&counterDelta>0&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
+            var directSignal=counterDelta>0&&current.lastAvailableAtUtc>=nowUtc.AddHours(-24);
+            var categoryDelta=current.salesCount-current.categoryCount;
+            var categorySignal=current.categoryOnly&&categoryDelta>0&&current.categorySeenAtUtc>=nowUtc.AddHours(-24)&&
+                current.categoryCounterAtUtc<=current.categorySeenAtUtc&&current.categoryCounterAtUtc>=current.categorySeenAtUtc.AddMinutes(-10)&&
+                DateTimeOffset.TryParse(current.createdAt,out var created)&&created.UtcDateTime<=current.categorySeenAtUtc&&
+                DateTimeOffset.TryParse(current.updatedAt,out var updated)&&updated.UtcDateTime>current.categorySeenAtUtc&&updated.UtcDateTime<=nowUtc.AddMinutes(1);
+            if(!current.fromStore&&previous is not null&&!current.available&&!expired&&sameSeller&&(directSignal||categorySignal)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
-                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence="counter",sellerIncrease=counterDelta,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
+                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence=directSignal?"counter":"category-counter",sellerIncrease=directSignal?counterDelta:categoryDelta,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
                 state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
@@ -258,6 +282,12 @@ public sealed partial class MainForm
         public bool available {get;set;}
         public int salesCount {get;set;}
         public string expiresAt {get;set;}="";
+        public string createdAt {get;set;}="";
+        public string updatedAt {get;set;}="";
+        public bool categoryOnly {get;set;}
+        public DateTime categorySeenAtUtc {get;set;}
+        public DateTime categoryCounterAtUtc {get;set;}
+        public int categoryCount {get;set;}
         public DateTime observedAtUtc {get;set;}
         public DateTime lastAvailableAtUtc {get;set;}
         public int lastAvailableCount {get;set;}

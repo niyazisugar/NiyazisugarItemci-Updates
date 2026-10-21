@@ -44,7 +44,7 @@
     const owner=p.owner_of;
     if(path===expected.pathname.replace(/\/$/,'')&&owner?.id&&typeof p.is_available==='boolean'){
      const count=owner.total_sales??owner.successful_sales??owner.sales_count;
-     if(Number.isSafeInteger(count)&&count>=0)found={url:expected.href,available:p.is_available,sellerId:owner.id,seller:owner.username||'',salesCount:count,title:p.name||'',price:Number(p.price)||0,expiresAt:p.expires_at||''};
+     if(Number.isSafeInteger(count)&&count>=0)found={url:expected.href,available:p.is_available,sellerId:owner.id,seller:owner.username||'',salesCount:count,title:p.name||'',price:Number(p.price)||0,expiresAt:p.expires_at||'',createdAt:p.created_at||'',updatedAt:p.updated_at||''};
     }
    }
    for(const value of Object.values(node))if(value&&typeof value==='object')visit(value,depth+1);
@@ -85,7 +85,7 @@
  function watchQueue(activeRows,known,measurements,complete,attempts={}){
   const measured=new Map((measurements||[]).map(o=>[o.url,o]));
   const active=new Set(activeRows.map(r=>r.url));
-  const validBaseline=o=>o?.lastAvailableAtUtc&&Date.parse(o.lastAvailableAtUtc)>0;
+  const validBaseline=o=>!!o&&(Date.parse(o.lastAvailableAtUtc||'')>0||o.categoryOnly&&Date.parse(o.categorySeenAtUtc||'')>0);
   const age=row=>Math.max(Date.parse(measured.get(row.url)?.observedAtUtc||'')||0,Date.parse(attempts[row.url]||'')||0);
   const missing=complete?(known||[]).filter(row=>!active.has(row.url)).filter(row=>{
    const o=measured.get(row.url);return !o||o.available||validBaseline(o);

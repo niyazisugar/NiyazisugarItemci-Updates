@@ -1,4 +1,4 @@
 {
-  "version": "2.14.17",
-  "notes": "Satış takibinde yeni satış kontrollerinin eski fiyat düzeltmeleri tarafından engellenmesi giderildi. İlk üç sayfadan çıkan aktif ilanların sayaç ölçümleri silinmez; en fazla 200 bekleyen ilan 24 saat izlenir. Daha önce kaydedilen satışlar yeniden kontrol kuyruğuna girmez. Mevcut istek aralığı, toplam kontrol bütçesi ve satış doğrulama koşulları korunur."
+  "version": "2.14.18",
+  "notes": "Kısa ömürlü ilanlarda ilk liste görülmesi, önceden ölçülmüş güncel satıcı sayacıyla kaydedilir. İlan bu görülmeden sonra güncellenip kapanır ve sayaç artarsa Olası satış etiketiyle gösterilir; ayrı ürün ölçümüyle doğrulanan güçlü sinyalden ayrılır. Eski kapanmış ilanlar ve eski sayaçlar geçmiş satış olarak üretilmez. Gerçek 2T YANG sayfası regresyon testine eklendi."
 }
