@@ -101,6 +101,18 @@
   for(const row of missing){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
   return queue;
  }
+ // Price repairs may use spare capacity, never the last live-sale slot.
+ function detailQueue(queue,suspects,repairs,budget,cursor,attempts={}){
+  const age=r=>Date.parse(attempts[r.url]||'')||0;
+  const live=[...new Map([...(suspects||[]).sort((a,b)=>age(a)-age(b)),...queue].map(r=>[r.url,r])).values()];
+  const chosen=live.slice(0,budget);
+  const repair=(repairs||[]).find(r=>!chosen.some(row=>row.url===r.url));
+  if(repair&&budget>0&&(!live.length||budget>1&&(Number(cursor)||0)%5===0)){
+   if(chosen.length===budget)chosen.pop();chosen.push(repair);
+  }
+  return chosen;
+ }
+ window.__NiyaziPlanWatchDetails=detailQueue;
  window.__NiyaziSelectWatchQueue=watchQueue;
  window.__NiyaziPublicProductState=productState;
  window.__NiyaziConfirmedPublicSale = confirmedSale;

@@ -191,7 +191,22 @@ public sealed partial class MainForm
         UpdateThreePageWatchWindow(scoped,new WatchScan {complete=false,rows=new(){new(){url="c"}}},stamp.AddMinutes(1));if(scoped.pending.Count!=0||scoped.recentWindow.Count!=2)throw new Exception("Failed page changed the trusted window.");
         UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(2));if(!scoped.pending.ContainsKey("a")||scoped.pending.Count!=1||scoped.sales.Count!=0)throw new Exception("Disappeared listing was not prioritized or was falsely marked sold.");
         UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddMinutes(33));if(!scoped.pending.ContainsKey("a"))throw new Exception("Backlog expired before a bounded checker could reach it.");
-        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddHours(3));if(scoped.pending.Count!=0||scoped.known.ContainsKey("a"))throw new Exception("Stale pending queue was not bounded.");
+        UpdateThreePageWatchWindow(scoped,new WatchScan {complete=true,rows=new(){new(){url="b"},new(){url="c"}}},stamp.AddHours(25));if(scoped.pending.Count!=0||scoped.known.ContainsKey("a"))throw new Exception("Stale pending queue was not bounded.");
+        // A listing pushed beyond page three may sell later. Keep the measured
+        // baseline, then correlate the later detail observation without duplicates.
+        var pushed=new ServerWatch {threePageWindow=true,recentWindow=new(){priceUrl}};
+        pushed.known[priceUrl]=new LiveListing {url=priceUrl,title="Pushed listing",price=175m};
+        ApplyWatchObservations(pushed,new[]{Observation(true,10)},stamp);
+        UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true},stamp.AddMinutes(1));
+        ApplyWatchObservations(pushed,new[]{Observation(true,10)},stamp.AddMinutes(2));
+        if(!pushed.known.ContainsKey(priceUrl)||!pushed.observations.ContainsKey(priceUrl)||!pushed.pending.ContainsKey(priceUrl))throw new Exception("Still-active departed listing lost its baseline before its future sale.");
+        UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true},stamp.AddHours(3));
+        if(!pushed.pending.ContainsKey(priceUrl))throw new Exception("Pending listing expired before a bounded checker could revisit it.");
+        var pushedSale=Observation(false,11);pushedSale.price=160m;ApplyWatchObservations(pushed,new[]{pushedSale},stamp.AddHours(3));
+        if(pushed.sales.Count!=1||pushed.sales[0].listing.price!=160m)throw new Exception("Later sale of a listing beyond the latest three pages was lost.");
+        UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true,rows=new(){new(){url=priceUrl}}},stamp.AddHours(3).AddMinutes(1));
+        if(pushed.known.ContainsKey(priceUrl)||pushed.pending.ContainsKey(priceUrl))throw new Exception("Recorded sale was reintroduced into the live check queue.");
+        Console.WriteLine("PASS: departed active listings retain baselines and later sales; recorded sales do not re-enter live queues.");
         // Verify real data binding, filters and total math using isolated test records.
         _salesHistory.Clear();_salesDate.Value=TurkeyToday;
         _salesHistory["test-order"]=new SaleRecord {OrderId="test-order",ItemTitle="Yalıtılmış test kaydı",Server="Test sunucusu",Timestamp=TurkeyToday.AddHours(12),GrossAmount=100.05m};

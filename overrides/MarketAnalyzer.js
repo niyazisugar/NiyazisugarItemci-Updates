@@ -2991,7 +2991,7 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = []) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = []) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
@@ -3044,9 +3044,12 @@ ${categorySectionsHtml}
         }
         // A sold listing may still be present in a category. Check known URLs
         // directly even when pagination is incomplete; disappearance is never proof.
+        const recorded=new Set(recordedUrls||[]);
+        const trackingRows=[...active.values()].filter(row=>!recorded.has(row.url));
+        known=(known||[]).filter(row=>!recorded.has(row.url));
         const snapshots=new Map((sellerSnapshots||[]).map(s=>[String(s.seller||'').toLocaleLowerCase('tr-TR'),s]));
         const stores=new Map();
-        for(const row of [...active.values(),...(known||[])]){
+        for(const row of [...trackingRows,...(known||[])]){
             const seller=String(row.seller||'').trim();if(!seller||['—','Bilinmiyor','Bilinmeyen satıcı'].includes(seller))continue;
             const url=row.sellerUrl||'https://itemci.com/user/store/'+encodeURIComponent(seller);
             try{const u=new URL(url);if(u.origin==='https://itemci.com'&&u.pathname.startsWith('/user/store/'))stores.set(seller.toLocaleLowerCase('tr-TR'),{seller,url:u.origin+u.pathname});}catch{}
@@ -3054,7 +3057,7 @@ ${categorySectionsHtml}
         const storeQueue=[...stores.entries()].sort(([a],[b])=>(Date.parse(snapshots.get(a)?.lastAttemptUtc||snapshots.get(a)?.observedAtUtc||'')||0)-(Date.parse(snapshots.get(b)?.lastAttemptUtc||snapshots.get(b)?.observedAtUtc||'')||0));
         const initial=storeQueue.some(([key])=>!snapshots.get(key)?.sellerId);
         const sellerResults=[],sellerAttempts=[],suspects=[];
-        const knownUrls=new Set([...(known||[]),...active.values()].map(r=>r.url));
+        const knownUrls=new Set([...(known||[]),...trackingRows].map(r=>r.url));
         let storeRequests=0;
         for(const [key,store] of storeQueue.slice(0,initial?2:1)){
             if(Date.now()>=deadline||rateLimited)break;
@@ -3070,9 +3073,9 @@ ${categorySectionsHtml}
                 }
             }catch{failed++;}
         }
-        let queue=window.__NiyaziSelectWatchQueue([...active.values()],known,measurements,complete,attempts);
+        let queue=window.__NiyaziSelectWatchQueue(trackingRows,known,measurements,complete,attempts);
         const repair=(priceRepairs||[]).find(row=>{try{const u=new URL(row.url);return u.origin==='https://itemci.com'&&u.pathname.startsWith('/product/');}catch{return false;}});
-        queue=[...new Map([...suspects,...(repair?[repair]:[]),...queue].map(r=>[r.url,r])).values()].slice(0,Math.max(0,3-storeRequests));
+        queue=window.__NiyaziPlanWatchDetails(queue,suspects,repair?[repair]:[],Math.max(0,3-storeRequests),cursor,attempts);
         const sold=[],observations=[],attemptedUrls=[];let attempted=0;
         for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[i];attempted++;attemptedUrls.push(row.url);

@@ -53,6 +53,18 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  assert.deepEqual(planning.second,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
  assert.equal(planning.draining.length,3);assert(planning.draining.every(u=>u.includes('/backlog-')),'Covered windows must use all slots to drain missing-listing backlog.');
  assert(planning.priority[0].endsWith('/departed'));assert(planning.priority.slice(1).every(u=>!planning.first.includes(u)));
+ const fairness=await page.evaluate(()=>{
+  const live=[{url:'live-a'},{url:'live-b'}],repair=[{url:'old-price'}];
+  return {
+   one:Array.from({length:10},(_,i)=>window.__NiyaziPlanWatchDetails(live,[],repair,1,i).map(r=>r.url)),
+   spare:window.__NiyaziPlanWatchDetails(live,[],repair,2,0).map(r=>r.url),
+   normal:window.__NiyaziPlanWatchDetails(live,[],repair,2,1).map(r=>r.url),
+   suspects:window.__NiyaziPlanWatchDetails(live,[{url:'just-checked'},{url:'not-checked'}],[],2,0,{'just-checked':new Date().toISOString()}).map(r=>r.url)
+  };
+ });
+ assert(fairness.one.every(urls=>urls[0]==='live-a'),'Old price repairs starved the only live verification slot.');
+ assert.deepEqual(fairness.spare,['live-a','old-price']);assert.deepEqual(fairness.normal,['live-a','live-b']);
+ assert.deepEqual(fairness.suspects,['not-checked','just-checked']);
  console.log('PASS: durable baseline coverage advances without overlaps; unmeasurable inactive records do not starve new checks.');
  // Exercise the actual server scanner, not only its sold-marker helper.
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
@@ -82,6 +94,11 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const pages=await page.evaluate(()=>window.calls.filter(x=>x.includes('/categories/')).map(x=>Number(new URL(x).searchParams.get('page')||1)));
  assert.deepEqual(pages,[1,2,3]);
  await page.evaluate(()=>window.calls=[]);
+ const recorded=[1,2,3].map(n=>'https://itemci.com/product/msp2-global-yeni-itemyang/active-'+n);
+ const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[],[],urls),recorded);
+ assert.equal(withoutDuplicates.attemptedUrls.length,0,'Already recorded category listings consumed new sale-check slots.');
+ assert.equal(await page.evaluate(()=>window.calls.filter(u=>u.includes('/product/')).length),0);
+ await page.evaluate(()=>window.calls=[]);
  const pending=[1,2,3].map(n=>({url:'https://itemci.com/product/msp2-global-yeni-itemyang/missing-'+n,title:'Önceki pencere ilanı',price:100}));
  await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0,38),pending);
  const detailOrder=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
@@ -91,7 +108,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const repairRow={url:'https://itemci.com/product/msp2-global-yeni-itemyang/price-repair',title:'Existing sale',price:175};
  const repairScan=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[row]),repairRow);
  const repairRequests=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
- assert.equal(repairRequests.length,3);assert(repairRequests[0].endsWith('/price-repair'),'Existing recorded price repair must be queued within the same request budget.');
+ assert.equal(repairRequests.length,3);assert(repairRequests.some(u=>u.endsWith('/price-repair')),'Price repairs should still use spare capacity.');assert(repairRequests[0].includes('/active-'),'Live checks must precede old price repairs.');
  assert.equal(repairScan.attemptedUrls.length,3);
  await page.evaluate(()=>{
   window.calls=[];

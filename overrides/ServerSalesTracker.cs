@@ -93,7 +93,7 @@ public sealed partial class MainForm
             var soldUrls=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var known=state.threePageWindow?state.known.Values.Where(row=>!soldUrls.Contains(row.url)).OrderByDescending(row=>state.pending.TryGetValue(row.url,out var since)?since:DateTime.MinValue).ToList():new List<LiveListing>();
             var repairs=state.sales.Where(s=>!s.priceFromDetail).OrderBy(s=>s.priceCheckAttemptUtc).ThenByDescending(s=>s.detectedAt).Take(1).Select(s=>s.listing).ToList();
-            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)},{JsonSerializer.Serialize(state.sellers.Values)}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
+            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)},{JsonSerializer.Serialize(state.sellers.Values)},{JsonSerializer.Serialize(soldUrls)}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
             return await task.Task.WaitAsync(TimeSpan.FromSeconds(45));
         }
         finally { core.WebMessageReceived -= Message; }
@@ -159,18 +159,21 @@ public sealed partial class MainForm
     {
         if(scan.complete)
         {
-            var current=scan.rows.Select(r=>r.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var recorded=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var current=scan.rows.Where(r=>!recorded.Contains(r.url)).Select(r=>r.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if(!state.threePageWindow){state.known.Clear();state.observations.Clear();state.pending.Clear();state.lastChecked.Clear();}
-            else foreach(var url in state.recentWindow.Where(url=>!current.Contains(url)))if(!state.pending.ContainsKey(url))state.pending[url]=nowUtc;
-            foreach(var url in current)state.pending.Remove(url);
-            foreach(var url in state.pending.Where(p=>p.Value<nowUtc.AddHours(-2)).Select(p=>p.Key).ToArray())state.pending.Remove(url);
+            else foreach(var url in state.recentWindow.Where(url=>!current.Contains(url)&&!recorded.Contains(url)))if(!state.pending.ContainsKey(url))state.pending[url]=nowUtc;
+            foreach(var url in current.Concat(recorded))state.pending.Remove(url);
+            foreach(var url in state.pending.Where(p=>p.Value<nowUtc.AddHours(-24)).Select(p=>p.Key).ToArray())state.pending.Remove(url);
             foreach(var url in state.pending.OrderByDescending(p=>p.Value).Skip(200).Select(p=>p.Key).ToArray())state.pending.Remove(url);
             foreach(var url in state.known.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.known.Remove(url);
             foreach(var url in state.observations.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.observations.Remove(url);
             foreach(var url in state.lastChecked.Keys.Where(url=>!current.Contains(url)&&!state.pending.ContainsKey(url)).ToArray())state.lastChecked.Remove(url);
             state.recentWindow=current.ToList();state.threePageWindow=true;
         }
-        foreach(var row in scan.rows)state.known[row.url]=row;
+        var sold=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach(var row in scan.rows.Where(r=>!sold.Contains(r.url)))state.known[row.url]=row;
+        foreach(var url in sold){state.known.Remove(url);state.pending.Remove(url);}
     }
     private void ApplyWatchObservations(ServerWatch state,IEnumerable<ProductObservation> observations,DateTime nowUtc)
     {
@@ -198,7 +201,10 @@ public sealed partial class MainForm
                 state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
-            if(current.available&&state.pending.Remove(current.url)){state.known.Remove(current.url);state.observations.Remove(current.url);}
+            // Leaving page three is not the end of a listing's lifecycle.
+            // Keep its baseline and bounded pending entry if it is still active;
+            // otherwise its later sale can never be correlated.
+
         }
     }
     private void ApplyWatchSellerSnapshot(ServerWatch state,SellerWatchSnapshot snapshot,DateTime nowUtc)

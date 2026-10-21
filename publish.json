@@ -1,4 +1,4 @@
 {
-  "version": "2.14.16",
-  "notes": "Kendi görsellerini yükleme akışı yenilendi: dosyalar sırayla aktarılır, yeniden oluşturulan dosya alanı tekrar bulunur. Resim/görsel başlıkları desteklenir; başlık okunamıyorsa başarılı yükleme yanıtındaki görsel bağlantısı form önizlemesiyle eşleştirilir. Yükleme reddi ve bağlantı hataları açıklanır; doğrulama tamamlanmadan ilan gönderilmez."
+  "version": "2.14.17",
+  "notes": "Satış takibinde yeni satış kontrollerinin eski fiyat düzeltmeleri tarafından engellenmesi giderildi. İlk üç sayfadan çıkan aktif ilanların sayaç ölçümleri silinmez; en fazla 200 bekleyen ilan 24 saat izlenir. Daha önce kaydedilen satışlar yeniden kontrol kuyruğuna girmez. Mevcut istek aralığı, toplam kontrol bütçesi ve satış doğrulama koşulları korunur."
 }
