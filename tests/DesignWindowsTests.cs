@@ -106,6 +106,14 @@ public sealed partial class MainForm
         _soldScanBusy=false;_salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(90);await RefreshSoldListingsAsync(true);
         if(!_salesStatusLabel.Text.Contains("saniye bekle")||_soldScanView is not null)throw new Exception("Sales cooldown was silent or started another scan.");
         _salesNextRefreshUtc=DateTime.MinValue;_webReady=wasReady;
+        ResetSalesScanCursor();
+        AdvanceSalesScanCursor(new SoldScanResult {ProcessedIds=new(){"one"},ListingIds=new(){"one","two"},PageComplete=false});
+        if(_salesResumePage!=1||!_salesPageProcessed.Contains("one"))throw new Exception("Partial page cursor was lost.");
+        AdvanceSalesScanCursor(new SoldScanResult {ProcessedIds=new(){"two"},ListingIds=new(){"one","two"},PageComplete=true});
+        if(_salesResumePage!=2||_salesPageProcessed.Count!=0||_salesPreviousPage!="one|two")throw new Exception("Completed slice did not advance exactly once.");
+        ResetSalesScanCursor();
+        if(_salesResumePage!=1||_salesPreviousPage.Length!=0)throw new Exception("Full history restart retained old cursor.");
+        Console.WriteLine("PASS: personal sales cursor retains partial rows, advances complete pages and resets full-history sweeps.");
         Console.WriteLine("PASS: shared cooldown survives worker navigation; busy publication and refresh do not overlap or silently fail.");
         // Regression for --tray startup: the real shown form must retain its
         // HWND and initialized WebView controllers over hide/restore cycles.

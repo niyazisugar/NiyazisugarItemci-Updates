@@ -19,6 +19,19 @@ public sealed partial class MainForm
     private bool _soldScanBusy;
     private DateTime _salesNextRefreshUtc;
     private bool _soldCacheLoaded;
+    private int _salesResumePage = 1;
+    private readonly HashSet<string> _salesPageProcessed = new();
+    private string _salesPreviousPage = "";
+    private bool _salesCycleHadErrors;
+    private void ResetSalesScanCursor()
+    {
+        _salesResumePage=1;_salesPageProcessed.Clear();_salesPreviousPage="";_salesCycleHadErrors=false;
+    }
+    private void AdvanceSalesScanCursor(SoldScanResult result)
+    {
+        foreach(var id in result.ProcessedIds)_salesPageProcessed.Add(id);
+        if(result.PageComplete){_salesPreviousPage=string.Join("|",result.ListingIds);_salesResumePage++;_salesPageProcessed.Clear();}
+    }
     private static DateTime TurkeyToday
     {
         get
@@ -166,7 +179,8 @@ public sealed partial class MainForm
         try
         {
             var known = JsonSerializer.Serialize(_salesHistory.Values.Where(s => s.IsDelivered && !string.IsNullOrWhiteSpace(s.ListingId)).Select(s => s.ListingId).Distinct().ToArray());
-            await core.ExecuteScriptAsync($"window.__niyaziScanSoldListings({known},3000).then(result => window.chrome.webview.postMessage({{token:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{token:'{token}',error:String(e.message || e)}}));");
+            var slice=JsonSerializer.Serialize(new {skipIds=_salesPageProcessed.ToArray(),maxDetails=3,maxMillis=20000});
+            await core.ExecuteScriptAsync($"window.__niyaziScanSoldListings({known},3000,{slice}).then(result => window.chrome.webview.postMessage({{token:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{token:'{token}',error:String(e.message || e)}}));");
             return await completion.Task.WaitAsync(TimeSpan.FromMinutes(3));
         }
         finally { core.WebMessageReceived -= Received; }
@@ -188,7 +202,8 @@ public sealed partial class MainForm
             if(showErrors){RenderSoldSalesPanel();_salesStatusLabel.Text=$"Kayıtlı satışlar gösteriliyor · Yeni tarama için {Math.Max(1,(int)Math.Ceiling((_salesNextRefreshUtc-DateTime.UtcNow).TotalSeconds))} saniye bekle.";}
             return;
         }
-        _salesNextRefreshUtc=DateTime.UtcNow.AddMinutes(3);
+        if(fullHistory)ResetSalesScanCursor();
+        _salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(45);
         _soldScanBusy = true;
         try
         {
@@ -201,15 +216,13 @@ public sealed partial class MainForm
             }
             RenderSoldSalesPanel();
             await EnsureSoldScanViewAsync();
-            var full = fullHistory || !_historyFullyScanned;
-            // Listings may be ordered by creation date rather than sale date.
-            // Check every page, skipping details of already completed orders.
-            int max = 150;
+            // One resumable slice per turn: at most one page and three details.
+            // Continue through old pages too; listing order is not sale order.
+            int max = _salesResumePage;
             int pages = 0, failed = 0;
             bool reachedEnd = false, interrupted = false;
             string firstError = "";
-            var fingerprints = new HashSet<string>();
-            for (int page = 1; page <= max; page++)
+            for (int page = _salesResumePage; page <= max; page++)
             {
                 if(SiteAutomationBlocked)throw new IOException(SitePauseMessage);
                 await Task.Delay(3000);
@@ -220,7 +233,7 @@ public sealed partial class MainForm
                 await NavigateSoldPageAsync(page);
                 var result = await ReadSoldPageAsync();
                 var fingerprint = string.Join("|", result.ListingIds);
-                if (result.Empty || !fingerprints.Add(fingerprint)) { reachedEnd = true; break; }
+                if (result.Empty || (_salesPreviousPage.Length>0&&fingerprint==_salesPreviousPage)) { reachedEnd = true; break; }
                 pages++;
                 failed += result.Errors.Count;
                 if (firstError.Length == 0 && result.Errors.Count > 0) firstError = result.Errors[0];
@@ -236,9 +249,14 @@ public sealed partial class MainForm
                     _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Server = data.Server, ImageUrl = data.ImageUrl, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
                 }
                 SaveSalesHistory();
+                AdvanceSalesScanCursor(result);
                 RenderSoldSalesPanel();
             }
-            if (full && reachedEnd && failed == 0) _historyFullyScanned = true;
+            _salesCycleHadErrors |= failed>0;
+            if (reachedEnd && !_salesCycleHadErrors) _historyFullyScanned = true;
+            bool capped=_salesResumePage>150;
+            if(reachedEnd||capped){ResetSalesScanCursor();_salesNextRefreshUtc=DateTime.UtcNow.AddMinutes(3);}
+            else _salesNextRefreshUtc=DateTime.UtcNow.AddSeconds(45);
             SaveSalesHistory();
             RenderSoldSalesPanel();
             _salesStatusLabel.Text = $"Tüm sunucular · {pages} sayfa · {_salesHistory.Count} kayıt · Tüm Zamanlar ile bütün kayıtların toplamını görebilirsin.";
@@ -254,11 +272,13 @@ public sealed partial class MainForm
                 _salesStatusLabel.Text = $"{failed} ayrıntı okunamadı; toplam eksik olabilir. {firstError}";
                 _salesStatusLabel.ForeColor = Color.Orange;
             }
-            else if (full && !reachedEnd)
+            else if (capped)
             {
                 _salesStatusLabel.Text = "150 sayfalık sınır doldu; geçmişin tamamı henüz okunmamış olabilir.";
                 _salesStatusLabel.ForeColor = Color.Orange;
             }
+            else if(!reachedEnd)
+                _salesStatusLabel.Text=$"{_salesHistory.Count} kayıt kaydedildi · Sıradaki bölüm: sayfa {_salesResumePage} · Sunucu takibine sıra verildi; tarama otomatik devam edecek.";
             HandleNewSalesNotifications(_salesHistory.Values.Where(s => s.Timestamp.Date == TurkeyToday).ToList());
             _salesInitialized = true;
         }
@@ -270,7 +290,8 @@ public sealed partial class MainForm
             if (_soldScanView is not null) { Controls.Remove(_soldScanView); _soldScanView.Dispose(); _soldScanView = null; }
             if (showErrors) MessageBox.Show(ex.Message, "Satış takibi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-        finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; if(_salesPanel.Visible&&!IsDisposed)RenderSoldSalesPanel(); }
+        finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; if(_salesPanel.Visible&&!IsDisposed)RenderSoldSalesPanel();
+            if(!IsDisposed&&!Disposing)await ScanAllServerSalesAsync(); }
     }
 
     private sealed class SoldScanResult
@@ -279,6 +300,8 @@ public sealed partial class MainForm
         public List<string> Errors { get; set; } = new();
         public List<string> ListingIds { get; set; } = new();
         public bool Empty { get; set; }
+        public List<string> ProcessedIds { get; set; } = new();
+        public bool PageComplete { get; set; }
     }
     private sealed class SoldDetail
     {

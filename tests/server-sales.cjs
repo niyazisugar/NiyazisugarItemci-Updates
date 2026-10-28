@@ -59,7 +59,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  assert.deepEqual(planning.first,[39,40,41].map(i=>'https://itemci.com/product/test/'+i));
  assert.deepEqual(planning.failedRetry,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
  assert.deepEqual(planning.second,[42,43,44].map(i=>'https://itemci.com/product/test/'+i));
- assert.equal(planning.draining.length,3);assert(planning.draining.every(u=>u.includes('/backlog-')),'Covered windows must use all slots to drain missing-listing backlog.');
+ assert.equal(planning.draining.length,3);assert(planning.draining.some(u=>!u.includes('/backlog-')),'Current listings must retain a slot while missing backlog drains.');
  assert(planning.priority[0].endsWith('/departed'));assert(planning.priority.slice(1).every(u=>!planning.first.includes(u)));
  const fairness=await page.evaluate(()=>{
   const live=[{url:'live-a'},{url:'live-b'}],repair=[{url:'old-price'}];
@@ -72,7 +72,18 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  });
  assert(fairness.one.every(urls=>urls[0]==='live-a'),'Old price repairs starved the only live verification slot.');
  assert.deepEqual(fairness.spare,['live-a','old-price']);assert.deepEqual(fairness.normal,['live-a','live-b']);
- assert.deepEqual(fairness.suspects,['not-checked','just-checked']);
+ assert.deepEqual(fairness.suspects,['not-checked','live-a']);
+ const noStarvation=await page.evaluate(()=>{
+  const active=[{url:'new'}],known=[{url:'missing'}],measurements=[{url:'missing',available:true,lastAvailableAtUtc:new Date().toISOString()}];
+  const attempts={},seen=[];
+  for(let i=0;i<4;i++){
+   const queue=window.__NiyaziSelectWatchQueue(active,known,measurements,true,attempts);
+   const pick=window.__NiyaziPlanWatchDetails(queue,[],[],1,i,attempts)[0];
+   seen.push(pick.url);attempts[pick.url]=new Date(Date.now()+i*60000).toISOString();
+  }
+  return seen;
+ });
+ assert.deepEqual(noStarvation,['missing','new','missing','new'],'A single detail slot must alternate instead of starving the new listing.');
  console.log('PASS: durable baseline coverage advances without overlaps; unmeasurable inactive records do not starve new checks.');
  // Exercise the actual server scanner, not only its sold-marker helper.
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));

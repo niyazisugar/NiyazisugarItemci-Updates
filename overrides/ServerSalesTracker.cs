@@ -6,7 +6,7 @@ public sealed partial class MainForm
 {
     private readonly Dictionary<string, ServerWatch> _serverWatch = new();
     private string _serverWatchRenderedKey="";
-    private int _serverWatchNextIndex;
+    private DateTime _serverWatchNextTurnUtc;
     private DateTime _serverWatchRetryUtc;
     private int _serverWatchVisibleCount=50;
     private string _serverWatchRenderedServer="";
@@ -37,7 +37,7 @@ public sealed partial class MainForm
         var rows = state?.sales.Where(s => s.detectedAt.Date == TurkeyToday).OrderByDescending(s => s.detectedAt).ToList() ?? new();
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
         _liveCount.Text=rows.Count.ToString(); _liveLast.Text=(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
-        _liveStatus.Text = $"Bugün tespit: {rows.Count} · {state?.status ?? "Takip hazırlanıyor"}";
+        _liveStatus.Text = $"Bugün tespit: {rows.Count} · Son tam liste kontrolü: {(state is not null&&state.lastSuccessUtc!=DateTime.MinValue?state.lastSuccessUtc.ToLocalTime().ToString("HH:mm:ss"):"henüz yok")} · {state?.status ?? "Takip hazırlanıyor"}";
         var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller));
         if(key==_serverWatchRenderedKey)return;
         _serverWatchRenderedKey=key;
@@ -100,7 +100,15 @@ public sealed partial class MainForm
     }
     private async Task ScanAllServerSalesAsync()
     {
-        if (SiteAutomationBlocked || _soldScanBusy || DateTime.UtcNow<_serverWatchRetryUtc || _liveBusy || _autoBumpBusy || AutoBumpDue || _composerPopup is not null || _composerBusy || _marketPanel.Visible || !_marketWebReady || _marketWebView.CoreWebView2 is null || IsDisposed) return;
+        if(IsDisposed||Disposing)return;
+        string wait=SiteAutomationBlocked?SitePauseMessage:_soldScanBusy?"Kişisel satış taramasının kısa bölümü tamamlanıyor":
+            _autoBumpBusy||AutoBumpDue?"İlan yükseltme sırası bekleniyor":_composerPopup is not null||_composerBusy?"İlan penceresinin kapanması bekleniyor":
+            _marketPanel.Visible?"Piyasa analizi açık":_liveBusy?"Tarama sürüyor":
+            !_marketWebReady||_marketWebView.CoreWebView2 is null?"Itemci bağlantısı hazırlanıyor":"";
+        if(wait.Length>0){_liveStatus.Text="Takip bekliyor · "+wait;return;}
+        var next=_serverWatchRetryUtc>_serverWatchNextTurnUtc?_serverWatchRetryUtc:_serverWatchNextTurnUtc;
+        if(DateTime.UtcNow<next)return;
+        _serverWatchNextTurnUtc=DateTime.UtcNow.AddMinutes(1);
         _liveBusy = true;
         _marketWebView.CoreWebView2.Resume();
         try
@@ -108,16 +116,17 @@ public sealed partial class MainForm
             for (int attempt=0; !_marketAnalyzerInjected && attempt<100; attempt++) await Task.Delay(100);
             if (!_marketAnalyzerInjected) return;
             await _marketWebView.CoreWebView2.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"ServerSales.js")));
-            var servers=_marketServers.ToArray();
-            var start=servers.Length==0?0:_serverWatchNextIndex%servers.Length;
+            var servers=_marketServers.OrderBy(s=>_serverWatch.TryGetValue(s.Id,out var watched)?watched.lastAttemptUtc:DateTime.MinValue).ToArray();
+            var start=0;
             for(var offset=0;offset<Math.Min(1,servers.Length);offset++)
             {
                 if(SiteAutomationBlocked||_soldScanBusy||_composerPopup is not null||_composerBusy||_marketPanel.Visible||_autoBumpBusy||AutoBumpDue)break;
                 var index=(start+offset)%servers.Length;var server=servers[index];
-                _serverWatchNextIndex=(index+1)%servers.Length;
+
                 if (!_serverWatch.TryGetValue(server.Id,out var state)) _serverWatch[server.Id] = state = new();
                 try
                 {
+                    state.lastAttemptUtc=DateTime.UtcNow;
                     state.status = "Taranıyor…";
                     if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
                     var scan = await ReadServerWatchAsync(server,state);
@@ -138,6 +147,7 @@ public sealed partial class MainForm
                         }
                         state.known.Remove(row.url);state.pending.Remove(row.url);
                     }
+                    if(scan.complete&&!scan.rateLimited)state.lastSuccessUtc=DateTime.UtcNow;
                     state.cursor = scan.nextCursor;state.pageCursor=scan.nextPage<1?1:scan.nextPage;
                     state.sales.RemoveAll(s=>s.detectedAt.Date < TurkeyToday.AddDays(-30));
                     state.status = $"{state.sellers.Values.Count(s=>s.sellerId.Length>0)} satıcı ölçümü · İlk 3 sayfa · {scan.pagesRead} okundu · {state.pending.Count} öncelikli · {state.observations.Count} sayaç ölçümü · {state.known.Count} izlenen ilan · {scan.@checked} durum kontrolü · {DateTime.Now:HH:mm}"+(scan.failed>0?$" · {scan.failed} sayfa okunamadı":"");
@@ -296,6 +306,8 @@ public sealed partial class MainForm
     }
     private sealed class ServerWatch
     {
+        public DateTime lastAttemptUtc {get;set;}
+        public DateTime lastSuccessUtc {get;set;}
         public Dictionary<string,DateTime> lastChecked {get;set;}=new();
         public Dictionary<string,SellerWatchSnapshot> sellers {get;set;}=new();
         public bool threePageWindow {get;set;}

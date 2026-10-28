@@ -89,7 +89,7 @@
         button.click();
         if (!await waitFor(() => !visible(el) || !el.isConnected, 4000)) throw new Error('Sipariş ayrıntısı kapanmadı.');
     }
-    async function scan(knownIds = [], spacingMs = 0) {
+    async function scan(knownIds = [], spacingMs = 0, slice = {}) {
         if (window.__niyaziSoldScanRunning) throw new Error('Önceki satış taraması hâlâ çalışıyor.');
         window.__niyaziSoldScanRunning = true;
         try {
@@ -103,9 +103,13 @@
             }, 15000);
             if (!found) throw new Error('Satılan ilan listesi okunamadı. Itemci oturumunu ve Satılanlar sayfasını kontrol et.');
             const known = new Set(knownIds);
-            const sales = [], errors = [];
+            const sales = [], errors = [], processed = [];
+            const skipped = new Set(slice.skipIds || []);
+            const deadline = Date.now() + (slice.maxMillis || 120000);
+            let pageComplete = true;
             for (const row of found) {
-                if (known.has(row.id)) continue;
+                if (known.has(row.id) || skipped.has(row.id)) continue;
+                if (processed.length >= (slice.maxDetails || 1000) || Date.now() >= deadline) { pageComplete = false; break; }
                 let modal = null;
                 try {
                     const button = detailButton(row.el);
@@ -122,9 +126,10 @@
                 finally {
                     modal = modal || dialog();
                     if (modal) await closeDialog(modal);
+                    processed.push(row.id);
                 }
             }
-            return {Sales:sales, Errors:errors, ListingIds:found.map(row => row.id), Empty:found.length === 0};
+            return {Sales:sales, Errors:errors, ProcessedIds:processed, PageComplete:pageComplete, ListingIds:found.map(row => row.id), Empty:found.length === 0};
         } finally { window.__niyaziSoldScanRunning = false; }
     }
     window.__niyaziScanSoldListings = scan;

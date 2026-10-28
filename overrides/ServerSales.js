@@ -95,7 +95,7 @@
   // During initial coverage keep two baseline slots. Once every current
   // listing is measured, spend the same budget on the disappearance backlog.
   const newRows=normal.filter(r=>!measured.has(r.url));
-  const missingSlots=newRows.length?1:3;
+  const missingSlots=newRows.length?1:normal.length?2:3;
   for(const row of missing){if(queue.length>=missingSlots)break;queue.push(row);}
   for(const row of normal){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
   for(const row of missing){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
@@ -104,7 +104,7 @@
  // Price repairs may use spare capacity, never the last live-sale slot.
  function detailQueue(queue,suspects,repairs,budget,cursor,attempts={}){
   const age=r=>Date.parse(attempts[r.url]||'')||0;
-  const live=[...new Map([...(suspects||[]).sort((a,b)=>age(a)-age(b)),...queue].map(r=>[r.url,r])).values()];
+  const live=[...new Map([...(suspects||[]),...queue].map(r=>[r.url,r])).values()].sort((a,b)=>age(a)-age(b));
   const chosen=live.slice(0,budget);
   const repair=(repairs||[]).find(r=>!chosen.some(row=>row.url===r.url));
   if(repair&&budget>0&&(!live.length||budget>1&&(Number(cursor)||0)%5===0)){
