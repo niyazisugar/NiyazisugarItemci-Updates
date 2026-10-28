@@ -92,6 +92,7 @@ public sealed partial class MainForm
         _listingsList.SuspendLayout();
         // Dispose cards and their images when filters change; no hidden image cache.
         while(_listingsList.Controls.Count>0) { var old=_listingsList.Controls[0]; _listingsList.Controls.Remove(old); old.Dispose(); }
+        _listingsList.AutoScroll=rows.Count>0;
         if(rows.Count==0) _listingsList.Controls.Add(ListingsEmptyState());
         foreach(var item in rows.Take(_listingVisibleLimit))
         {

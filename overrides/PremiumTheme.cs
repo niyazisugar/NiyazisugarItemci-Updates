@@ -15,6 +15,22 @@ internal static class PremiumTheme
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetWindowTheme(IntPtr hwnd, string? appName, string? idList);
+
+    // Kaydırma çubuklarını koyu temaya al (beyaz çubuklar koyu arayüzde göze batıyor).
+    private static void DarkScrollbars(Control control)
+    {
+        void Apply()
+        {
+            try { SetWindowTheme(control.Handle, "DarkMode_Explorer", null); }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+        }
+        control.HandleCreated += (_, _) => Apply();
+        if (control.IsHandleCreated) Apply();
+    }
+
     internal static void Apply(Form form)
     {
         // Keep the native title bar, resizing and window controls.
@@ -52,6 +68,7 @@ internal static class PremiumTheme
         if(control is ReferencePanel or ReferenceButton or ReferenceSelect or ReferenceBadge or ReferenceRow or ReferenceBrand) return;
         control.BackColor = Palette(control.BackColor);
         control.ForeColor = Palette(control.ForeColor);
+        if (control is not Form && (control is ScrollableControl || control is DataGridView || control is TextBoxBase)) DarkScrollbars(control);
         if (control is Button button)
         {
             button.FlatStyle = FlatStyle.Flat;
