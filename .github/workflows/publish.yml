@@ -79,6 +79,7 @@ jobs:
           Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
           Copy-Item "overrides/ListingThumbnails.cs" "src/ListingThumbnails.cs" -Force
           Copy-Item "overrides/ReferenceUi.cs" "src/ReferenceUi.cs" -Force
+          Copy-Item "overrides/PageLayout.cs" "src/PageLayout.cs" -Force
           Copy-Item "overrides/BrandMark.cs" "src/BrandMark.cs" -Force
           Copy-Item "overrides/ListingsDesign.cs" "src/ListingsDesign.cs" -Force
           Copy-Item "overrides/QuickReplyDock.js" "src/QuickReplyDock.js" -Force
