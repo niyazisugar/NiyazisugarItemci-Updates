@@ -49,7 +49,7 @@ public sealed partial class MainForm
         branding.Click += (_, _) => ShowPanel(_browserPanel);
         layout.Controls.Add(branding, 0, 0);
 
-        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(0, LogicalToDeviceUnits(6), 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
+        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = false, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(0, LogicalToDeviceUnits(6), 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
         _navMenu = menu;
 
         Button Section(string text, Panel panel, Action click)
@@ -178,6 +178,8 @@ public sealed partial class MainForm
             _navToggle.Text = _navCollapsed ? "Menüyü genişlet" : "Menüyü daralt";
             _sidebarToolTip.SetToolTip(_navToggle, _navToggle.Text);
         }
+        // Düğme genişliğini menüden önce ayarla: aksi halde dar menüde yatay kaydırma çubuğu belirir.
+        SizeNavigationButtons();
         ResumeLayout(true);
         SizeNavigationButtons();
         _topNavigation.Invalidate(true);
@@ -185,9 +187,10 @@ public sealed partial class MainForm
 
     private void SizeNavigationButtons()
     {
-        if (_navMenu is null) return;
-        int scroll = _navMenu.VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0;
-        int width = Math.Max(LogicalToDeviceUnits(40), _navMenu.ClientSize.Width - scroll);
+        if (_navMenu is null || _topNavigation is null) return;
+        // Genişlik menünün o anki boyutundan değil, hedef kenar çubuğu genişliğinden hesaplanır.
+        int target = LogicalToDeviceUnits(_navCollapsed ? NavCollapsedWidth : NavExpandedWidth) - _topNavigation.Padding.Horizontal;
+        int width = Math.Max(LogicalToDeviceUnits(40), Math.Min(target, _navMenu.ClientSize.Width > 0 ? _navMenu.ClientSize.Width : target));
         foreach (Control control in _navMenu.Controls) control.Width = width;
     }
 
