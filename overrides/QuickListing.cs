@@ -6,7 +6,7 @@ public sealed partial class MainForm
 {
     private bool _quickPickerOpen;
     private readonly Dictionary<string, BrowserTabState> _quickDrafts = new();
-    private readonly Label _quickFormStatus = new() { Dock=DockStyle.Bottom,Height=28,BackColor=Color.FromArgb(26,29,36),ForeColor=Color.FromArgb(150,157,170),Padding=new Padding(12,5,0,0),Visible=false };
+    private readonly Label _quickFormStatus = new() { Dock=DockStyle.Bottom,Height=28,BackColor=ReferenceUi.Surface,ForeColor=ReferenceUi.Muted,Padding=new Padding(12,5,0,0),Visible=false };
     private bool _quickStatusInstalled;
 
     private async Task ShowQuickListingPickerAsync()

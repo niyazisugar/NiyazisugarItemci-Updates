@@ -5,11 +5,12 @@ namespace NiyazisugarItemci;
 
 internal static class PremiumTheme
 {
-    internal static readonly Color Background = Color.FromArgb(13, 18, 23);
-    internal static readonly Color Surface = Color.FromArgb(19, 25, 31);
-    internal static readonly Color Outline = Color.FromArgb(45, 56, 66);
-    internal static readonly Color Turquoise = Color.FromArgb(36, 214, 197);
-    internal static readonly Color Gold = Color.FromArgb(225, 193, 136);
+    // Tek kaynak: renkler ReferenceUi paletinden gelir.
+    internal static readonly Color Background = ReferenceUi.Background;
+    internal static readonly Color Surface = ReferenceUi.Surface;
+    internal static readonly Color Outline = ReferenceUi.Line;
+    internal static readonly Color Turquoise = ReferenceUi.Aqua;
+    internal static readonly Color Gold = ReferenceUi.Gold;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -33,10 +34,12 @@ internal static class PremiumTheme
         if (color == Color.FromArgb(12, 14, 18) || color == Color.FromArgb(17, 19, 24)) return Background;
         if (color == Color.FromArgb(24, 28, 35) || color == Color.FromArgb(26, 29, 36)) return Surface;
         if (color == Color.FromArgb(255, 173, 10)) return Gold;
-        if (color == Color.FromArgb(242, 244, 247)) return Color.FromArgb(241, 242, 244);
-        if (color == Color.FromArgb(145, 154, 168)) return Color.FromArgb(150, 157, 170);
-        if (color == Color.FromArgb(13, 16, 21) || color == Color.FromArgb(17, 20, 26))
-            return Color.FromArgb(21, 24, 30);
+        if (color == Color.FromArgb(242, 244, 247) || color == Color.FromArgb(241, 242, 244)) return ReferenceUi.Text;
+        if (color == Color.FromArgb(145, 154, 168) || color == Color.FromArgb(150, 157, 170)) return ReferenceUi.Muted;
+        if (color == Color.FromArgb(13, 16, 21) || color == Color.FromArgb(17, 20, 26) || color == Color.FromArgb(21, 24, 30))
+            return ReferenceUi.Field;
+        if (color == Color.FromArgb(16, 25, 31) || color == Color.FromArgb(29, 38, 44)) return Surface;
+        if (color == Color.FromArgb(48, 52, 62)) return Outline;
         return color;
     }
 
@@ -53,21 +56,21 @@ internal static class PremiumTheme
         {
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(53, 48, 38);
+            button.FlatAppearance.MouseOverBackColor = ReferenceUi.Hover;
             button.FlatAppearance.MouseDownBackColor = Color.FromArgb(68, 57, 38);
-            Round(control, 11);
+            Round(control, (int)ReferenceUi.ControlRadius);
         }
         else if(control is TextBox input)
         {
-            input.BackColor=Color.FromArgb(21,24,30);input.ForeColor=Color.FromArgb(241,242,244);input.BorderStyle=BorderStyle.FixedSingle;
+            input.BackColor=ReferenceUi.Field;input.ForeColor=ReferenceUi.Text;input.BorderStyle=BorderStyle.FixedSingle;
         }
         else if(control is ComboBox select)
         {
-            select.BackColor=Color.FromArgb(21,24,30);select.ForeColor=Color.FromArgb(241,242,244);select.FlatStyle=FlatStyle.Flat;
+            select.BackColor=ReferenceUi.Field;select.ForeColor=ReferenceUi.Text;select.FlatStyle=FlatStyle.Flat;
         }
         else if (control is Panel panel && panel.BackColor == Surface)
         {
-            Round(panel, 16);
+            Round(panel, (int)ReferenceUi.PanelRadius);
         }
         else if (control is DataGridView grid)
         {
@@ -77,11 +80,11 @@ internal static class PremiumTheme
             grid.BackgroundColor = Background;
             grid.EnableHeadersVisualStyles = false;
             grid.ColumnHeadersDefaultCellStyle.BackColor = Surface;
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(150, 157, 170);
-            grid.DefaultCellStyle.BackColor = Color.FromArgb(23, 26, 32);
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Surface;
-            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(65, 55, 37);
-            grid.DefaultCellStyle.SelectionForeColor = Color.FromArgb(241, 242, 244);
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = ReferenceUi.Muted;
+            grid.DefaultCellStyle.BackColor = Surface;
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(31, 29, 26);
+            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(58, 50, 36);
+            grid.DefaultCellStyle.SelectionForeColor = ReferenceUi.Text;
         }
         // Style later-created navigation buttons, tabs and listing cards too.
         control.ControlAdded += (_, e) => { if (e.Control is not null) Style(e.Control); };
@@ -121,7 +124,7 @@ internal static class PremiumTheme
         if (rect.Width <= 0 || rect.Height <= 0) return;
         var previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = Shape(rect, 16);
+        using var path = Shape(rect, (int)ReferenceUi.PanelRadius);
         using var pen = new Pen(Outline);
         graphics.DrawPath(pen, path);
         graphics.SmoothingMode = previous;
