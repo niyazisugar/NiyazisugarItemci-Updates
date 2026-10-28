@@ -1,4 +1,4 @@
 {
-  "version": "2.15.0",
-  "notes": "Yeni koyu tema ve sol menü: menüyü daraltınca yalnızca ikonlar kalır, çalışma alanı genişler. Yumuşak köşeler, daha küçük ve okunaklı yazılar. Güncellemeler artık güvenlik doğrulaması olmadan kurulmaz."
+  "version": "2.16.0",
+  "notes": "Bütün sayfalar yeni sade düzende: küçük başlık, tek satır bilgi şeridi, Aktif/Pasif/Tümü düğme grubu, tek tablo kartı ve sade boş ekranlar. Koyu kaydırma çubukları, daha küçük ve okunaklı yazılar."
 }
