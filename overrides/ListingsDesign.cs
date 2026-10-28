@@ -13,28 +13,41 @@ public sealed partial class MainForm
     private int _listingVisibleLimit = 50;
     private void BuildListingsPanel()
     {
-        _listingsPanel.Dock=DockStyle.Fill;_listingsPanel.BackColor=ReferenceUi.Background;_listingsPanel.Padding=new Padding(30,24,30,20);
-        var header=new TableLayoutPanel {Dock=DockStyle.Top,Height=98,ColumnCount=2,RowCount=1};header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,132));header.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        var headings=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Background};var title=ReferenceUi.Label("İlanlarım",28,true);title.Dock=DockStyle.Top;title.Height=52;var subtitle=ReferenceUi.Label("İlanlarını tek yerden görüntüle ve yönet.",12);subtitle.ForeColor=ReferenceUi.Muted;subtitle.Dock=DockStyle.Bottom;subtitle.Height=35;headings.Controls.Add(title);headings.Controls.Add(subtitle);header.Controls.Add(headings,0,0);
-        var refresh=ReferenceUi.Button("Yenile","refresh",()=>_=RefreshCurrentListingsAsync(true),120);refresh.Anchor=AnchorStyles.Right|AnchorStyles.Top;refresh.Margin=new Padding(0,15,0,0);header.Controls.Add(refresh,1,0);
-        var metrics=new TableLayoutPanel {Dock=DockStyle.Top,Height=108,ColumnCount=3,RowCount=1,Padding=new Padding(0,0,0,14)};metrics.RowStyles.Add(new RowStyle(SizeType.Percent,100));for(int i=0;i<3;i++)metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,33.333f));
-        _listingCountValue.Text="0";_listingServerValue.Text="Tüm Sunucular";_listingUpdatedValue.Text="Henüz yenilenmedi";
-        metrics.Controls.Add(ReferenceUi.Metric("Aktif İlanlar",_listingCountValue,"list",ReferenceUi.Gold),0,0);metrics.Controls.Add(ReferenceUi.Metric("Seçili Sunucu",_listingServerValue,"server",ReferenceUi.Gold),1,0);metrics.Controls.Add(ReferenceUi.Metric("Son Güncelleme",_listingUpdatedValue,"clock",ReferenceUi.Gold),2,0);metrics.Controls[2].Margin=new Padding(0,0,0,0);
-        var filters=new FlowLayoutPanel {Dock=DockStyle.Top,Height=64,WrapContents=true,BackColor=ReferenceUi.Background};
+        _listingsPanel.Dock=DockStyle.Fill;_listingsPanel.BackColor=ReferenceUi.Background;_listingsPanel.Padding=PageLayout.PagePadding(this);
+        var refresh=PageLayout.Action("Yenile","refresh",()=>_=RefreshCurrentListingsAsync(true),96);
+        var create=PageLayout.Action("Hızlı İlan Ekle","plus",()=>_=ShowListingComposerAsync(),150,true);
+        var header=PageLayout.Header(this,"Satıcı alanı","İlanlarım",refresh,create);
+        _listingCountValue.Text="0";_listingServerValue.Text="Tümü";_listingUpdatedValue.Text="—";
+        var strip=new ReferenceStatStrip {Height=LogicalToDeviceUnits(46)}.Add("Aktif",_listingCountValue).Add("Sunucu",_listingServerValue).Add("Son güncelleme",_listingUpdatedValue).Right(_listingBumpSummary);
+        _listingBumpSummary.Visible=false;
+        var filters=new TableLayoutPanel {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(58),ColumnCount=3,RowCount=1,BackColor=ReferenceUi.Background,Padding=new Padding(0,LogicalToDeviceUnits(14),0,LogicalToDeviceUnits(8))};
+        filters.RowStyles.Add(new RowStyle(SizeType.Percent,100));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));filters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,LogicalToDeviceUnits(190)));
         _listingServerFilter.Items.Add("Tüm sunucular");_listingServerFilter.SelectedIndex=0;
         _listingSearch.TextChanged+=(_,_)=>{_listingVisibleLimit=50;RenderDesignedListings();};_listingServerFilter.SelectedIndexChanged+=(_,_)=>{if(!_settingListingFilters){_listingVisibleLimit=50;RenderDesignedListings();}};
-        var search=ReferenceUi.Search(_listingSearch,560);var servers=ReferenceUi.Select(_listingServerFilter,300);filters.Controls.Add(search);filters.Controls.Add(servers);_listingStatusFilter.Items.AddRange(new object[]{"Tüm durumlar","Aktif İlanlar"});_listingStatusFilter.SelectedIndex=1;_listingStatusFilter.SelectedIndexChanged+=(_,_)=>RenderDesignedListings();var status=ReferenceUi.Select(_listingStatusFilter,300,"status");filters.Controls.Add(status);
-        filters.SizeChanged+=(_,_)=>{search.Width=Math.Max(280,(int)(filters.Width*.44));servers.Width=Math.Max(220,(int)(filters.Width*.25));status.Width=Math.Max(190,(int)(filters.Width*.23));filters.Height=filters.Width<790?112:64;};
+        var search=ReferenceUi.Search(_listingSearch,400);search.Dock=DockStyle.Fill;search.Margin=new Padding(0,0,LogicalToDeviceUnits(10),0);
+        _listingStatusFilter.Items.AddRange(new object[]{"Aktif","Pasif","Tümü"});_listingStatusFilter.SelectedIndex=0;_listingStatusFilter.SelectedIndexChanged+=(_,_)=>{_listingVisibleLimit=50;RenderDesignedListings();};
+        var status=new ReferenceSegmented(_listingStatusFilter) {Dot=i=>i==0?(Color?)ReferenceUi.Aqua:null,Dock=DockStyle.Fill};status.Width=status.PreferredWidthFor();status.MinimumSize=new Size(status.Width,0);
+        var servers=ReferenceUi.Select(_listingServerFilter,190);servers.Dock=DockStyle.Fill;servers.Margin=new Padding(0);
+        filters.Controls.Add(search,0,0);filters.Controls.Add(status,1,0);filters.Controls.Add(servers,2,0);
         var table=new ReferencePanel {Dock=DockStyle.Fill,Padding=new Padding(1)};
-        var columns=new ReferenceListHeading {Dock=DockStyle.Top,Height=44};
+        var columns=new ReferenceListHeading {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(40)};
         _listingsList.Dock=DockStyle.Fill;_listingsList.FlowDirection=FlowDirection.TopDown;_listingsList.WrapContents=false;_listingsList.AutoScroll=true;_listingsList.Padding=new Padding(0);_listingsList.BackColor=ReferenceUi.Surface;
-        _listingsList.SizeChanged+=(_,_)=>{foreach(Control row in _listingsList.Controls)row.Width=Math.Max(920,_listingsList.ClientSize.Width-(_listingsList.VerticalScroll.Visible?20:2));};
-        _listingSummary.Dock=DockStyle.Bottom;_listingSummary.Height=40;_listingSummary.Padding=new Padding(18,0,18,0);_listingSummary.ForeColor=ReferenceUi.Muted;_listingSummary.Font=ReferenceUi.Font(10);
+        _listingsList.SizeChanged+=(_,_)=>{foreach(Control row in _listingsList.Controls){row.Width=row is ReferenceEmptyState?Math.Max(260,_listingsList.ClientSize.Width-2):Math.Max(760,_listingsList.ClientSize.Width-(_listingsList.VerticalScroll.Visible?20:2));if(row is ReferenceEmptyState)row.Height=Math.Max(LogicalToDeviceUnits(240),_listingsList.ClientSize.Height-4);}};
+        _listingSummary.Dock=DockStyle.Bottom;_listingSummary.Height=LogicalToDeviceUnits(34);_listingSummary.Padding=new Padding(LogicalToDeviceUnits(18),0,LogicalToDeviceUnits(18),0);_listingSummary.ForeColor=ReferenceUi.Muted;_listingSummary.BackColor=ReferenceUi.Surface;_listingSummary.Font=ReferenceUi.Font(8.5f);
         table.Controls.Add(_listingsList);table.Controls.Add(_listingSummary);table.Controls.Add(columns);
-        _listingsStatusLabel.Dock=DockStyle.Bottom;_listingsStatusLabel.Height=25;_listingsStatusLabel.ForeColor=ReferenceUi.Muted;_listingsStatusLabel.Font=ReferenceUi.Font(9);_listingsStatusLabel.Text="";_listingsStatusLabel.Visible=false;_listingsStatusLabel.TextChanged+=(_,_)=>_listingsStatusLabel.Visible=!string.IsNullOrWhiteSpace(_listingsStatusLabel.Text);
-        _listingBumpSummary.Dock=DockStyle.Bottom;_listingBumpSummary.Height=24;_listingBumpSummary.ForeColor=ReferenceUi.Gold;_listingBumpSummary.Font=ReferenceUi.Font(9);
-        _autoBumpStatus.TextChanged+=(_,_)=>_listingBumpSummary.Text="Ücretsiz yukarı çıkarma · "+_autoBumpStatus.Text;
-        _listingsPanel.Controls.Add(table);_listingsPanel.Controls.Add(_listingsStatusLabel);_listingsPanel.Controls.Add(_listingBumpSummary);_listingsPanel.Controls.Add(filters);_listingsPanel.Controls.Add(metrics);_listingsPanel.Controls.Add(header);
+        _listingsStatusLabel.Text="";
+        var banner=new ReferenceInfoBanner(_listingsStatusLabel) {Height=LogicalToDeviceUnits(52)};
+        _autoBumpStatus.TextChanged+=(_,_)=>_listingBumpSummary.Text="Ücretsiz yukarı taşıma · "+_autoBumpStatus.Text;
+        _listingsPanel.Controls.Add(table);_listingsPanel.Controls.Add(banner);_listingsPanel.Controls.Add(filters);_listingsPanel.Controls.Add(strip);_listingsPanel.Controls.Add(PageLayout.Spacer(this,6));_listingsPanel.Controls.Add(header);
+    }
+    private ReferenceEmptyState ListingsEmptyState()
+    {
+        bool none=_designedListings.Count==0;
+        var profile=PageLayout.Action("Profili aç","open",()=>{ShowPanel(_browserPanel);var url=string.IsNullOrWhiteSpace(_settings.OwnStoreUrl)?"https://itemci.com/":_settings.OwnStoreUrl;_=OpenOrActivateBrowserTabAsync(url,"Profil");},110);
+        var add=PageLayout.Action("İlan ekle","plus",()=>_=ShowListingComposerAsync(),110,true);
+        var state=new ReferenceEmptyState("list",none?"Aktif ilan bulunamadı":"Filtreye uyan ilan yok",none?"Itemci mağaza/profil linkin algılanamadıysa profil sayfanı bir kez açıp yenile ya da yeni bir ilan ekle.":"Aramayı, durumu veya sunucu seçimini değiştirerek tekrar dene.",profile,add);
+        state.Width=Math.Max(260,_listingsList.ClientSize.Width-2);state.Height=Math.Max(LogicalToDeviceUnits(240),_listingsList.ClientSize.Height-4);state.Margin=new Padding(0);
+        return state;
     }
     private async Task LoadListingThumbnailAsync(PictureBox target,string address)
     {
@@ -73,26 +86,27 @@ public sealed partial class MainForm
     private void RenderDesignedListings()
     {
         var query=_listingSearch.Text.Trim(); var server=_listingServerFilter.SelectedItem?.ToString();
-        var rows=_designedListings.Where(x=>(server is null or "Tüm sunucular" || x.Server==server) && (_listingStatusFilter.SelectedIndex==0 || x.Status=="AKTİF") && (query.Length==0 || x.Title.Contains(query,StringComparison.CurrentCultureIgnoreCase) || x.Server.Contains(query,StringComparison.CurrentCultureIgnoreCase))).ToList();
-        _listingCountValue.Text=_designedListings.Count.ToString(); _listingServerValue.Text=server??"Tüm sunucular";
+        var rows=_designedListings.Where(x=>(server is null or "Tüm sunucular" || x.Server==server) && (_listingStatusFilter.SelectedIndex==2 || (_listingStatusFilter.SelectedIndex==0)==(x.Status=="AKTİF")) && (query.Length==0 || x.Title.Contains(query,StringComparison.CurrentCultureIgnoreCase) || x.Server.Contains(query,StringComparison.CurrentCultureIgnoreCase))).ToList();
+        _listingCountValue.Text=_designedListings.Count(x=>x.Status=="AKTİF").ToString(); _listingServerValue.Text=server is null or "Tüm sunucular"?"Tümü":server;
         _listingSummary.Text=$"{rows.Count} ilan gösteriliyor · İlan bilgileri son yenilemeye aittir.";
         _listingsList.SuspendLayout();
         // Dispose cards and their images when filters change; no hidden image cache.
         while(_listingsList.Controls.Count>0) { var old=_listingsList.Controls[0]; _listingsList.Controls.Remove(old); old.Dispose(); }
-        if(rows.Count==0) _listingsList.Controls.Add(new Label { Text="Gösterilecek ilan bulunamadı.",Width=Math.Max(260,_listingsList.ClientSize.Width-24),Height=100,TextAlign=ContentAlignment.MiddleCenter,ForeColor=TextMuted });
+        _listingsList.AutoScroll=rows.Count>0;
+        if(rows.Count==0) _listingsList.Controls.Add(ListingsEmptyState());
         foreach(var item in rows.Take(_listingVisibleLimit))
         {
-            var row=new ReferenceRow {Width=Math.Max(920,_listingsList.ClientSize.Width-(_listingsList.VerticalScroll.Visible?20:2)),Height=82,Margin=new Padding(0),Padding=new Padding(0,0,0,1)};
-            var cells=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=5,RowCount=1,Margin=new Padding(0),Padding=new Padding(14,0,14,0),BackColor=ReferenceUi.Surface};cells.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(float part in new[]{40f,12f,14f,10f,24f})cells.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,part));
-            var product=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Surface,Padding=new Padding(0,8,8,8)};
-            var picture=new PictureBox {Dock=DockStyle.Left,Width=66,SizeMode=PictureBoxSizeMode.Zoom,BackColor=ReferenceUi.Field};picture.Disposed+=(_,_)=>picture.Image?.Dispose();_=LoadListingThumbnailAsync(picture,item.ImageUrl);
-            var title=ReferenceUi.Label(item.Title,11,true);title.Dock=DockStyle.Fill;title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(16,0,0,0);product.Controls.Add(title);product.Controls.Add(picture);cells.Controls.Add(product,0,0);
+            var row=new ReferenceRow {Width=Math.Max(760,_listingsList.ClientSize.Width-(_listingsList.VerticalScroll.Visible?20:2)),Height=LogicalToDeviceUnits(60),Margin=new Padding(0),Padding=new Padding(0,0,0,1)};
+            var cells=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=5,RowCount=1,Margin=new Padding(0),Padding=new Padding(LogicalToDeviceUnits(16),0,LogicalToDeviceUnits(16),0),BackColor=ReferenceUi.Surface};cells.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(float part in new[]{40f,12f,14f,10f,24f})cells.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,part));
+            var product=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Surface,Padding=new Padding(0,LogicalToDeviceUnits(9),8,LogicalToDeviceUnits(9))};
+            var picture=new PictureBox {Dock=DockStyle.Left,Width=LogicalToDeviceUnits(52),SizeMode=PictureBoxSizeMode.Zoom,BackColor=ReferenceUi.Field};picture.Disposed+=(_,_)=>picture.Image?.Dispose();_=LoadListingThumbnailAsync(picture,item.ImageUrl);
+            var title=ReferenceUi.Label(item.Title,9.5f,true);title.Dock=DockStyle.Fill;title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(LogicalToDeviceUnits(12),0,0,0);product.Controls.Add(title);product.Controls.Add(picture);cells.Controls.Add(product,0,0);
             var serverLabel=new ReferenceBadge {Text=item.Server,Dock=DockStyle.Fill};cells.Controls.Add(serverLabel,1,0);
-            var price=ReferenceUi.Label(item.PriceText,13,true);price.ForeColor=ReferenceUi.Gold;price.Dock=DockStyle.Fill;price.TextAlign=ContentAlignment.MiddleCenter;cells.Controls.Add(price,2,0);
+            var price=ReferenceUi.Label(item.PriceText,10,true);price.ForeColor=ReferenceUi.Gold;price.Dock=DockStyle.Fill;price.TextAlign=ContentAlignment.MiddleCenter;cells.Controls.Add(price,2,0);
             var state=new ReferenceBadge {Text=item.Status=="AKTİF"?"Aktif":item.Status,Status=item.Status=="AKTİF",Dock=DockStyle.Fill};cells.Controls.Add(state,3,0);
-            var actions=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Padding=new Padding(8,18,0,18),BackColor=ReferenceUi.Surface};actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-            var copy=ReferenceUi.Button("Linki Kopyala","copy",()=>{if(!string.IsNullOrWhiteSpace(item.Url))Clipboard.SetText(item.Url);});copy.Dock=DockStyle.Fill;copy.Margin=new Padding(0,0,8,0);copy.Font=ReferenceUi.Font(9);
-            var open=ReferenceUi.Button("İlanı Aç","open",()=>{ShowPanel(_browserPanel);_=OpenOrActivateBrowserTabAsync(item.Url,item.Title);});open.Dock=DockStyle.Fill;open.Margin=new Padding(0);open.Font=ReferenceUi.Font(9);actions.Controls.Add(copy,0,0);actions.Controls.Add(open,1,0);cells.Controls.Add(actions,4,0);
+            var actions=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Padding=new Padding(8,LogicalToDeviceUnits(13),0,LogicalToDeviceUnits(13)),BackColor=ReferenceUi.Surface};actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+            var copy=ReferenceUi.Button("Kopyala","copy",()=>{if(!string.IsNullOrWhiteSpace(item.Url))Clipboard.SetText(item.Url);});copy.Dock=DockStyle.Fill;copy.Margin=new Padding(0,0,8,0);copy.Font=ReferenceUi.Font(8.5f);
+            var open=ReferenceUi.Button("Aç","open",()=>{ShowPanel(_browserPanel);_=OpenOrActivateBrowserTabAsync(item.Url,item.Title);});open.Dock=DockStyle.Fill;open.Margin=new Padding(0);open.Font=ReferenceUi.Font(8.5f);actions.Controls.Add(copy,0,0);actions.Controls.Add(open,1,0);cells.Controls.Add(actions,4,0);
             _sidebarToolTip.SetToolTip(copy,"İlanın gerçek bağlantısını kopyala");_sidebarToolTip.SetToolTip(open,"İlanı mevcut tarayıcıda aç");
             row.Controls.Add(cells);_listingsList.Controls.Add(row);
         }

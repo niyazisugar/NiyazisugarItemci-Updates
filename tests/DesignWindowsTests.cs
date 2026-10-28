@@ -146,6 +146,9 @@ public sealed partial class MainForm
         _listingSearch.Text="02";if(_listingsList.Controls.OfType<ReferenceRow>().Count()!=1)throw new Exception("Listing title filter failed.");_listingSearch.Clear();
         photos=Descendants(_listingsList).OfType<PictureBox>().ToArray();for(int i=0;i<photos.Length;i++)photos[i].Image=TestThumbnail(i+1);
         ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
+        RenderCurrentListings(new List<ListingInfo>());if(_listingsList.Controls.OfType<ReferenceEmptyState>().Count()!=1)throw new Exception("Empty listings state missing.");
+        _listingsStatusLabel.Text="Yalıtılmış test · aktif ilan listesi alınamadı.";await Task.Delay(100);await CaptureAsync("listings-empty");_listingsStatusLabel.Text="";
+        ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking");
         // Seller-counter correlation: both signals required; no first-observation backfill.
         var watch=new ServerWatch();var stamp=DateTime.UtcNow;
         ProductObservation Observation(bool available,int count)=>new(){url="https://itemci.com/product/test/test",sellerId="seller",available=available,salesCount=count,expiresAt=stamp.AddDays(1).ToString("O")};
