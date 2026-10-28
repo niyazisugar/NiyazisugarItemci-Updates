@@ -5,6 +5,9 @@ on:
     branches: [ main ]
     paths:
       - 'publish.json'
+  # Pull request: her şey derlenir ve test edilir ama sürüm YAYINLANMAZ.
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -322,6 +325,7 @@ jobs:
           $latest | ConvertTo-Json -Depth 4 | Set-Content "latest.json" -Encoding utf8
 
       - name: Publish GitHub release
+        if: github.event_name != 'pull_request'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
