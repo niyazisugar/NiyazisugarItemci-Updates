@@ -168,7 +168,7 @@
 
         const typeAnswer = prompt(
             'Kategori türü:\n\n' +
-            '1 = MİKTARLI / BİRİM FİYAT\n' +
+            '1 = MİKTARLI / Birim fiyat\n' +
             '    Örn: 40KT, 15M Yang, 100 Ot\n\n' +
             '2 = K/M ÖLÇEKLİ MİKTAR\n' +
             '    Örn: 500k Derece Meyvesi, 1m Derece\n\n' +
@@ -1201,14 +1201,14 @@
                             type="button"
                             data-url="${esc(x.url)}"
                             title="İlanı yeni sekmede aç"
-                        >↗ GİT</button>
+                        >↗ Git</button>
 
                         <button
                             class="miniBtn copyLink"
                             type="button"
                             data-url="${esc(x.url)}"
                             title="İlan linkini kopyala"
-                        >⧉ KOPYALA</button>
+                        >⧉ Kopyala</button>
                     </div>
                 </td>
             </tr>
@@ -1255,14 +1255,14 @@
                             type="button"
                             data-url="${esc(x.url)}"
                             title="İlanı yeni sekmede aç"
-                        >↗ GİT</button>
+                        >↗ Git</button>
 
                         <button
                             class="miniBtn copyLink"
                             type="button"
                             data-url="${esc(x.url)}"
                             title="İlan linkini kopyala"
-                        >⧉ KOPYALA</button>
+                        >⧉ Kopyala</button>
                     </div>
                 </td>
             </tr>
@@ -1323,7 +1323,7 @@
                             data-url="${esc(x.url)}"
                             title="İlanı yeni sekmede aç"
                         >
-                            ↗ GİT
+                            ↗ Git
                         </button>
 
                         <button
@@ -1332,7 +1332,7 @@
                             data-url="${esc(x.url)}"
                             title="İlan linkini kopyala"
                         >
-                            ⧉ KOPYALA
+                            ⧉ Kopyala
                         </button>
                     </div>
                 </td>
@@ -1350,24 +1350,24 @@
                         <tr>
                             <th>#</th>
                             <th class="sortable" data-sort="seller" data-default-dir="asc">
-                                <span class="thInner">SATICI <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Satıcı <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable" data-sort="title" data-default-dir="asc">
-                                <span class="thInner">İLAN BAŞLIĞI <span class="sortIcon">↕</span></span>
+                                <span class="thInner">İlan başlığı <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable numHead" data-sort="amount" data-default-dir="asc">
-                                <span class="thInner">MİKTAR <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Miktar <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable numHead sortActive" data-sort="unit" data-default-dir="asc" data-current-dir="asc">
-                                <span class="thInner">BİRİM FİYAT <span class="sortIcon">↑</span></span>
+                                <span class="thInner">Birim fiyat <span class="sortIcon">↑</span></span>
                             </th>
                             <th class="sortable numHead" data-sort="price" data-default-dir="asc">
-                                <span class="thInner">TOPLAM <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Toplam <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable timeHead" data-sort="age" data-default-dir="asc">
-                                <span class="thInner">SÜRE <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Süre <span class="sortIcon">↕</span></span>
                             </th>
-                            <th>İŞLEM</th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody class="${prefix}Body">
@@ -1393,24 +1393,24 @@
                         <tr>
                             <th>#</th>
                             <th class="sortable" data-sort="seller" data-default-dir="asc">
-                                <span class="thInner">SATICI <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Satıcı <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable" data-sort="title" data-default-dir="asc">
                                 <span class="thInner">İLAN <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable numHead" data-sort="amount" data-default-dir="asc">
-                                <span class="thInner">MİKTAR <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Miktar <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable numHead" data-sort="unit" data-default-dir="asc">
                                 <span class="thInner">BİRİM <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable numHead" data-sort="price" data-default-dir="asc">
-                                <span class="thInner">TOPLAM <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Toplam <span class="sortIcon">↕</span></span>
                             </th>
                             <th class="sortable timeHead" data-sort="age" data-default-dir="asc">
-                                <span class="thInner">SÜRE <span class="sortIcon">↕</span></span>
+                                <span class="thInner">Süre <span class="sortIcon">↕</span></span>
                             </th>
-                            <th>İŞLEM</th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody>${rowHtml(rows, 'suspicious', amountLabel)}</tbody>
@@ -1694,8 +1694,8 @@
                 </td>
                 <td class="actionCell">
                     <div class="rowActions">
-                        <button class="miniBtn openListing" type="button" data-url="${esc(x.url)}">↗ GİT</button>
-                        <button class="miniBtn copyLink" type="button" data-url="${esc(x.url)}">⧉ KOPYALA</button>
+                        <button class="miniBtn openListing" type="button" data-url="${esc(x.url)}">↗ Git</button>
+                        <button class="miniBtn copyLink" type="button" data-url="${esc(x.url)}">⧉ Kopyala</button>
                     </div>
                 </td>
             </tr>
@@ -1762,9 +1762,9 @@
                 return `
                 <section id="${prefix}View" class="view ${i === 0 ? 'active' : ''}">
                     <div class="stats">
-                        <div class="stat"><span>EN UCUZ İLAN</span><strong class="green">${fmt(r.cheapest)} TL</strong></div>
-                        <div class="stat"><span>MEDYAN FİYAT</span><strong>${fmt(r.median)} TL</strong></div>
-                        <div class="stat"><span>ORTALAMA FİYAT</span><strong>${fmt(r.average)} TL</strong></div>
+                        <div class="stat"><span>En ucuz ilan</span><strong class="green">${fmt(r.cheapest)} TL</strong></div>
+                        <div class="stat"><span>Medyan fiyat</span><strong>${fmt(r.median)} TL</strong></div>
+                        <div class="stat"><span>Ortalama fiyat</span><strong>${fmt(r.average)} TL</strong></div>
                         <div class="stat"><span>İLAN SAYISI</span><strong>${r.valid.length}</strong></div>
                         <div class="stat"><span>SON 36 SAAT</span><strong>${r.valid.length}</strong></div>
                     </div>
@@ -1799,11 +1799,11 @@
                                     <thead>
                                         <tr>
                                             <th>#</th>
-                                            <th class="sortable" data-sort="seller" data-default-dir="asc"><span class="thInner">SATICI <span class="sortIcon">↕</span></span></th>
-                                            <th class="sortable" data-sort="title" data-default-dir="asc"><span class="thInner">İLAN BAŞLIĞI <span class="sortIcon">↕</span></span></th>
+                                            <th class="sortable" data-sort="seller" data-default-dir="asc"><span class="thInner">Satıcı <span class="sortIcon">↕</span></span></th>
+                                            <th class="sortable" data-sort="title" data-default-dir="asc"><span class="thInner">İlan başlığı <span class="sortIcon">↕</span></span></th>
                                             <th class="sortable numHead" data-sort="price" data-default-dir="asc"><span class="thInner">FİYAT <span class="sortIcon">↕</span></span></th>
-                                            <th class="sortable timeHead" data-sort="age" data-default-dir="asc"><span class="thInner">SÜRE <span class="sortIcon">↕</span></span></th>
-                                            <th>İŞLEM</th>
+                                            <th class="sortable timeHead" data-sort="age" data-default-dir="asc"><span class="thInner">Süre <span class="sortIcon">↕</span></span></th>
+                                            <th>İşlem</th>
                                         </tr>
                                     </thead>
                                     <tbody class="${prefix}Body">
@@ -1827,11 +1827,11 @@
             return `
             <section id="${prefix}View" class="view ${i === 0 ? 'active' : ''}">
                 <div class="stats">
-                    <div class="stat"><span>EN UCUZ</span><strong class="green">${fmt(r.cheapest)} TL / ${esc(c.unitLabel)}</strong></div>
-                    <div class="stat"><span>MEDYAN</span><strong>${fmt(r.median)} TL / ${esc(c.unitLabel)}</strong></div>
-                    <div class="stat"><span>ORTALAMA</span><strong>${fmt(r.average)} TL / ${esc(c.unitLabel)}</strong></div>
-                    <div class="stat"><span>TOPLAM MİKTAR</span><strong>${fmt(r.totalAmount, 2)} ${esc(c.unitLabel)}</strong></div>
-                    <div class="stat"><span>GEÇERLİ İLAN</span><strong>${r.valid.length}</strong></div>
+                    <div class="stat"><span>En ucuz</span><strong class="green">${fmt(r.cheapest)} TL / ${esc(c.unitLabel)}</strong></div>
+                    <div class="stat"><span>Medyan</span><strong>${fmt(r.median)} TL / ${esc(c.unitLabel)}</strong></div>
+                    <div class="stat"><span>Ortalama</span><strong>${fmt(r.average)} TL / ${esc(c.unitLabel)}</strong></div>
+                    <div class="stat"><span>Toplam miktar</span><strong>${fmt(r.totalAmount, 2)} ${esc(c.unitLabel)}</strong></div>
+                    <div class="stat"><span>Geçerli ilan</span><strong>${r.valid.length}</strong></div>
                 </div>
 
                 <div class="workspace">
@@ -1988,6 +1988,45 @@
 #itemci-v17 .miniBtn{height:32px;font-size:11px;padding:0 12px}#itemci-v17 .timeBadge{font-size:11px;height:30px;font-weight:500}
 #itemci-v17 .addServer,#itemci-v17 .categoriesBtn{color:#e3c27a;border-color:#65563d;background:#23211d}
 #itemci-v17 .scanServer{color:#24211c;background:#7cc79a;border-color:#7cc79a}#itemci-v17 .footnote{font-size:11px;margin-top:14px}
+/* Dim Paper sayfa iskeleti: küçük üst etiket + başlık, tek satır bilgi şeridi, düğme grubu sekmeler, tek tablo kartı */
+#itemci-v17{font-size:13px}
+#itemci-v17 .topbar{padding:26px 36px 0;background:#141311;border-bottom:0}
+#itemci-v17 .title{font-size:20px;line-height:1.3;color:var(--text);font-weight:600}
+#itemci-v17 .title::before{content:"Satıcı alanı";display:block;margin-bottom:2px;color:var(--muted);font-size:11px;font-weight:400}
+#itemci-v17 .sub{margin-top:10px;padding-bottom:14px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.5}
+#itemci-v17 button{height:34px;padding:0 13px;border-radius:10px;font-size:12px;font-weight:500;background:var(--panel3);border-color:var(--line2);color:var(--text)}
+#itemci-v17 .close{width:34px}
+#itemci-v17 .rescan,#itemci-v17 .addServer,#itemci-v17 .categoriesBtn{color:var(--text);border-color:var(--line2);background:var(--panel3)}
+#itemci-v17 .removeServer{color:#e8a08c;border-color:var(--line2);background:transparent}
+#itemci-v17 .scanServer{color:#1e170b;background:var(--orange);border-color:var(--orange);font-weight:600}
+#itemci-v17 .serverbar{margin-top:14px;padding:0;border-top:0;gap:8px}
+#itemci-v17 .serverLabel{display:none}
+#itemci-v17 .serverSelect{height:34px;min-width:240px;border-radius:10px;font-size:12px;font-weight:500;background:var(--panel3)}
+#itemci-v17 .tabs{display:inline-flex;gap:0;margin-top:14px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--panel3)}
+#itemci-v17 .tabBtn{height:28px;padding:0 14px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:12px;font-weight:500}
+#itemci-v17 .tabBtn:hover{background:#2a2722}
+#itemci-v17 .tabBtn.active{background:#34302a;color:var(--text);border:0}
+#itemci-v17 .stats{display:flex;flex-wrap:wrap;gap:6px 26px;padding:14px 36px;margin:0;border-bottom:1px solid var(--line)}
+#itemci-v17 .stat{display:flex;align-items:baseline;gap:6px;min-height:0;padding:0;border:0;border-radius:0;background:none}
+#itemci-v17 .stat span{margin:0;color:var(--muted);font-size:12px;font-weight:400;letter-spacing:0}
+#itemci-v17 .stat strong{font-size:13px;font-weight:600}
+#itemci-v17 .workspace{padding:16px 36px 24px}
+#itemci-v17 .toolbar{margin:0 0 12px;gap:12px}
+#itemci-v17 .search{height:36px;padding-left:12px;border-radius:10px;background:var(--panel3);border-color:var(--line);color:var(--text);font-size:12px}
+#itemci-v17 .tableCard{border-radius:14px;background:var(--panel);border-color:var(--line)}
+#itemci-v17 th{padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:500;letter-spacing:0}
+#itemci-v17 th.sortActive{color:var(--text)}
+#itemci-v17 td{height:48px;padding:10px 14px;border-top:1px solid #26231f;font-size:12.5px}
+#itemci-v17 tbody tr:nth-child(even){background:transparent}
+#itemci-v17 tbody tr:hover{background:#221f1b}
+#itemci-v17 .seller{color:var(--orange);font-weight:500}
+#itemci-v17 .listingTitle{font-size:12.5px;font-weight:500}
+#itemci-v17 .timeBadge,#itemci-v17 .intentBadge{height:24px;min-width:0;padding:0 10px;border-radius:999px;font-size:11px;font-weight:500}
+#itemci-v17 .miniBtn{height:28px;padding:0 10px;border-radius:8px;font-size:11px;font-weight:500}
+#itemci-v17 .modeHint{border-radius:10px;border-color:#52422a;background:#28221a;color:#e4cea0}
+#itemci-v17 .footnote{font-size:11px;margin-top:12px;color:var(--muted)}
+#itemci-v17 .sub{border-bottom:0;padding-bottom:0}#itemci-v17 .num{color:var(--text)}#itemci-v17 .unit,#itemci-v17 .num .unit{color:var(--green)}#itemci-v17 .tabs{margin-bottom:14px}
+@media(max-width:700px){#itemci-v17 .topbar{padding:18px 16px 0}#itemci-v17 .stats{padding:12px 16px}#itemci-v17 .workspace{padding:14px 16px 20px}}
 #itemci-v17 .tableWrap{max-height:calc(100vh - 410px);min-height:170px}
 @media(max-width:950px){#itemci-v17 .stats{padding:14px 16px 0}#itemci-v17 .topbar{padding:18px 16px 12px}#itemci-v17 .workspace{padding:14px 16px}#itemci-v17 .title{font-size:24px}#itemci-v17 .stat strong{font-size:21px}#itemci-v17 .serverbar{flex-wrap:wrap}}
 </style>
@@ -2004,7 +2043,7 @@
         </div>
 
         <div class="actions">
-            <button class="rescan">YENİDEN TARA</button>
+            <button class="rescan">Yeniden tara</button>
             <button class="close">×</button>
         </div>
     </div>
@@ -2012,16 +2051,16 @@
     <div class="serverbar">
         <span class="serverLabel">SERVER</span>
         <select class="serverSelect">${serverOptions}</select>
-        <button class="scanServer">SEÇİLİ SERVERİ TARA</button>
-        <button class="addServer">+ SERVER EKLE</button>
-        <button class="categoriesBtn">KATEGORİLER</button>
-        <button class="removeServer">SERVER SİL</button>
+        <button class="scanServer">Seçili sunucuyu tara</button>
+        <button class="addServer">+ Sunucu ekle</button>
+        <button class="categoriesBtn">Kategoriler</button>
+        <button class="removeServer">Sunucuyu sil</button>
     </div>
 
     <div class="tabs">
         ${categoryTabsHtml}
-        <button class="tabBtn ${initialExtraActive ? 'active' : ''}" data-view="buyerView">ALICI ARAYANLAR</button>
-        <button class="tabBtn" data-view="generalView">GENEL ARAMA</button>
+        <button class="tabBtn ${initialExtraActive ? 'active' : ''}" data-view="buyerView">Alıcı arayanlar</button>
+        <button class="tabBtn" data-view="generalView">Genel arama</button>
     </div>
 </div>
 
@@ -2060,8 +2099,8 @@ ${categorySectionsHtml}
                             <th class="sortable" data-sort="title" data-default-dir="asc"><span class="thInner">ARADIĞI / İLAN <span class="sortIcon">↕</span></span></th>
                             <th class="sortable" data-sort="intent" data-default-dir="asc"><span class="thInner">EŞLEŞME <span class="sortIcon">↕</span></span></th>
                             <th class="sortable numHead" data-sort="price" data-default-dir="asc"><span class="thInner">İLAN FİYATI <span class="sortIcon">↕</span></span></th>
-                            <th class="sortable timeHead sortActive" data-sort="age" data-default-dir="asc" data-current-dir="asc"><span class="thInner">SÜRE <span class="sortIcon">↑</span></span></th>
-                            <th>İŞLEM</th>
+                            <th class="sortable timeHead sortActive" data-sort="age" data-default-dir="asc" data-current-dir="asc"><span class="thInner">Süre <span class="sortIcon">↑</span></span></th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody class="buyerBody">
@@ -2082,9 +2121,9 @@ ${categorySectionsHtml}
 
 <section id="generalView" class="view">
     <div class="stats generalStats">
-        <div class="stat"><span>EN UCUZ İLAN</span><strong class="generalMin green">—</strong></div>
-        <div class="stat"><span>MEDYAN FİYAT</span><strong class="generalMedian">—</strong></div>
-        <div class="stat"><span>ORTALAMA FİYAT</span><strong class="generalAverage">—</strong></div>
+        <div class="stat"><span>En ucuz ilan</span><strong class="generalMin green">—</strong></div>
+        <div class="stat"><span>Medyan fiyat</span><strong class="generalMedian">—</strong></div>
+        <div class="stat"><span>Ortalama fiyat</span><strong class="generalAverage">—</strong></div>
         <div class="stat"><span>EŞLEŞEN İLAN</span><strong class="generalCount">${generalRows.length}</strong></div>
         <div class="stat"><span>SON 36 SAAT</span><strong>${recentAll.length}</strong></div>
     </div>
@@ -2108,11 +2147,11 @@ ${categorySectionsHtml}
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th class="sortable" data-sort="seller" data-default-dir="asc"><span class="thInner">SATICI <span class="sortIcon">↕</span></span></th>
-                            <th class="sortable" data-sort="title" data-default-dir="asc"><span class="thInner">İLAN BAŞLIĞI <span class="sortIcon">↕</span></span></th>
+                            <th class="sortable" data-sort="seller" data-default-dir="asc"><span class="thInner">Satıcı <span class="sortIcon">↕</span></span></th>
+                            <th class="sortable" data-sort="title" data-default-dir="asc"><span class="thInner">İlan başlığı <span class="sortIcon">↕</span></span></th>
                             <th class="sortable numHead" data-sort="price" data-default-dir="asc"><span class="thInner">FİYAT <span class="sortIcon">↕</span></span></th>
-                            <th class="sortable timeHead sortActive" data-sort="age" data-default-dir="asc" data-current-dir="asc"><span class="thInner">SÜRE <span class="sortIcon">↑</span></span></th>
-                            <th>İŞLEM</th>
+                            <th class="sortable timeHead sortActive" data-sort="age" data-default-dir="asc" data-current-dir="asc"><span class="thInner">Süre <span class="sortIcon">↑</span></span></th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody class="generalBody">
@@ -2436,7 +2475,7 @@ ${categorySectionsHtml}
                 }
 
                 const oldText = copyBtn.textContent;
-                copyBtn.textContent = '✓ KOPYALANDI';
+                copyBtn.textContent = '✓ Kopyalandı';
                 copyBtn.classList.add('copied');
                 showToast('İlan linki kopyalandı');
 
@@ -2552,10 +2591,10 @@ ${categorySectionsHtml}
                     <select class="serverSelect">${options}</select>
 
                     <div class="buttons">
-                        <button class="scan">SEÇİLİ SERVERİ TARA</button>
-                        <button class="add">+ SERVER EKLE</button>
+                        <button class="scan">Seçili sunucuyu tara</button>
+                        <button class="add">+ Sunucu ekle</button>
                         <button class="cats">KATEGORİLERİ AYARLA</button>
-                        <button class="remove">SERVER SİL</button>
+                        <button class="remove">Sunucuyu sil</button>
                         <button class="cancel">VAZGEÇ</button>
                     </div>
 

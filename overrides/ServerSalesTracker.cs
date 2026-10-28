@@ -45,15 +45,15 @@ public sealed partial class MainForm
         foreach(Control old in _liveRows.Controls.Cast<Control>().ToArray())old.Dispose();
         if (rows.Count == 0)
         {
-            _liveRows.Controls.Add(new ReferenceEmptySale {Width=_liveRows.ClientSize.Width-4,Height=Math.Max(240,_liveRows.ClientSize.Height-22)});
+            _liveRows.Controls.Add(new ReferenceEmptyState("bag","Henüz satış tespit edilmedi","Seçili sunucuda tespit edilen satışlar burada listelenecek.") {Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4),Height=Math.Max(LogicalToDeviceUnits(240),_liveRows.ClientSize.Height-_liveRows.Padding.Vertical-6),Margin=new Padding(0)});
         }
         foreach (var sale in rows.Take(_serverWatchVisibleCount))
         {
             var row = sale.listing;
-            var card = new ReferencePanel { Width = _liveRows.ClientSize.Width - 4, Height = 88, BackColor = ReferenceUi.Surface, Margin = new Padding(0,0,0,5), Cursor = Cursors.Hand };
+            var card = new ReferencePanel { Width = Math.Max(40,_liveRows.ClientSize.Width - _liveRows.Padding.Horizontal - 4), Height = LogicalToDeviceUnits(82), BackColor = ReferenceUi.Field, Margin = new Padding(0,0,0,LogicalToDeviceUnits(6)), Cursor = Cursors.Hand, Padding = new Padding(LogicalToDeviceUnits(10),LogicalToDeviceUnits(6),LogicalToDeviceUnits(10),LogicalToDeviceUnits(4)) };
             var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
             var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
-            var info = new Label { Dock = DockStyle.Fill, Text = $"Son fiyat: {row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = PremiumTheme.Turquoise, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
+            var info = new Label { Dock = DockStyle.Fill, Text = $"Son fiyat: {row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = ReferenceUi.Muted, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
             var evidence=new Label {Dock=DockStyle.Bottom,Height=23,Text=sale.evidence=="category-counter"?$"Olası satış · Liste + sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü sinyal · Satış sayacı +{sale.sellerIncrease}":"Sitede satıldı işareti",ForeColor=PremiumTheme.Gold,Font=_watchInfoFont,Padding=new Padding(4,0,0,0)};
             card.Controls.Add(evidence);card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
             foreach (Control target in new Control[] {card,name,seller,info,evidence})
@@ -66,7 +66,7 @@ public sealed partial class MainForm
         if(rows.Count>_serverWatchVisibleCount)
         {
             var more=ActionButton("DAHA FAZLA GÖSTER",()=>{_serverWatchVisibleCount+=50;RenderServerSalesWatch();});
-            more.Width=_liveMarket.Width-26;_liveRows.Controls.Add(more);
+            more.Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4);_liveRows.Controls.Add(more);
         }
         _liveRows.ResumeLayout();PositionLiveMarket();
     }

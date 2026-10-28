@@ -18,23 +18,25 @@ public sealed partial class MainForm
 
     private void InstallLiveMarket()
     {
-        _liveMarket=new ReferencePanel {Dock=DockStyle.Fill,Width=360,Padding=new Padding(18),BackColor=ReferenceUi.Background};
-        var header=new Panel {Dock=DockStyle.Top,Height=228,BackColor=ReferenceUi.Background};
-        var titleRow=new Panel {Dock=DockStyle.Top,Height=42,BackColor=ReferenceUi.Background};var title=ReferenceUi.Label("Satış Takibi",16,true);title.Dock=DockStyle.Fill;title.Padding=new Padding(42,0,0,0);title.TextAlign=ContentAlignment.MiddleLeft;titleRow.Paint+=(_,e)=>{if(!_liveCollapsed)ReferenceUi.Icon(e.Graphics,"chart",new RectangleF(4,9,26,26),ReferenceUi.Gold);};titleRow.Controls.Add(title);
-        var collapse=ReferenceUi.Button("","chevron",()=>{},28);collapse.Dock=DockStyle.Right;collapse.Navigation=true;collapse.Margin=new Padding(0);titleRow.Controls.Add(collapse);collapse.Visible=false;
-        var subtitle=ReferenceUi.Label("Sunucu bazında satış hareketleri",10);subtitle.ForeColor=ReferenceUi.Muted;subtitle.Dock=DockStyle.Top;subtitle.Height=38;
-        _liveServer.SelectedIndexChanged+=(_,_)=>{if(!_updatingLiveServers)RenderServerSalesWatch();};var selector=ReferenceUi.Select(_liveServer,300,"server");selector.Dock=DockStyle.Top;
-        var space=new Panel {Dock=DockStyle.Top,Height=16,BackColor=ReferenceUi.Background};
-        var metrics=new TableLayoutPanel {Dock=DockStyle.Top,Height=88,ColumnCount=2,RowCount=1,BackColor=ReferenceUi.Background};metrics.RowStyles.Add(new RowStyle(SizeType.Percent,100));metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));metrics.Controls.Add(new ReferenceMiniMetric(_liveCount,"Bugün Tespit Edilen","chart") {Dock=DockStyle.Fill,Margin=new Padding(0,0,7,0)},0,0);metrics.Controls.Add(new ReferenceMiniMetric(_liveLast,"Son Satış Tespiti","clock") {Dock=DockStyle.Fill,Margin=new Padding(7,0,0,0)},1,0);
-        header.Controls.Add(metrics);header.Controls.Add(space);header.Controls.Add(selector);header.Controls.Add(subtitle);header.Controls.Add(titleRow);
-        var refresh=ReferenceUi.Button("Şimdi Yenile","refresh",()=>_=RefreshLiveMarketAsync());refresh.Dock=DockStyle.Bottom;refresh.Height=42;refresh.GoldOutline=true;
-        var disclaimer=ReferenceUi.Label("ⓘ  Güçlü sinyal ve olası satış ayrı etiketlenir. Liste + sayaç eşleşmesi kesin satış değildir. Son ilan fiyatı gösterilir.",8);disclaimer.Dock=DockStyle.Bottom;disclaimer.Height=48;disclaimer.ForeColor=ReferenceUi.Muted;disclaimer.TextAlign=ContentAlignment.MiddleLeft;
-        _liveStatus.Dock=DockStyle.Bottom;_liveStatus.Height=76;_liveStatus.ForeColor=Color.FromArgb(57,214,151);_liveStatus.Font=ReferenceUi.Font(9);_liveStatus.BackColor=ReferenceUi.Background;
-        _liveRows.BackColor=ReferenceUi.Background;_liveRows.Padding=new Padding(0,14,0,4);
-        collapse.Click+=(_,_)=>{_liveCollapsed=!_liveCollapsed;_liveMarket.Width=LogicalToDeviceUnits(_liveCollapsed?52:360);_liveMarket.Padding=new Padding(LogicalToDeviceUnits(_liveCollapsed?4:18));_liveRows.Visible=_liveStatus.Visible=refresh.Visible=disclaimer.Visible=metrics.Visible=selector.Visible=subtitle.Visible=title.Visible=!_liveCollapsed;header.Height=LogicalToDeviceUnits(_liveCollapsed?42:228);};
-        _liveMarket.Controls.Add(_liveRows);_liveMarket.Controls.Add(_liveStatus);_liveMarket.Controls.Add(refresh);_liveMarket.Controls.Add(disclaimer);_liveMarket.Controls.Add(header);
+        _liveMarket=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Background,Padding=PageLayout.PagePadding(this)};
+        var refresh=PageLayout.Action("Şimdi yenile","refresh",()=>_=RefreshLiveMarketAsync(),120);
+        var header=PageLayout.Header(this,"Satıcı alanı","Satış Takibi",refresh);
+        _liveCount.Text="0";_liveLast.Text="—";
+        var strip=new ReferenceStatStrip {Height=LogicalToDeviceUnits(46)}.Add("Bugün tespit",_liveCount,ReferenceUi.Gold).Add("Son tespit",_liveLast).Right(_liveStatus);
+        _liveStatus.Visible=false;
+        var filters=new TableLayoutPanel {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(58),ColumnCount=2,RowCount=1,BackColor=ReferenceUi.Background,Padding=new Padding(0,LogicalToDeviceUnits(14),0,LogicalToDeviceUnits(8))};
+        filters.RowStyles.Add(new RowStyle(SizeType.Percent,100));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,LogicalToDeviceUnits(280)));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        _liveServer.SelectedIndexChanged+=(_,_)=>{if(!_updatingLiveServers)RenderServerSalesWatch();};var selector=ReferenceUi.Select(_liveServer,280,"server");selector.Dock=DockStyle.Fill;selector.Margin=new Padding(0);
+        var legend=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Background,Margin=new Padding(LogicalToDeviceUnits(16),0,0,0)};
+        legend.Paint+=(_,e)=>{float k=DeviceDpi/96f;int x=0;foreach(var (text,color) in new[]{("Güçlü sinyal",ReferenceUi.Aqua),("Olası satış",ReferenceUi.Gold)}){using var dot=new SolidBrush(color);e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;e.Graphics.FillEllipse(dot,x,legend.Height/2-3*k,7*k,7*k);var w=TextRenderer.MeasureText(text,ReferenceUi.Font(9)).Width;TextRenderer.DrawText(e.Graphics,text,ReferenceUi.Font(9),new Rectangle(x+(int)(12*k),0,w,legend.Height),ReferenceUi.Muted,TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);x+=w+(int)(30*k);}};
+        filters.Controls.Add(selector,0,0);filters.Controls.Add(legend,1,0);
+        var card=new ReferencePanel {Dock=DockStyle.Fill,Padding=new Padding(1)};
+        var disclaimer=ReferenceUi.Label("Liste + sayaç eşleşmesi kesin satış değildir. Son görülen ilan fiyatı gösterilir.",8.5f);disclaimer.Dock=DockStyle.Bottom;disclaimer.Height=LogicalToDeviceUnits(32);disclaimer.ForeColor=ReferenceUi.Muted;disclaimer.BackColor=ReferenceUi.Surface;disclaimer.TextAlign=ContentAlignment.MiddleLeft;disclaimer.Padding=new Padding(LogicalToDeviceUnits(18),0,0,0);
+        _liveRows.BackColor=ReferenceUi.Surface;_liveRows.Padding=new Padding(LogicalToDeviceUnits(10),LogicalToDeviceUnits(10),LogicalToDeviceUnits(10),0);
+        card.Controls.Add(_liveRows);card.Controls.Add(disclaimer);
+        _liveMarket.Controls.Add(card);_liveMarket.Controls.Add(filters);_liveMarket.Controls.Add(strip);_liveMarket.Controls.Add(PageLayout.Spacer(this,6));_liveMarket.Controls.Add(header);
         _serverSalesPanel.Controls.Add(_liveMarket);_content.Controls.Add(_serverSalesPanel);
-        _liveRows.SizeChanged+=(_,_)=>{foreach(Control row in _liveRows.Controls)row.Width=Math.Max(40,_liveRows.ClientSize.Width-4);};
+        _liveRows.SizeChanged+=(_,_)=>{foreach(Control row in _liveRows.Controls){row.Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4);if(row is ReferenceEmptyState)row.Height=Math.Max(LogicalToDeviceUnits(240),_liveRows.ClientSize.Height-_liveRows.Padding.Vertical-6);}};
         LoadServerSalesWatch();
         RefreshLiveMarketServers();
         RenderServerSalesWatch();
