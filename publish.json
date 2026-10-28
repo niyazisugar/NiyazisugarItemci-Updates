@@ -1,4 +1,4 @@
 {
-  "version": "2.14.19",
-  "notes": "Satış kontrol kuyruğunda yeni ilanların eski bekleyen ilanlar yüzünden aç kalması düzeltildi. Kişisel satış geçmişi bir sayfa ve en fazla üç ayrıntılık bölümlerle kaldığı yerden devam eder; bölümler arasında sunucu takibine sıra verilir. En uzun süredir kontrol edilmeyen sunucu öncelik alır; ortak takip aralığı korunur. Panel son tam liste kontrolünü ve bekleme nedenlerini gösterir. Kayıtlar, oturum ve satış sinyali ayrımı korunur."
+  "version": "2.14.20",
+  "notes": "Sağdaki satış takibi üst menüde Satış Takibi adlı ayrı ekrana taşındı. Itemci tarayıcısında sağ panel yer kaplamaz. Sunucu seçimi, kayıtlar, yenileme ve arka plan takibi korunur."
 }

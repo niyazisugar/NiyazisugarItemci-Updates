@@ -49,6 +49,7 @@ public sealed partial class MainForm
             ShowPanel(_marketPanel);
             _ = OpenEmbeddedMarketAnalyzerAsync();
         });
+        Section("Satış Takibi", 148, _serverSalesPanel, () => { ShowPanel(_serverSalesPanel); RenderServerSalesWatch(); _ = RefreshLiveMarketAsync(); });
         var create = TopButton("Hızlı İlan Ekle", 130, () => _ = ShowListingComposerAsync());
         create.ForeColor = Color.FromArgb(10,38,38);
         create.BackColor = PremiumTheme.Turquoise;
@@ -97,7 +98,7 @@ public sealed partial class MainForm
 
     private Button TopButton(string text, int width, Action click)
     {
-        var icon=text switch {"Itemci"=>"store","Mesajlar"=>"message","İlanlarım"=>"list","Satışlar"=>"cart","Piyasa Analizi"=>"chart",_=>""};
+        var icon=text switch {"Itemci"=>"store","Mesajlar"=>"message","İlanlarım"=>"list","Satışlar"=>"cart","Piyasa Analizi"=>"chart","Satış Takibi"=>"chart",_=>""};
         var button=new ReferenceButton {Text=text,Icon=icon,Navigation=true,Width=width,Height=52,ForeColor=ReferenceUi.Muted,Margin=new Padding(0,0,2,0),Font=ReferenceUi.Font(10)};
         button.Click += (_, _) => click();
         return button;
