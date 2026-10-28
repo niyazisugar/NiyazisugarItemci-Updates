@@ -21,7 +21,7 @@ public sealed partial class MainForm
         _liveMarket=new ReferencePanel {Dock=DockStyle.Fill,Width=360,Padding=new Padding(18),BackColor=ReferenceUi.Background};
         var header=new Panel {Dock=DockStyle.Top,Height=228,BackColor=ReferenceUi.Background};
         var titleRow=new Panel {Dock=DockStyle.Top,Height=42,BackColor=ReferenceUi.Background};var title=ReferenceUi.Label("Satış Takibi",16,true);title.Dock=DockStyle.Fill;title.Padding=new Padding(42,0,0,0);title.TextAlign=ContentAlignment.MiddleLeft;titleRow.Paint+=(_,e)=>{if(!_liveCollapsed)ReferenceUi.Icon(e.Graphics,"chart",new RectangleF(4,9,26,26),ReferenceUi.Gold);};titleRow.Controls.Add(title);
-        var collapse=ReferenceUi.Button("","chevron",()=>{},28);collapse.Dock=DockStyle.Right;collapse.Navigation=true;collapse.Margin=new Padding(0);titleRow.Controls.Add(collapse);
+        var collapse=ReferenceUi.Button("","chevron",()=>{},28);collapse.Dock=DockStyle.Right;collapse.Navigation=true;collapse.Margin=new Padding(0);titleRow.Controls.Add(collapse);collapse.Visible=false;
         var subtitle=ReferenceUi.Label("Sunucu bazında satış hareketleri",10);subtitle.ForeColor=ReferenceUi.Muted;subtitle.Dock=DockStyle.Top;subtitle.Height=38;
         _liveServer.SelectedIndexChanged+=(_,_)=>{if(!_updatingLiveServers)RenderServerSalesWatch();};var selector=ReferenceUi.Select(_liveServer,300,"server");selector.Dock=DockStyle.Top;
         var space=new Panel {Dock=DockStyle.Top,Height=16,BackColor=ReferenceUi.Background};

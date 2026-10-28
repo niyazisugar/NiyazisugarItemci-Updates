@@ -250,10 +250,10 @@ public sealed partial class MainForm
         ShowPanel(_salesPanel);await Task.Delay(100);await CaptureAsync("sales");
         foreach(var size in new[]{new Size(1050,680),new Size(1280,720),new Size(1440,900)}) {
             ClientSize=size;await Task.Delay(100);
-            foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel}) {
+            foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel,_serverSalesPanel}) {
                 ShowPanel(panel);PerformLayout();
                 if(panel.PointToScreen(Point.Empty).Y<_topNavigation!.PointToScreen(new Point(0,_topNavigation.Height)).Y)throw new Exception("Content overlaps top menu.");
-                if(ReferenceEquals(panel,_browserPanel) && _browserHost.PointToScreen(new Point(_browserHost.Width,0)).X>_liveMarket!.PointToScreen(Point.Empty).X)throw new Exception("Sales rail overlays Itemci instead of reserving width.");
+                if(_liveMarket!.Parent!=_serverSalesPanel||_serverSalesPanel.Parent!=_content)throw new Exception("Sales tracking did not move to a dedicated content screen.");
                 foreach(var field in Descendants(panel).Where(c=>c.Visible&&(c is ReferenceSearch||c is ReferenceSelect))) {
                     if(field.Parent is null)continue;
                     if(field.Bottom>field.Parent.ClientSize.Height+1)throw new Exception("A reference filter was clipped in a small window.");

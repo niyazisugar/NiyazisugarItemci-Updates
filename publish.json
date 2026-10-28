@@ -1,4 +1,4 @@
 {
   "version": "2.14.20",
-  "notes": "Sağdaki satış takibi üst menüde Satış Takibi adlı ayrı ekrana taşındı. Itemci tarayıcısında sağ panel yer kaplamaz. Sunucu seçimi, kayıtlar, yenileme ve arka plan takibi korunur."
+  "notes": "Satış takibi üst menüde ayrı ekrana taşındı; sağ panel kaldırıldı. Sunucu seçimi ve arka plan takibi korunur. Küçük pencere kontrolleri yeni ekran için güncellendi."
 }
