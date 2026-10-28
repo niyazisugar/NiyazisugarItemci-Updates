@@ -195,7 +195,15 @@ internal static class UpdateService
             await output.FlushAsync(cancellationToken);
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest.Sha256))
+        // Doğrulama bilgisi olmayan paket asla kurulmaz.
+        if (string.IsNullOrWhiteSpace(manifest.Sha256))
+        {
+            TryDeleteQuietly(tempPath);
+            throw new InvalidDataException(
+                "Güncelleme paketinde güvenlik doğrulama bilgisi bulunamadı."
+            );
+        }
+
         {
             var actualHash = await ComputeSha256WithRetryAsync(
                 tempPath,

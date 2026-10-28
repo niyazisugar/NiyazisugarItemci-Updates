@@ -53,17 +53,17 @@ public sealed partial class MainForm
             {
                 Text="Hızlı İlan Ekle",Size=new Size(Math.Min(1120,area.Width-32),Math.Min(850,area.Height-32)),
                 MinimumSize=new Size(Math.Min(440,area.Width),Math.Min(400,area.Height)),
-                StartPosition=FormStartPosition.CenterParent,BackColor=Color.FromArgb(16,25,31),
+                StartPosition=FormStartPosition.CenterParent,BackColor=ReferenceUi.Surface,
                 ShowInTaskbar=false,MinimizeBox=false,MaximizeBox=true,Padding=Padding.Empty
             };
-            using var view=new WebView2{Dock=DockStyle.Fill,DefaultBackgroundColor=Color.FromArgb(16,25,31),AllowExternalDrop=false};
+            using var view=new WebView2{Dock=DockStyle.Fill,DefaultBackgroundColor=ReferenceUi.Surface,AllowExternalDrop=false};
             _composerPopup=popup;_composerView=view;_composerViewReady=false;
             popup.Controls.Add(view);
             popup.FormClosing+=(_,e)=>
             {
                 if(_composerBusy||_composerAddingServer){e.Cancel=true;_composerStatus.Text="İşlem devam ediyor. Sonuç geldikten sonra pencereyi kapatabilirsin.";_=PushComposerStateAsync();}
             };
-            var loading=new Panel{Dock=DockStyle.Fill,BackColor=Color.FromArgb(16,25,31),Padding=new Padding(36)};
+            var loading=new Panel{Dock=DockStyle.Fill,BackColor=ReferenceUi.Surface,Padding=new Padding(36)};
             var loadingText=new Label{Dock=DockStyle.Top,Height=160,ForeColor=Color.FromArgb(217,231,238),Font=new Font("Segoe UI",12),Text="Hızlı İlan Ekle hazırlanıyor…"};
             var retry=new Button{Text="Yeniden Dene",Width=150,Height=42,Top=210,Left=36,Visible=false,BackColor=Color.FromArgb(46,219,211),ForeColor=Color.FromArgb(9,39,42),FlatStyle=FlatStyle.Flat};
             var copyError=new Button{Text="Hata Bilgisini Kopyala",Width=200,Height=42,Top=264,Left=36,Visible=false,BackColor=Card,ForeColor=TextMain,FlatStyle=FlatStyle.Flat};
