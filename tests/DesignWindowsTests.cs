@@ -255,7 +255,7 @@ public sealed partial class MainForm
             ClientSize=size;await Task.Delay(100);
             foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel,_serverSalesPanel}) {
                 ShowPanel(panel);PerformLayout();
-                if(panel.PointToScreen(Point.Empty).X<_topNavigation!.PointToScreen(new Point(_topNavigation.Width,0)).X)throw new Exception("Content overlaps side menu.");
+                if(panel.PointToScreen(Point.Empty).Y<_topNavigation!.PointToScreen(new Point(0,_topNavigation.Height)).Y)throw new Exception("Content overlaps top menu.");
                 if(_liveMarket!.Parent!=_serverSalesPanel||_serverSalesPanel.Parent!=_content)throw new Exception("Sales tracking did not move to a dedicated content screen.");
                 foreach(var field in Descendants(panel).Where(c=>c.Visible&&(c is ReferenceSearch||c is ReferenceSelect))) {
                     if(field.Parent is null)continue;
@@ -265,19 +265,14 @@ public sealed partial class MainForm
             }
         }
         ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));ShowPanel(_browserPanel);
-        // Side menu: collapsing shows icons only and gives the space back to content; expanding restores labels.
+        // Top bar: every section pill stays inside the rounded bar and the selected one is marked.
         {
-            var savedCollapsed=_settings.SidebarCollapsed;
-            SetNavigationCollapsed(false);PerformLayout();await Task.Delay(100);
-            var expandedNav=_topNavigation!.Width;var expandedContent=_content.Width;
-            if(_navButtons.Any(navButton=>navButton.IconOnly))throw new Exception("Expanded side menu hid its labels.");
-            await CaptureAsync("nav-expanded");
-            SetNavigationCollapsed(true);PerformLayout();await Task.Delay(100);
-            if(_topNavigation.Width>=expandedNav||_content.Width<=expandedContent)throw new Exception("Collapsed side menu did not give space to content.");
-            if(_navButtons.Any(navButton=>!navButton.IconOnly))throw new Exception("Collapsed side menu still shows labels.");
-            foreach(var navItem in _navButtons)if(navItem.Visible&&(navItem.Width<LogicalToDeviceUnits(40)||navItem.Right>_topNavigation.Width))throw new Exception("A collapsed menu icon was clipped.");
-            await CaptureAsync("nav-collapsed");
-            SetNavigationCollapsed(savedCollapsed);_settings.SidebarCollapsed=savedCollapsed;
+            ShowPanel(_salesPanel);PerformLayout();await Task.Delay(100);
+            var topBar=_topNavigation!.Controls[0];
+            foreach(var pill in _navButtons){if(!pill.Visible)continue;var pillBox=topBar.RectangleToClient(pill.RectangleToScreen(pill.ClientRectangle));if(pillBox.Left<0||pillBox.Right>topBar.Width||pillBox.Top<0||pillBox.Bottom>topBar.Height)throw new Exception("A top bar item was clipped: "+pill.Text);}
+            if(!_navButtons.Any(navPill=>navPill.Selected&&navPill.Text=="Satışlar"))throw new Exception("Sales pill was not selected.");
+            await CaptureAsync("topbar");
+            ShowPanel(_browserPanel);
         }
         // Real WebView2 message page, empty isolated test. Native Itemci sections are left alone.
         var loaded=new TaskCompletionSource<bool>();_webView.CoreWebView2.NavigationCompleted+=(_,_)=>loaded.TrySetResult(true);
