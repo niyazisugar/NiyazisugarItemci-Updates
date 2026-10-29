@@ -1,4 +1,4 @@
 {
   "version": "2.17.0",
-  "notes": "Mesajlar için bağımsız Shadow DOM arayüzü: konuşma listesi, arama, gelen/giden mesaj balonları ve hızlı cevaplar. Kullanıcının gerçek teknik kaydına dayalı DOM bağlantısı mevcut Itemci oturumunu ve gönderme işlemini kullanır. Yeni tarayıcı veya tarama zamanlayıcısı eklenmez. Mesaj ancak gerçek konuşmada göründüğünde doğrulanır; belirsiz gönderim tekrar gönderilmez. Itemci görünümüne dönüş korunur."
+  "notes": "Mesajlar için bağımsız Shadow DOM arayüzü: konuşma listesi, arama, gelen/giden mesaj balonları ve hızlı cevaplar. Kullanıcının gerçek teknik kaydına dayalı DOM bağlantısı mevcut Itemci oturumunu ve gönderme işlemini kullanır. Yeni tarayıcı veya tarama zamanlayıcısı eklenmez. Mesaj ancak gerçek konuşmada göründüğünde doğrulanır; belirsiz gönderim tekrar gönderilmez. Itemci görünümüne dönüş korunur. Gerçek yapıyla bağlantı testi ve arayüz test görüntüsü sürüme eklenir."
 }

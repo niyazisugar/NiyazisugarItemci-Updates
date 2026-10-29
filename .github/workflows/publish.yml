@@ -348,6 +348,7 @@ jobs:
             "design-screenshots/*.png" `
             "screenshots/quick-listing-desktop.png" `
             "screenshots/quick-listing-small.png" `
+            "screenshots/message-workspace.png" `
             --target "${{ github.sha }}" `
             --title "Niyazisugar Itemci V$version" `
             --notes "${{ steps.manifest.outputs.notes }}" `
