@@ -1,4 +1,4 @@
 {
-  "version": "2.19.0",
-  "notes": "Sol menü yerine yuvarlak üst menü çubuğu: bölümler hap şeklinde, Hızlı İlan ve ayarlar sağda; içerik artık tam genişlikte. Diğer özellikler aynen korunur."
+  "version": "2.20.0",
+  "notes": "Satış Takibi yenilendi: sunucu seçimi solda, satışlar fiyatı net görünen sütunlu listede, ince koyu kaydırma çubuğu ve sayfaya daha çok satır sığıyor. Diğer özellikler aynen korunur."
 }
