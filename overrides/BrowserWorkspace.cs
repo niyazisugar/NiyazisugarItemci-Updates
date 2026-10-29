@@ -15,8 +15,8 @@ public sealed partial class MainForm
         if (tabs is null || address is null) throw new InvalidOperationException("Tarayıcı araç çubukları bulunamadı.");
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0), Padding = new Padding(0), BackColor = Bg };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(44)));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(46)));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         foreach (Control control in new[] { tabs, address, _browserHost }) { control.Dock = DockStyle.Fill; control.Margin = new Padding(0); }
         layout.Controls.Add(tabs, 0, 0);
@@ -27,10 +27,25 @@ public sealed partial class MainForm
         // Reserve space for the + button instead of letting the tab strip overlap it.
         tabs.Controls.SetChildIndex(_browserTabStrip, 0);
         _browserTabStrip.AutoScroll = true;
+        // Sekme satırı: zemine karışan sekmeler, seçili sekme yuvarlak bir hap; sağda sade "+".
+        tabs.BackColor=ReferenceUi.Background;tabs.Padding=new Padding(LogicalToDeviceUnits(12),LogicalToDeviceUnits(6),LogicalToDeviceUnits(12),LogicalToDeviceUnits(2));
+        _browserTabStrip.BackColor=ReferenceUi.Background;_browserTabStrip.Padding=new Padding(0);
+        foreach(var plus in tabs.Controls.OfType<ReferenceButton>())
+        {
+            plus.Text="";plus.Icon="plus";plus.IconOnly=true;plus.Navigation=true;plus.IconSize=16;plus.Width=LogicalToDeviceUnits(34);plus.ForeColor=ReferenceUi.Muted;plus.BackColor=ReferenceUi.Background;plus.Font=ReferenceUi.Font(9);_sidebarToolTip.SetToolTip(plus,"Yeni sekme");
+        }
+        // Araç satırı: ikon düğmeleri, yuvarlak adres alanı; Enter ile gidildiği için ayrı "Git" düğmesi yok.
         address.Controls.SetChildIndex(addressHost!,0);
-        address.Padding=new Padding(12,5,12,5);address.BackColor=ReferenceUi.Background;
-        addressHost!.Controls.Remove(_browserAddressBox);addressHost.Padding=new Padding(0,0,0,0);var roundedAddress=new ReferenceSearch(_browserAddressBox) {Dock=DockStyle.Fill,Icon="shield"};addressHost.Controls.Add(roundedAddress);
-        tabs.BackColor=ReferenceUi.Background;_browserTabStrip.BackColor=ReferenceUi.Background;_browserTabStrip.Padding=new Padding(12,3,0,0);
+        address.Padding=new Padding(LogicalToDeviceUnits(10),LogicalToDeviceUnits(5),LogicalToDeviceUnits(12),LogicalToDeviceUnits(7));address.BackColor=ReferenceUi.Background;
+        address.Paint+=(_,e)=>{using var pen=new Pen(ReferenceUi.Line);e.Graphics.DrawLine(pen,0,address.Height-1,address.Width,address.Height-1);};
+        foreach(var go in address.Controls.OfType<ReferenceButton>().Where(b=>b.Text=="Git").ToArray())go.Visible=false;
+        foreach(var tools in address.Controls.OfType<FlowLayoutPanel>())
+        {
+            int count=tools.Controls.Count;tools.Width=count*LogicalToDeviceUnits(34)+LogicalToDeviceUnits(10);tools.Padding=new Padding(0);
+        }
+        addressHost!.Controls.Remove(_browserAddressBox);addressHost.Padding=new Padding(0);addressHost.BackColor=ReferenceUi.Background;
+        _browserAddressBox.Font=ReferenceUi.Font(9.5f);
+        var roundedAddress=new ReferenceSearch(_browserAddressBox) {Dock=DockStyle.Fill,Icon="lock"};addressHost.Controls.Add(roundedAddress);
         // The report already owns its reference header and actions. Keep its
         // separate server chooser's JavaScript and styling intact.
         foreach(Control chrome in _marketPanel.Controls)if(!ReferenceEquals(chrome,_marketWebView))chrome.Visible=false;
@@ -40,13 +55,19 @@ public sealed partial class MainForm
     private Button BrowserToolButton(string text,string tooltip)
     {
         var icon=text switch {"←"=>"back","→"=>"next","↻"=>"refresh","⌂"=>"store","🛡"=>"shield",_=>""};
-        var button=new ReferenceButton {Text=text=="Git"?"Git":"",Icon=icon,IconOnly=text!="Git",Navigation=text!="Git",Width=36,Height=38,ForeColor=ReferenceUi.Muted,Margin=new Padding(0,0,3,0)};_sidebarToolTip.SetToolTip(button,tooltip);return button;
+        var button=new ReferenceButton {Text=text=="Git"?"Git":"",Icon=icon,IconOnly=text!="Git",Navigation=text!="Git",IconSize=18,Width=LogicalToDeviceUnits(32),Height=LogicalToDeviceUnits(34),ForeColor=ReferenceUi.Muted,BackColor=ReferenceUi.Background,Margin=new Padding(0,0,LogicalToDeviceUnits(2),0)};_sidebarToolTip.SetToolTip(button,tooltip);return button;
     }
     private Panel CreateBrowserTabControl(BrowserTabState tab)
     {
-        var panel=new ReferenceTab(()=>ReferenceEquals(_activeBrowserTab,tab)) {Width=220,Height=39,Margin=new Padding(0,0,5,0),Padding=new Padding(4,3,3,0),BackColor=ReferenceUi.Field};
-        var title=new ReferenceButton {Text=ShortTabTitle(tab.Title),Icon="store",Navigation=true,Dock=DockStyle.Fill,Font=ReferenceUi.Font(10),ForeColor=ReferenceUi.Text};title.Click+=(_,_)=>SelectBrowserTab(tab);
-        var close=new ReferenceButton {Text="",Icon="close",IconOnly=true,Navigation=true,Dock=DockStyle.Right,Width=30,ForeColor=ReferenceUi.Muted};close.Click+=(_,_)=>CloseBrowserTab(tab);panel.Controls.Add(title);panel.Controls.Add(close);tab.TitleButton=title;return panel;
+        var panel=new ReferenceTab(()=>ReferenceEquals(_activeBrowserTab,tab)) {Width=LogicalToDeviceUnits(200),Height=LogicalToDeviceUnits(34),Margin=new Padding(0,0,LogicalToDeviceUnits(4),0),Padding=new Padding(LogicalToDeviceUnits(6),LogicalToDeviceUnits(3),LogicalToDeviceUnits(4),LogicalToDeviceUnits(3))};
+        var title=new ReferenceButton {Text=ShortTabTitle(tab.Title),Icon=TabIcon(tab),IconSize=15,Navigation=true,Dock=DockStyle.Fill,Font=ReferenceUi.Font(9),ForeColor=ReferenceUi.Text};title.Click+=(_,_)=>SelectBrowserTab(tab);
+        var close=new ReferenceButton {Text="",Icon="close",IconOnly=true,Navigation=true,IconSize=12,Dock=DockStyle.Right,Width=LogicalToDeviceUnits(26),ForeColor=ReferenceUi.Muted};_sidebarToolTip.SetToolTip(close,"Sekmeyi kapat");close.Click+=(_,_)=>CloseBrowserTab(tab);panel.Controls.Add(title);panel.Controls.Add(close);tab.TitleButton=title;return panel;
+    }
+
+    private static string TabIcon(BrowserTabState tab)
+    {
+        var where=(tab.RequestedUrl+" "+tab.Title).ToLowerInvariant();
+        return where.Contains("mesaj")?"message":where.Contains("bildirim")?"bell":where.Contains("google")?"search":"store";
     }
 
     private Task<BrowserTabState?> OpenOrActivateBrowserTabAsync(string url, string title) => OpenSmartBrowserTabAsync(url, title, true);

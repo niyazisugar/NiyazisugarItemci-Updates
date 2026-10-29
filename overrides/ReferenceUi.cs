@@ -3,10 +3,12 @@ namespace NiyazisugarItemci;
 
 internal static class ReferenceUi
 {
-    // "Dim Paper" koyu paleti: sıcak kömür zemin, tek altın vurgu, yumuşak yeşil pozitif değerler.
-    internal static readonly Color Background=Color.FromArgb(20,19,17), Sidebar=Color.FromArgb(17,16,14), Surface=Color.FromArgb(28,26,23), Field=Color.FromArgb(35,33,29), Hover=Color.FromArgb(42,39,34), Line=Color.FromArgb(48,45,40), Text=Color.FromArgb(237,233,227), Muted=Color.FromArgb(163,156,145), Gold=Color.FromArgb(227,194,122), Aqua=Color.FromArgb(124,199,154), Coral=Color.FromArgb(226,140,118), PrimaryText=Color.FromArgb(30,23,11);
+    // "Graphite" paleti: nötr grafit zemin, tek altın vurgu, yumuşak yeşil pozitif değerler.
+    internal static readonly Color Background=Color.FromArgb(15,16,18), Sidebar=Color.FromArgb(13,14,16), Surface=Color.FromArgb(22,23,26), Field=Color.FromArgb(28,29,33), Hover=Color.FromArgb(33,34,39), Line=Color.FromArgb(36,37,42), Text=Color.FromArgb(231,231,234), Muted=Color.FromArgb(140,142,150), Gold=Color.FromArgb(212,176,98), Aqua=Color.FromArgb(111,207,151), Coral=Color.FromArgb(229,154,122), PrimaryText=Color.FromArgb(23,20,12);
     internal const float PanelRadius=14f, ControlRadius=10f;
     private static readonly Dictionary<float,Font> Fonts=new(),BoldFonts=new();
+    private static readonly Dictionary<float,Font> SemiFonts=new();
+    internal static Font Semibold(float size) {if(!SemiFonts.TryGetValue(size,out var f))SemiFonts[size]=f=new Font("Segoe UI Semibold",size,FontStyle.Regular);return f;}
     internal static Font Bold(float size) {if(!BoldFonts.TryGetValue(size,out var f))BoldFonts[size]=f=new Font("Segoe UI",size,FontStyle.Bold);return f;}
     internal static Color Host(Control control) {for(var p=control.Parent;p is not null;p=p.Parent)if(p.BackColor.A==255)return p.BackColor;return Background;}
     internal static Font Font(float size) {if(!Fonts.TryGetValue(size,out var f))Fonts[size]=f=new Font("Segoe UI",size,FontStyle.Regular);return f;}
@@ -44,6 +46,8 @@ internal static class ReferenceUi
             case "back":Line(18,12,4,12);Line(4,12,10,6);Line(4,12,10,18);break;
             case "next":Line(4,12,20,12);Line(20,12,14,6);Line(20,12,14,18);break;
             case "gear":var teeth=new PointF[32];for(int i=0;i<32;i++){float t=i*(float)Math.PI/16;float radius=i%4<2?10:8;teeth[i]=new PointF(12+radius*(float)Math.Cos(t),12+radius*(float)Math.Sin(t));}g.DrawPolygon(p,teeth);Circle(8,8,8);break;
+            case "bell":g.DrawArc(p,5,3,14,14,180,180);Line(5,10,5,16);Line(19,10,19,16);Line(3,17,21,17);g.DrawArc(p,9,17,6,5,0,180);break;
+            case "lock":Rect(5,11,14,10);g.DrawArc(p,8,4,8,10,180,180);Line(8,9,8,11);Line(16,9,16,11);break;
             case "pulse":g.DrawLines(p,new PointF[]{new(3,12),new(7,12),new(10,5),new(14,19),new(17,12),new(21,12)});break;
             case "sidebar":using(var path=ReferenceUi.Shape(new RectangleF(3,4,18,16),3))g.DrawPath(p,path);Line(9,4,9,20);break;
             case "collapse":Line(14,6,8,12);Line(8,12,14,18);Line(19,6,19,18);break;
@@ -61,6 +65,8 @@ internal sealed class ReferenceButton : Button
     /// <summary>Sol menü öğesi: sola hizalı ikon + yazı, seçiliyken yumuşak köşeli zemin.</summary>
     internal bool SideNav {get;set;}
     internal string Badge {get;set;}="";
+    /// <summary>İkon boyutu (mantıksal piksel); 0 = varsayılan.</summary>
+    internal float IconSize {get;set;}
     private bool _hover;
     internal ReferenceButton(){FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Font=ReferenceUi.Font(10);Cursor=Cursors.Hand;BackColor=ReferenceUi.Surface;ForeColor=ReferenceUi.Text;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
     protected override void OnMouseEnter(EventArgs e){base.OnMouseEnter(e);_hover=true;Invalidate();}protected override void OnMouseLeave(EventArgs e){base.OnMouseLeave(e);_hover=false;Invalidate();}
@@ -74,7 +80,7 @@ internal sealed class ReferenceButton : Button
             if(Selected&&!Primary){using var pen=new Pen(ReferenceUi.Line);g.DrawPath(pen,path);}
         }
         var iconTone=Primary?ReferenceUi.PrimaryText:Selected?ReferenceUi.Gold:ReferenceUi.Muted;
-        var textTone=Primary?ReferenceUi.PrimaryText:Selected?ReferenceUi.Text:Color.FromArgb(196,189,178);
+        var textTone=Primary?ReferenceUi.PrimaryText:Selected?ReferenceUi.Text:Color.FromArgb(200,201,206);
         float icon=18*s;float left=IconOnly?(Width-icon)/2:12*s;
         if(!string.IsNullOrEmpty(Icon))ReferenceUi.Icon(g,Icon,new RectangleF(left,(Height-icon)/2,icon,icon),iconTone);
         if(!IconOnly)
@@ -98,8 +104,8 @@ internal sealed class ReferenceButton : Button
     }
     protected override void OnPaint(PaintEventArgs e){var g=e.Graphics;g.Clear(ReferenceUi.Host(this));float s=DeviceDpi/96f;if(SideNav){PaintSideNav(g,s);return;}var tone=Enabled?(Primary?ReferenceUi.PrimaryText:Selected||GoldOutline?ReferenceUi.Gold:ForeColor):ReferenceUi.Muted;
         if(!Navigation){ReferenceUi.SurfacePaint(g,ClientRectangle,Primary?ReferenceUi.Gold:_hover?ReferenceUi.Hover:ReferenceUi.Field,!Primary,ReferenceUi.ControlRadius*s);if(GoldOutline){using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),ReferenceUi.ControlRadius*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}}else if(_hover){g.SmoothingMode=SmoothingMode.AntiAlias;using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),ReferenceUi.ControlRadius*s);using var fill=new SolidBrush(ReferenceUi.Hover);g.FillPath(fill,path);}
-        int iconWidth=string.IsNullOrEmpty(Icon)?0:(int)((Navigation?22:24)*s),gap=iconWidth==0?0:(int)((Navigation?8:10)*s);var display=IconOnly?"":Text;var measured=TextRenderer.MeasureText(display,Font,Size.Empty,TextFormatFlags.NoPadding);int total=measured.Width+iconWidth+gap;int left=IconOnly?(int)((Width-22*s)/2):Math.Max((int)((Navigation?6:10)*s),(Width-total)/2);
-        if(iconWidth>0)ReferenceUi.Icon(g,Icon,new RectangleF(left,(Height-22*s)/2,22*s,22*s),tone);
+        float iconSize=(IconSize>0?IconSize:22)*s;int iconWidth=string.IsNullOrEmpty(Icon)?0:(int)(IconSize>0?iconSize:(Navigation?22:24)*s),gap=iconWidth==0?0:(int)((Navigation?8:10)*s);var display=IconOnly?"":Text;var measured=TextRenderer.MeasureText(display,Font,Size.Empty,TextFormatFlags.NoPadding);int total=measured.Width+iconWidth+gap;int left=IconOnly?(int)((Width-iconSize)/2):Math.Max((int)((Navigation?6:10)*s),(Width-total)/2);
+        if(iconWidth>0)ReferenceUi.Icon(g,Icon,new RectangleF(left,(Height-iconSize)/2,iconSize,iconSize),tone);
         TextRenderer.DrawText(g,display,Font,new Rectangle(left+iconWidth+gap,0,Math.Max(0,Width-left-iconWidth-gap-6),Height),tone,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix|TextFormatFlags.SingleLine|TextFormatFlags.NoPadding);
         if(Navigation&&Selected){using var pen=new Pen(ReferenceUi.Gold,2*s);g.DrawLine(pen,5*s,Height-2*s,Width-5*s,Height-2*s);}if(Focused&&!Navigation){using var path=ReferenceUi.Shape(new RectangleF(3,3,Width-6,Height-6),6*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}
     }
@@ -199,6 +205,10 @@ internal sealed class ReferenceEmptySale : ReferencePanel
 }
 internal sealed class ReferenceTab : ReferencePanel
 {
-    private readonly Func<bool> _selected;internal ReferenceTab(Func<bool> selected){_selected=selected;}
-    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);if(_selected()){using var p=new Pen(ReferenceUi.Gold,2);e.Graphics.DrawLine(p,10,1,Width-10,1);}}
+    private readonly Func<bool>? _selected;internal ReferenceTab(Func<bool> selected){_selected=selected;}
+    private bool IsSelected=>_selected?.Invoke()==true;
+    // Seçili sekme yüzey renginde yuvarlak bir "hap", diğerleri zemine karışır; çocuk düğmeler bu rengi devralır.
+    public override Color BackColor { get => IsSelected?ReferenceUi.Surface:ReferenceUi.Background; set { base.BackColor=value; Invalidate(true); } }
+    protected override void OnPaintBackground(PaintEventArgs e){var g=e.Graphics;g.Clear(Parent is null?ReferenceUi.Background:ReferenceUi.Host(this));if(!IsSelected)return;float s=DeviceDpi/96f;g.SmoothingMode=SmoothingMode.AntiAlias;using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),ReferenceUi.ControlRadius*s);using var fill=new SolidBrush(ReferenceUi.Surface);g.FillPath(fill,path);using var pen=new Pen(ReferenceUi.Line);g.DrawPath(pen,path);}
+    protected override void OnPaint(PaintEventArgs e){}
 }
