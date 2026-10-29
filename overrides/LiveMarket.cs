@@ -5,6 +5,7 @@ namespace NiyazisugarItemci;
 public sealed partial class MainForm
 {
     private Panel? _liveMarket;
+    private ReferenceWatchList? _liveList;
     private readonly Panel _serverSalesPanel = new() {Dock=DockStyle.Fill,Visible=false};
     private readonly ComboBox _liveServer = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
     private readonly FlowLayoutPanel _liveRows = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
@@ -18,21 +19,21 @@ public sealed partial class MainForm
 
     private void InstallLiveMarket()
     {
-        _liveMarket=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Background,Padding=PageLayout.PagePadding(this)};
-        _liveServer.SelectedIndexChanged+=(_,_)=>{if(!_updatingLiveServers)RenderServerSalesWatch();};var selector=ReferenceUi.Select(_liveServer,240,"server");
+        _liveMarket=new Panel {Dock=DockStyle.Fill,BackColor=ReferenceUi.Background,Padding=new Padding(LogicalToDeviceUnits(28),LogicalToDeviceUnits(18),LogicalToDeviceUnits(28),LogicalToDeviceUnits(16))};
+        _liveServer.SelectedIndexChanged+=(_,_)=>{if(!_updatingLiveServers)RenderServerSalesWatch();};var selector=ReferenceUi.Select(_liveServer,250,"server");
         var refresh=PageLayout.IconButton(this,"refresh","Şimdi yenile",()=>_=RefreshLiveMarketAsync(),_sidebarToolTip);
-        var header=PageLayout.Header(this,"Satış Takibi",new Label {Text="Sunucu bazında satış hareketleri · liste + sayaç eşleşmesi kesin satış değildir"},selector,refresh);
+        var header=PageLayout.HeaderLeft(this,"Satış Takibi",new Label {Text="Sunucu bazında satış hareketleri"},new Control[]{selector},new Control[]{refresh});
         _liveCount.Text="0";_liveLast.Text="—";
-        var kpi=new ReferenceKpiCard {Height=LogicalToDeviceUnits(84)}.Add("Bugün tespit",_liveCount,ReferenceUi.Gold,true).Add("Son tespit",_liveLast).Add("Takip durumu",_liveStatus,ReferenceUi.Muted,false,true);
+        var kpi=new ReferenceKpiCard {Height=LogicalToDeviceUnits(70)}.Add("Bugün tespit",_liveCount,ReferenceUi.Gold,true).Add("Son tespit",_liveLast).Add("Takip durumu",_liveStatus,ReferenceUi.Muted,false,true);
         var legend=new Panel {BackColor=ReferenceUi.Surface,Margin=new Padding(0)};
         legend.Paint+=(_,e)=>{float k=DeviceDpi/96f;var items=new[]{("Güçlü sinyal",ReferenceUi.Aqua),("Olası satış",ReferenceUi.Gold)};int total=0;foreach(var (text,_) in items)total+=TextRenderer.MeasureText(text,ReferenceUi.Font(9)).Width+(int)(30*k);int x=Math.Max(0,legend.Width-total);e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;foreach(var (text,color) in items){using var dot=new SolidBrush(color);e.Graphics.FillEllipse(dot,x,legend.Height/2-3*k,7*k,7*k);var w=TextRenderer.MeasureText(text,ReferenceUi.Font(9)).Width;TextRenderer.DrawText(e.Graphics,text,ReferenceUi.Font(9),new Rectangle(x+(int)(12*k),0,w,legend.Height),ReferenceUi.Muted,TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);x+=w+(int)(30*k);}};
         var card=new ReferencePanel {Dock=DockStyle.Fill,Padding=new Padding(1)};
-        var cardHeader=PageLayout.CardHeader(this,"Tespit akışı",legend,240);
-        _liveRows.BackColor=ReferenceUi.Surface;_liveRows.Padding=new Padding(LogicalToDeviceUnits(12),LogicalToDeviceUnits(12),LogicalToDeviceUnits(12),0);
-        card.Controls.Add(_liveRows);card.Controls.Add(cardHeader);
-        _liveMarket.Controls.Add(card);_liveMarket.Controls.Add(PageLayout.Spacer(this,16));_liveMarket.Controls.Add(kpi);_liveMarket.Controls.Add(PageLayout.Spacer(this,18));_liveMarket.Controls.Add(header);
+        var cardHeader=PageLayout.CardHeader(this,"Tespit akışı",legend,240);cardHeader.Height=LogicalToDeviceUnits(46);
+        _liveList=new ReferenceWatchList(_sidebarToolTip);
+        card.Controls.Add(_liveList);card.Controls.Add(cardHeader);
+        _liveRows.Visible=false;
+        _liveMarket.Controls.Add(card);_liveMarket.Controls.Add(PageLayout.Spacer(this,12));_liveMarket.Controls.Add(kpi);_liveMarket.Controls.Add(PageLayout.Spacer(this,12));_liveMarket.Controls.Add(header);
         _serverSalesPanel.Controls.Add(_liveMarket);_content.Controls.Add(_serverSalesPanel);
-        _liveRows.SizeChanged+=(_,_)=>{foreach(Control row in _liveRows.Controls){row.Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4);if(row is ReferenceEmptyState)row.Height=Math.Max(LogicalToDeviceUnits(240),_liveRows.ClientSize.Height-_liveRows.Padding.Vertical-6);}};
         LoadServerSalesWatch();
         RefreshLiveMarketServers();
         RenderServerSalesWatch();

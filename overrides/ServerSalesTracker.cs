@@ -41,34 +41,17 @@ public sealed partial class MainForm
         var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller));
         if(key==_serverWatchRenderedKey)return;
         _serverWatchRenderedKey=key;
-        _liveRows.SuspendLayout();
-        foreach(Control old in _liveRows.Controls.Cast<Control>().ToArray())old.Dispose();
-        if (rows.Count == 0)
+        var culture=System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+        var items=rows.Select(sale=>
         {
-            _liveRows.Controls.Add(new ReferenceEmptyState("bag","Henüz satış tespit edilmedi","Seçili sunucuda tespit edilen satışlar burada listelenecek.") {Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4),Height=Math.Max(LogicalToDeviceUnits(240),_liveRows.ClientSize.Height-_liveRows.Padding.Vertical-6),Margin=new Padding(0)});
-        }
-        foreach (var sale in rows.Take(_serverWatchVisibleCount))
-        {
-            var row = sale.listing;
-            var card = new ReferencePanel { Width = Math.Max(40,_liveRows.ClientSize.Width - _liveRows.Padding.Horizontal - 4), Height = LogicalToDeviceUnits(82), BackColor = ReferenceUi.Field, Margin = new Padding(0,0,0,LogicalToDeviceUnits(6)), Cursor = Cursors.Hand, Padding = new Padding(LogicalToDeviceUnits(10),LogicalToDeviceUnits(6),LogicalToDeviceUnits(10),LogicalToDeviceUnits(4)) };
-            var name = new Label { Dock = DockStyle.Top, Height = 22, Text = row.title, AutoEllipsis = true, ForeColor = TextMain, Font = _watchTitleFont, Padding = new Padding(4,2,0,0) };
-            var seller = new Label { Dock = DockStyle.Top, Height = 20, Text = "Satıcı: " + row.seller, AutoEllipsis = true, ForeColor = PremiumTheme.Gold, Font = Font, Padding = new Padding(4,0,0,0) };
-            var info = new Label { Dock = DockStyle.Fill, Text = $"Son fiyat: {row.price:N2} TL · Tespit {sale.detectedAt:HH:mm:ss}", ForeColor = ReferenceUi.Muted, Font = _watchInfoFont, Padding = new Padding(4,0,0,0) };
-            var evidence=new Label {Dock=DockStyle.Bottom,Height=23,Text=sale.evidence=="category-counter"?$"Olası satış · Liste + sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü sinyal · Satış sayacı +{sale.sellerIncrease}":"Sitede satıldı işareti",ForeColor=PremiumTheme.Gold,Font=_watchInfoFont,Padding=new Padding(4,0,0,0)};
-            card.Controls.Add(evidence);card.Controls.Add(info);card.Controls.Add(seller);card.Controls.Add(name);info.BringToFront();
-            foreach (Control target in new Control[] {card,name,seller,info,evidence})
-            {
-                _sidebarToolTip.SetToolTip(target, $"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price:N2} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="category-counter"?"İlan listede görüldükten sonra güncellendi, satışa kapandı ve satıcı sayacı arttı. İlanın açık olduğu ayrı bir ürün ölçümü yok; satış kesinleşmedi.":sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.");
-                target.Click += (_, _) => _ = OpenOrActivateBrowserTabAsync(row.url,row.title);
-            }
-            _liveRows.Controls.Add(card);
-        }
-        if(rows.Count>_serverWatchVisibleCount)
-        {
-            var more=ActionButton("DAHA FAZLA GÖSTER",()=>{_serverWatchVisibleCount+=50;RenderServerSalesWatch();});
-            more.Width=Math.Max(40,_liveRows.ClientSize.Width-_liveRows.Padding.Horizontal-4);_liveRows.Controls.Add(more);
-        }
-        _liveRows.ResumeLayout();PositionLiveMarket();
+            var row=sale.listing;
+            var strong=sale.evidence!="category-counter";
+            var signal=sale.evidence=="category-counter"?$"Olası · sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü · sayaç +{sale.sellerIncrease}":"Satıldı işareti";
+            var tip=$"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price.ToString("N2",culture)} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="category-counter"?"İlan listede görüldükten sonra güncellendi, satışa kapandı ve satıcı sayacı arttı. İlanın açık olduğu ayrı bir ürün ölçümü yok; satış kesinleşmedi.":sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.";
+            return new WatchRowItem(row.title,row.seller,row.price.ToString("N2",culture)+" TL",sale.detectedAt.ToString("HH:mm:ss"),signal,strong,tip,()=>_=OpenOrActivateBrowserTabAsync(row.url,row.title));
+        }).ToList();
+        _liveList?.SetItems(items);
+        PositionLiveMarket();
     }
     private async Task<WatchScan> ReadServerWatchAsync(MarketServerInfo server, ServerWatch state)
     {
