@@ -1,4 +1,4 @@
 {
-  "version": "2.16.4",
-  "notes": "Başarısız Fog sayfa stili kaldırıldı; normal Itemci mesaj ekranı ve hızlı cevaplar korundu. Mesajlar menüsünde sağ tık ile mesaj bağlantısı yapısını kaydetme eklendi. Teknik kayıt mesaj metinleri, giriş değerleri, çerezler, bağlantılar veya script içeriklerini okumaz; yalnızca arayüz yapısını kaydeder. Ayrı mesaj ekranının gerçek veriye bağlanması için hazırlık sürümü."
+  "version": "2.17.0",
+  "notes": "Mesajlar için bağımsız Shadow DOM arayüzü: konuşma listesi, arama, gelen/giden mesaj balonları ve hızlı cevaplar. Kullanıcının gerçek teknik kaydına dayalı DOM bağlantısı mevcut Itemci oturumunu ve gönderme işlemini kullanır. Yeni tarayıcı veya tarama zamanlayıcısı eklenmez. Mesaj ancak gerçek konuşmada göründüğünde doğrulanır; belirsiz gönderim tekrar gönderilmez. Itemci görünümüne dönüş korunur."
 }
