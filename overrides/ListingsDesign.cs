@@ -11,34 +11,33 @@ public sealed partial class MainForm
     private readonly ComboBox _listingStatusFilter=new() {DropDownStyle=ComboBoxStyle.DropDownList};
     private bool _settingListingFilters;
     private int _listingVisibleLimit = 50;
+    private readonly Label _listingSubtitle = new() { Text = "İlanlarını tek yerden görüntüle ve yönet" };
+    private readonly Label _listingBumpValue = new() { Text = "—" };
     private void BuildListingsPanel()
     {
         _listingsPanel.Dock=DockStyle.Fill;_listingsPanel.BackColor=ReferenceUi.Background;_listingsPanel.Padding=PageLayout.PagePadding(this);
-        var refresh=PageLayout.Action("Yenile","refresh",()=>_=RefreshCurrentListingsAsync(true),96);
-        var create=PageLayout.Action("Hızlı İlan Ekle","plus",()=>_=ShowListingComposerAsync(),150,true);
-        var header=PageLayout.Header(this,"Satıcı alanı","İlanlarım",refresh,create);
-        _listingCountValue.Text="0";_listingServerValue.Text="Tümü";_listingUpdatedValue.Text="—";
-        var strip=new ReferenceStatStrip {Height=LogicalToDeviceUnits(46)}.Add("Aktif",_listingCountValue).Add("Sunucu",_listingServerValue).Add("Son güncelleme",_listingUpdatedValue).Right(_listingBumpSummary);
-        _listingBumpSummary.Visible=false;
-        var filters=new TableLayoutPanel {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(58),ColumnCount=3,RowCount=1,BackColor=ReferenceUi.Background,Padding=new Padding(0,LogicalToDeviceUnits(14),0,LogicalToDeviceUnits(8))};
-        filters.RowStyles.Add(new RowStyle(SizeType.Percent,100));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));filters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,LogicalToDeviceUnits(190)));
         _listingServerFilter.Items.Add("Tüm sunucular");_listingServerFilter.SelectedIndex=0;
         _listingSearch.TextChanged+=(_,_)=>{_listingVisibleLimit=50;RenderDesignedListings();};_listingServerFilter.SelectedIndexChanged+=(_,_)=>{if(!_settingListingFilters){_listingVisibleLimit=50;RenderDesignedListings();}};
-        var search=ReferenceUi.Search(_listingSearch,400);search.Dock=DockStyle.Fill;search.Margin=new Padding(0,0,LogicalToDeviceUnits(10),0);
         _listingStatusFilter.Items.AddRange(new object[]{"Aktif","Pasif","Tümü"});_listingStatusFilter.SelectedIndex=0;_listingStatusFilter.SelectedIndexChanged+=(_,_)=>{_listingVisibleLimit=50;RenderDesignedListings();};
-        var status=new ReferenceSegmented(_listingStatusFilter) {Dot=i=>i==0?(Color?)ReferenceUi.Aqua:null,Dock=DockStyle.Fill};status.Width=status.PreferredWidthFor();status.MinimumSize=new Size(status.Width,0);
-        var servers=ReferenceUi.Select(_listingServerFilter,190);servers.Dock=DockStyle.Fill;servers.Margin=new Padding(0);
-        filters.Controls.Add(search,0,0);filters.Controls.Add(status,1,0);filters.Controls.Add(servers,2,0);
+        var status=new ReferenceSegmented(_listingStatusFilter) {Dot=i=>i==0?(Color?)ReferenceUi.Aqua:null};status.Width=status.PreferredWidthFor();
+        var servers=ReferenceUi.Select(_listingServerFilter,190);
+        var refresh=PageLayout.IconButton(this,"refresh","Yenile",()=>_=RefreshCurrentListingsAsync(true),_sidebarToolTip);
+        var header=PageLayout.Header(this,"İlanlarım",_listingSubtitle,status,servers,refresh);
+        _listingCountValue.Text="0";_listingServerValue.Text="Tümü";_listingUpdatedValue.Text="—";
+        var kpi=new ReferenceKpiCard {Height=LogicalToDeviceUnits(84)}.Add("Aktif ilan",_listingCountValue,ReferenceUi.Gold,true).Add("Sunucu",_listingServerValue).Add("Son güncelleme",_listingUpdatedValue).Add("Ücretsiz yukarı taşıma",_listingBumpValue,ReferenceUi.Muted,false,true);
+        _listingBumpSummary.Visible=false;
         var table=new ReferencePanel {Dock=DockStyle.Fill,Padding=new Padding(1)};
-        var columns=new ReferenceListHeading {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(40)};
+        var search=ReferenceUi.Search(_listingSearch,260);
+        var cardHeader=PageLayout.CardHeader(this,"İlanlar",search,260);
+        var columns=new ReferenceListHeading {Dock=DockStyle.Top,Height=LogicalToDeviceUnits(38)};
         _listingsList.Dock=DockStyle.Fill;_listingsList.FlowDirection=FlowDirection.TopDown;_listingsList.WrapContents=false;_listingsList.AutoScroll=true;_listingsList.Padding=new Padding(0);_listingsList.BackColor=ReferenceUi.Surface;
         _listingsList.SizeChanged+=(_,_)=>{foreach(Control row in _listingsList.Controls){row.Width=row is ReferenceEmptyState?Math.Max(260,_listingsList.ClientSize.Width-2):Math.Max(760,_listingsList.ClientSize.Width-(_listingsList.VerticalScroll.Visible?20:2));if(row is ReferenceEmptyState)row.Height=Math.Max(LogicalToDeviceUnits(240),_listingsList.ClientSize.Height-4);}};
-        _listingSummary.Dock=DockStyle.Bottom;_listingSummary.Height=LogicalToDeviceUnits(34);_listingSummary.Padding=new Padding(LogicalToDeviceUnits(18),0,LogicalToDeviceUnits(18),0);_listingSummary.ForeColor=ReferenceUi.Muted;_listingSummary.BackColor=ReferenceUi.Surface;_listingSummary.Font=ReferenceUi.Font(8.5f);
-        table.Controls.Add(_listingsList);table.Controls.Add(_listingSummary);table.Controls.Add(columns);
+        _listingSummary.Dock=DockStyle.Bottom;_listingSummary.Height=LogicalToDeviceUnits(34);_listingSummary.Padding=new Padding(LogicalToDeviceUnits(20),0,LogicalToDeviceUnits(18),0);_listingSummary.ForeColor=ReferenceUi.Muted;_listingSummary.BackColor=ReferenceUi.Surface;_listingSummary.Font=ReferenceUi.Font(8.5f);
+        table.Controls.Add(_listingsList);table.Controls.Add(_listingSummary);table.Controls.Add(columns);table.Controls.Add(cardHeader);
         _listingsStatusLabel.Text="";
         var banner=new ReferenceInfoBanner(_listingsStatusLabel) {Height=LogicalToDeviceUnits(52)};
-        _autoBumpStatus.TextChanged+=(_,_)=>_listingBumpSummary.Text="Ücretsiz yukarı taşıma · "+_autoBumpStatus.Text;
-        _listingsPanel.Controls.Add(table);_listingsPanel.Controls.Add(banner);_listingsPanel.Controls.Add(filters);_listingsPanel.Controls.Add(strip);_listingsPanel.Controls.Add(PageLayout.Spacer(this,6));_listingsPanel.Controls.Add(header);
+        _autoBumpStatus.TextChanged+=(_,_)=>{_listingBumpSummary.Text="Ücretsiz yukarı taşıma · "+_autoBumpStatus.Text;_listingBumpValue.Text=_autoBumpStatus.Text;};
+        _listingsPanel.Controls.Add(table);_listingsPanel.Controls.Add(banner);_listingsPanel.Controls.Add(PageLayout.Spacer(this,16));_listingsPanel.Controls.Add(kpi);_listingsPanel.Controls.Add(PageLayout.Spacer(this,18));_listingsPanel.Controls.Add(header);
     }
     private ReferenceEmptyState ListingsEmptyState()
     {
