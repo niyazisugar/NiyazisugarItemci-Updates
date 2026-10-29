@@ -17,6 +17,10 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  for(const width of [760,1050,1440]){await fog.setViewportSize({width,height:920});const box=await fog.locator('.niyazi-fog-chat textarea').boundingBox();assert(box.x>=0&&box.x+box.width<=width,'Fog composer clipped');}
  await fog.screenshot({path:'test-results/messages-fog-fixture.png'});
  await fog.getByRole('button',{name:'Itemci görünümü',exact:true}).click();assert.equal(await fog.locator('.niyazi-fog-root').count(),0);assert.equal(await fog.locator('textarea').inputValue(),'CH1 depocudayım, bekliyorum.');
+ await fog.reload();await fog.evaluate(()=>{document.querySelector('.niyazi-fog-chat')?.classList.remove('niyazi-fog-chat');const sections=document.querySelectorAll('main>section');sections[1].innerHTML='<div><h2>Mesajlarınızı Görüntüleyin</h2><p>Sol taraftan bir görüşme seçin.</p></div>';});
+ await fog.addScriptTag({content:fs.readFileSync('overrides/QuickReplyDock.js','utf8')});await fog.locator('.niyazi-fog-root').waitFor();assert.equal(await fog.locator('textarea').count(),0);assert.equal(await fog.locator('.niyazi-fog-chat h2').textContent(),'Mesajlarınızı Görüntüleyin');
+ await fog.evaluate(()=>{const pane=document.querySelector('.niyazi-fog-chat');pane.innerHTML='<form><textarea placeholder="Mesajınızı yazın"></textarea><button type="submit">Gönder</button></form>';});await fog.locator('#niyazi-quick-replies').waitFor();assert.equal(await fog.locator('.niyazi-fog-chat textarea').count(),1);
+ console.log('PASS: exact user-reported no-conversation empty state activates Fog before any composer exists; selecting conversation retains skin and quick replies.');
  await fog.close();console.log('PASS: Fog preserves live input/send handlers and quick replies, responsive columns and original-view fallback. Synthetic message fixture only.');
  // Report checks operate on isolated fixtures; no sample listing enters the app.
  await page.goto('https://itemci.com/categories/msp2-global-yeni-item-yang');

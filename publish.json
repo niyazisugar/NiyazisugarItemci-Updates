@@ -1,4 +1,4 @@
 {
-  "version": "2.16.2",
-  "notes": "Fog mesaj görünümünde iki sütunlu açık tasarım, tam genişlikte arama ve konuşma kartları, sade başlık ve esnek alt mesaj çubuğu. Gerçek Itemci konuşma ve gönderme bileşenleri korunur. Hızlı cevaplar ve eski görünüme dönüş çalışmaya devam eder."
+  "version": "2.16.3",
+  "notes": "Mesaj görünümü konuşma seçilmeden de açılır. Mesajlarınızı Görüntüleyin boş ekranı desteklenir; konuşma seçildiğinde aynı görünüm korunur. Site koyu tema renklerinin Fog açık görünümüne sızması azaltıldı. Kullanıcının bildirdiği boş mesaj ekranı regresyon testi eklendi."
 }

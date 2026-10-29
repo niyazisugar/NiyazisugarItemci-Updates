@@ -5,7 +5,10 @@
  const css=`
  html.niyazi-fog {color-scheme:light!important;background:#eceef2!important}
  .niyazi-fog-root{position:fixed!important;inset:14px!important;z-index:30!important;display:flex!important;gap:14px!important;background:#eceef2!important;padding:0!important;margin:0!important;max-width:none!important;width:auto!important;height:auto!important;min-height:0!important;font:13px 'Segoe UI',Arial,sans-serif!important;color:#242832!important}
- .niyazi-fog-root *{box-sizing:border-box}
+ .niyazi-fog-root *{box-sizing:border-box;color:#252932!important;border-color:#e3e7ed!important}
+ .niyazi-fog-root [class*=bg-neutral],.niyazi-fog-root [class*="dark:bg"]{background-color:transparent!important}
+ .niyazi-fog-root .niyazi-fog-list{background:white!important}
+ .niyazi-fog-root .niyazi-fog-chat{background:#f9fafb!important}
  .niyazi-fog-list{flex:0 0 300px!important;min-width:240px!important;max-width:34%!important;overflow:auto!important;background:white!important;border:1px solid #dce0e7!important;border-radius:22px!important;padding:14px!important;height:100%!important}
  .niyazi-fog-chat{flex:1 1 0!important;min-width:0!important;height:100%!important;overflow:auto!important;background:#f9fafb!important;border:1px solid #dce0e7!important;border-radius:22px!important;color:#252932!important}
  .niyazi-fog-list :is(h1,h2,h3){font-size:16px!important;margin:4px 6px 18px!important}
@@ -33,12 +36,17 @@
  function clear(){for(const [el,cls]of marked)el.classList.remove(cls);marked=[];document.documentElement.classList.remove('niyazi-fog');toggle.remove();}
  function apply(){frame=0;if(disabled||!/^\/panel\/mesajlar(?:\/|$)/.test(location.pathname)){clear();return;}
   const input=[...document.querySelectorAll('textarea,[contenteditable=true]')].find(e=>e.getBoundingClientRect().width>0);
-  const search=[...document.querySelectorAll('input')].find(e=>/ara/i.test(e.placeholder||'')&&e.getBoundingClientRect().width>0);
-  if(!input||!search){clear();return;}
-  let root=input.parentElement;while(root&&!root.contains(search))root=root.parentElement;
+  const searches=[...document.querySelectorAll('input')].filter(e=>/ara/i.test(e.placeholder||'')&&e.getBoundingClientRect().width>0);
+  const search=searches.find(e=>/kullanıcı|kullanici|kişi|kisi/i.test(e.placeholder||''))||searches[0];
+  // Itemci has no composer until a conversation is selected. The empty
+  // conversation placeholder is equally valid as a right-pane anchor.
+  const empty=[...document.querySelectorAll('h1,h2,h3,p,div,span')].find(e=>/^mesajlarınızı görüntüleyin$/i.test(e.textContent.trim())&&e.children.length<2&&e.getBoundingClientRect().width>0);
+  const anchor=input||empty;
+  if(!anchor||!search){clear();return;}
+  let root=anchor.parentElement;while(root&&!root.contains(search))root=root.parentElement;
   if(!root||root===document.body||root===document.documentElement){clear();return;}
   const branch=el=>{while(el.parentElement!==root)el=el.parentElement;return el;};
-  const list=branch(search),chat=branch(input);if(list===chat){clear();return;}
+  const list=branch(search),chat=branch(anchor);if(list===chat){clear();return;}
   if(marked[0]?.[0]===root&&marked[1]?.[0]===list&&marked[2]?.[0]===chat)return;
   clear();marked=[[root,'niyazi-fog-root'],[list,'niyazi-fog-list'],[chat,'niyazi-fog-chat']];for(const[el,cls]of marked)el.classList.add(cls);
   document.documentElement.classList.add('niyazi-fog');document.body.append(toggle);
