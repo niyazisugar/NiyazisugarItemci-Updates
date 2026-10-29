@@ -148,7 +148,16 @@ public sealed partial class MainForm
         ShowPanel(_listingsPanel);await Task.Delay(100);await CaptureAsync("listings");
         RenderCurrentListings(new List<ListingInfo>());if(_listingsList.Controls.OfType<ReferenceEmptyState>().Count()!=1)throw new Exception("Empty listings state missing.");
         _listingsStatusLabel.Text="Yalıtılmış test · aktif ilan listesi alınamadı.";await Task.Delay(100);await CaptureAsync("listings-empty");_listingsStatusLabel.Text="";
-        ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking");
+        if(_liveServer.SelectedItem is MarketServerInfo trackServer)
+        {
+            // Isolated sample rows: dense list, readable price/time/signal columns and scrolling.
+            var sample=new ServerWatch();
+            for(int n=0;n<24;n++)sample.sales.Add(new WatchSale {listing=new LiveListing {title="Test takip ilanı "+(n+1)+" · 500 KT anında teslim",seller="Test satıcı "+(n%5+1),price=250+n*10,url="https://itemci.com/product/test/"+n},detectedAt=TurkeyToday.AddHours(15).AddMinutes(-n*9),evidence=n%3==0?"category-counter":"counter",sellerIncrease=1+n%4});
+            var previous=_serverWatch.TryGetValue(trackServer.Id,out var keep)?keep:null;_serverWatch[trackServer.Id]=sample;_serverWatchRenderedKey="";
+            ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking");
+            if(previous is null)_serverWatch.Remove(trackServer.Id);else _serverWatch[trackServer.Id]=previous;_serverWatchRenderedKey="";
+        }
+        ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking-empty");
         // Seller-counter correlation: both signals required; no first-observation backfill.
         var watch=new ServerWatch();var stamp=DateTime.UtcNow;
         ProductObservation Observation(bool available,int count)=>new(){url="https://itemci.com/product/test/test",sellerId="seller",available=available,salesCount=count,expiresAt=stamp.AddDays(1).ToString("O")};
