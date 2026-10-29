@@ -1,4 +1,4 @@
 {
-  "version": "2.20.3",
-  "notes": "Kaynak kullanımı: mesaj takibi açık Mesajlar sekmesini paylaşır, gereksiz gizli mesaj sayfası boşaltılır. Mesaj kontrolleri çakışmaz ve 10 saniyelik aralıkta yapılır; gizli sekmeler kontrol sonrası askıya alınır. Reklam filtresi sıradan mesaj/animasyon değişikliklerinde tüm sayfayı taramaz. Bildirimler, satış takibi ve otomasyonlar korunur."
+  "version": "2.20.4",
+  "notes": "Satışlar ve Kazanç özetindeki satış toplamı yumuşak turuncu, komisyon soluk kırmızı ve net kazanç yeşil olarak düzenlendi. Hesaplama ve diğer ekranlar korunur."
 }

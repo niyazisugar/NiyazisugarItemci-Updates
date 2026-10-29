@@ -134,7 +134,7 @@ internal sealed class ReferenceKpiCard : Control
             if (tail.Length > 0 && mainSize.Width < room)
             {
                 var small = ReferenceUi.Font(10); var tailSize = TextRenderer.MeasureText(tail, small, Size.Empty, TextFormatFlags.NoPadding);
-                var tailTone = c.Highlight ? Color.FromArgb(168, 146, 92) : ReferenceUi.Muted;
+                var tailTone = c.Tone.HasValue ? Color.FromArgb((tone.R+ReferenceUi.Muted.R)/2,(tone.G+ReferenceUi.Muted.G)/2,(tone.B+ReferenceUi.Muted.B)/2) : c.Highlight ? Color.FromArgb(168, 146, 92) : ReferenceUi.Muted;
                 TextRenderer.DrawText(g, tail, small, new Rectangle(left + mainSize.Width, top + mainSize.Height - tailSize.Height - (int)(2 * s), room - mainSize.Width, tailSize.Height + 2), tailTone, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
             }
         }
