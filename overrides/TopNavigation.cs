@@ -1,8 +1,10 @@
+using System.Drawing.Drawing2D;
+
 namespace NiyazisugarItemci;
 
-// Sol kenar menüsü. Açıkken ikon + isim, daraltılınca yalnızca ikonlar görünür
-// ve içerik alanı genişler. Tercih AppSettings.SidebarCollapsed içinde saklanır.
-// (Alan adları eski üst menüden kalmıştır; diğer dosyalar ve testler bunlara bağlı.)
+// Üst menü çubuğu: yuvarlak köşeli tek bir çubuk içinde solda marka, ortada hap şeklinde
+// bölümler (Itemci · Mesajlar · İlanlarım · Satışlar · Piyasa · Takip), sağda altın
+// "+ Hızlı İlan" ve yuvarlak ayarlar düğmesi.
 public sealed partial class MainForm
 {
     private Panel? _topNavigation;
@@ -11,46 +13,53 @@ public sealed partial class MainForm
     private readonly ContextMenuStrip _topMarketMenu = new();
     private readonly ContextMenuStrip _topCreateMenu = new();
     private Button? _topMessages;
-    private ReferenceButton? _navToggle;
-    private FlowLayoutPanel? _navMenu;
     private readonly List<ReferenceButton> _navButtons = new();
-    private bool _navCollapsed;
 
-    private const int NavExpandedWidth = 232;
-    private const int NavCollapsedWidth = 72;
+    private static readonly Color TopBarColor = Color.FromArgb(24, 25, 28);
 
     private void InstallTopNavigation()
     {
         Controls.Remove(_sidebar);
         _sidebar.Visible = false;
-        _navCollapsed = _settings.SidebarCollapsed;
 
         _topNavigation = new Panel
         {
-            Dock = DockStyle.Left,
-            Width = LogicalToDeviceUnits(_navCollapsed ? NavCollapsedWidth : NavExpandedWidth),
-            BackColor = ReferenceUi.Sidebar,
-            Padding = new Padding(LogicalToDeviceUnits(12), LogicalToDeviceUnits(14), LogicalToDeviceUnits(12), LogicalToDeviceUnits(12))
+            Dock = DockStyle.Top,
+            Height = LogicalToDeviceUnits(74),
+            BackColor = ReferenceUi.Background,
+            Padding = new Padding(LogicalToDeviceUnits(16), LogicalToDeviceUnits(14), LogicalToDeviceUnits(16), LogicalToDeviceUnits(6))
         };
+
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = TopBarColor, Margin = new Padding(0), Padding = new Padding(LogicalToDeviceUnits(12), LogicalToDeviceUnits(7), LogicalToDeviceUnits(8), LogicalToDeviceUnits(7)) };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(158)));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        // Çubuğun yuvarlak köşeleri: içerik bölgesi kırpılır, kenarlık dış panele çizilir.
+        void RoundBar()
+        {
+            if (layout.Width <= 0 || layout.Height <= 0) return;
+            using var path = ReferenceUi.Shape(new RectangleF(0, 0, layout.Width, layout.Height), layout.Height / 2.6f);
+            var old = layout.Region; layout.Region = new Region(path); old?.Dispose();
+            _topNavigation.Invalidate();
+        }
+        layout.SizeChanged += (_, _) => RoundBar();
         _topNavigation.Paint += (_, e) =>
         {
-            using var pen = new Pen(ReferenceUi.Line);
-            e.Graphics.DrawLine(pen, _topNavigation.Width - 1, 0, _topNavigation.Width - 1, _topNavigation.Height);
+            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+            var r = new RectangleF(layout.Left - .5f, layout.Top - .5f, layout.Width, layout.Height);
+            using var path = ReferenceUi.Shape(r, layout.Height / 2.6f);
+            using var pen = new Pen(Color.FromArgb(37, 38, 42));
+            g.DrawPath(pen, path);
         };
 
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Color.Transparent, Margin = new Padding(0), Padding = new Padding(0) };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(68)));   // marka
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));                         // bölümler
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(52)));   // hızlı ilan
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(100)));  // ayarlar + daralt
-
-        var branding = new ReferenceBrand { Dock = DockStyle.Fill, Cursor = Cursors.Hand, BackColor = ReferenceUi.Sidebar, Subtitle = "Satıcı alanı", Margin = new Padding(0) };
+        var branding = new ReferenceBrand { Dock = DockStyle.Fill, Cursor = Cursors.Hand, BackColor = TopBarColor, Compact = true, Margin = new Padding(0) };
         branding.Click += (_, _) => ShowPanel(_browserPanel);
         layout.Controls.Add(branding, 0, 0);
 
-        var menu = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = false, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(0, LogicalToDeviceUnits(6), 0, 0), Margin = new Padding(0), BackColor = Color.Transparent };
-        _navMenu = menu;
+        var menu = new ReferencePillGroup { Anchor = AnchorStyles.Left, Padding = new Padding(LogicalToDeviceUnits(4)), Margin = new Padding(0, LogicalToDeviceUnits(1), 0, 0) };
 
         Button Section(string text, Panel panel, Action click)
         {
@@ -69,37 +78,27 @@ public sealed partial class MainForm
         menu.Controls.Add(_topMessages);
         Section("İlanlarım", _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
         Section("Satışlar", _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
-        Section("Piyasa Analizi", _marketPanel, () => { ShowPanel(_marketPanel); _ = OpenEmbeddedMarketAnalyzerAsync(); });
-        Section("Satış Takibi", _serverSalesPanel, () => { ShowPanel(_serverSalesPanel); RenderServerSalesWatch(); _ = RefreshLiveMarketAsync(); });
-        layout.Controls.Add(menu, 0, 1);
+        var market = Section("Piyasa", _marketPanel, () => { ShowPanel(_marketPanel); _ = OpenEmbeddedMarketAnalyzerAsync(); });
+        var tracking = Section("Takip", _serverSalesPanel, () => { ShowPanel(_serverSalesPanel); RenderServerSalesWatch(); _ = RefreshLiveMarketAsync(); });
+        _sidebarToolTip.SetToolTip(market, "Piyasa Analizi");
+        _sidebarToolTip.SetToolTip(tracking, "Satış Takibi");
+        layout.Controls.Add(menu, 1, 0);
 
-        var create = (ReferenceButton)TopButton("Hızlı İlan Ekle", 0, () => _ = ShowListingComposerAsync());
+        var actions = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, BackColor = TopBarColor, Margin = new Padding(0, LogicalToDeviceUnits(3), 0, 0), Anchor = AnchorStyles.Right };
+        var create = (ReferenceButton)TopButton("+ Hızlı İlan", 0, () => _ = ShowListingComposerAsync());
         create.Primary = true;
-        create.Icon = "plus";
-        create.Font = ReferenceUi.Bold(9.5f);
-        create.Dock = DockStyle.Top;
-        create.Margin = new Padding(0, LogicalToDeviceUnits(6), 0, 0);
-        layout.Controls.Add(create, 0, 2);
-
-        var utility = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Margin = new Padding(0), Padding = new Padding(0, LogicalToDeviceUnits(10), 0, 0) };
-        utility.Paint += (_, e) =>
-        {
-            using var pen = new Pen(ReferenceUi.Line);
-            e.Graphics.DrawLine(pen, 0, LogicalToDeviceUnits(2), utility.Width, LogicalToDeviceUnits(2));
-        };
-        var settings = (ReferenceButton)TopButton("Ayarlar", 0, () => ShowPanel(_settingsPanel));
-        settings.Icon = "gear";
-        settings.Dock = DockStyle.Top;
+        create.Font = ReferenceUi.Semibold(9);
+        create.BackColor = TopBarColor;
+        create.Width = create.PillWidth() + LogicalToDeviceUnits(6);
+        create.Margin = new Padding(0, 0, LogicalToDeviceUnits(8), 0);
+        var settings = (ReferenceButton)TopButton("", 0, () => ShowPanel(_settingsPanel));
+        settings.Icon = "gear"; settings.IconOnly = true; settings.IconSize = 15; settings.BackColor = TopBarColor;
+        settings.Width = settings.Height; settings.Margin = new Padding(0);
+        _sidebarToolTip.SetToolTip(settings, "Ayarlar ve güncellemeler");
         _topSections.Add(settings, _settingsPanel);
-        _navToggle = (ReferenceButton)TopButton("Menüyü daralt", 0, () => SetNavigationCollapsed(!_navCollapsed));
-        _navToggle.Dock = DockStyle.Top;
-        // Dock=Top: sonra eklenen üstte durur; ayarlar üstte, daralt düğmesi altta kalsın.
-        utility.Controls.Add(_navToggle);
-        utility.Controls.Add(new Panel { Dock = DockStyle.Top, Height = LogicalToDeviceUnits(4), BackColor = Color.Transparent });
-        utility.Controls.Add(settings);
-        layout.Controls.Add(utility, 0, 3);
-
-        menu.Resize += (_, _) => SizeNavigationButtons();
+        actions.Controls.Add(create);
+        actions.Controls.Add(settings);
+        layout.Controls.Add(actions, 3, 0);
 
         _topNavigation.Controls.Add(layout);
         Controls.Add(_topNavigation);
@@ -111,6 +110,7 @@ public sealed partial class MainForm
             {
                 var value = _unreadLabel.Text;
                 messages.Badge = value is "0" or "—" or "-" or "" ? "" : value;
+                messages.Width = messages.PillWidth();
                 _sidebarToolTip.SetToolTip(messages, messages.Badge.Length == 0 ? "Mesajlar" : "Mesajlar · " + value);
                 messages.Invalidate();
             }
@@ -124,7 +124,6 @@ public sealed partial class MainForm
             popup.Renderer = new ToolStripProfessionalRenderer(new TopMenuColors());
         }
         FormClosed += (_, _) => { _topMarketMenu.Dispose(); _topCreateMenu.Dispose(); };
-        ApplyNavigationState();
         RebuildSidebarNavigation();
         SelectTopSection(_browserPanel);
         ShowPanel(_browserPanel);
@@ -132,66 +131,22 @@ public sealed partial class MainForm
 
     private Button TopButton(string text, int width, Action click)
     {
-        var icon = text switch { "Itemci" => "store", "Mesajlar" => "message", "İlanlarım" => "list", "Satışlar" => "cart", "Piyasa Analizi" => "chart", "Satış Takibi" => "pulse", _ => "" };
         var button = new ReferenceButton
         {
             Text = text,
-            Icon = icon,
-            SideNav = true,
+            Pill = true,
             Navigation = true,
-            Width = width > 0 ? width : LogicalToDeviceUnits(NavExpandedWidth - 24),
-            Height = LogicalToDeviceUnits(40),
+            Height = LogicalToDeviceUnits(32),
             ForeColor = ReferenceUi.Muted,
-            BackColor = ReferenceUi.Sidebar,
-            Margin = new Padding(0, 0, 0, LogicalToDeviceUnits(4)),
-            Font = ReferenceUi.Font(9.5f),
+            BackColor = ReferenceUi.Background,
+            Margin = new Padding(0, 0, LogicalToDeviceUnits(2), 0),
+            Font = ReferenceUi.Font(9),
             TabStop = true
         };
+        button.Width = width > 0 ? width : button.PillWidth();
         button.Click += (_, _) => click();
         _navButtons.Add(button);
         return button;
-    }
-
-    private void SetNavigationCollapsed(bool collapsed)
-    {
-        if (_navCollapsed == collapsed) return;
-        _navCollapsed = collapsed;
-        _settings.SidebarCollapsed = collapsed;
-        _settings.Save();
-        ApplyNavigationState();
-    }
-
-    private void ApplyNavigationState()
-    {
-        if (_topNavigation is null) return;
-        SuspendLayout();
-        _topNavigation.Width = LogicalToDeviceUnits(_navCollapsed ? NavCollapsedWidth : NavExpandedWidth);
-        foreach (var button in _navButtons)
-        {
-            button.IconOnly = _navCollapsed;
-            _sidebarToolTip.SetToolTip(button, _navCollapsed ? button.Text : "");
-            button.Invalidate();
-        }
-        if (_navToggle is not null)
-        {
-            _navToggle.Icon = _navCollapsed ? "expand" : "collapse";
-            _navToggle.Text = _navCollapsed ? "Menüyü genişlet" : "Menüyü daralt";
-            _sidebarToolTip.SetToolTip(_navToggle, _navToggle.Text);
-        }
-        // Düğme genişliğini menüden önce ayarla: aksi halde dar menüde yatay kaydırma çubuğu belirir.
-        SizeNavigationButtons();
-        ResumeLayout(true);
-        SizeNavigationButtons();
-        _topNavigation.Invalidate(true);
-    }
-
-    private void SizeNavigationButtons()
-    {
-        if (_navMenu is null || _topNavigation is null) return;
-        // Genişlik menünün o anki boyutundan değil, hedef kenar çubuğu genişliğinden hesaplanır.
-        int target = LogicalToDeviceUnits(_navCollapsed ? NavCollapsedWidth : NavExpandedWidth) - _topNavigation.Padding.Horizontal;
-        int width = Math.Max(LogicalToDeviceUnits(40), Math.Min(target, _navMenu.ClientSize.Width > 0 ? _navMenu.ClientSize.Width : target));
-        foreach (Control control in _navMenu.Controls) control.Width = width;
     }
 
     private void SelectTopSection(Panel panel)
@@ -202,8 +157,11 @@ public sealed partial class MainForm
         foreach (var entry in _topSections)
         {
             bool selected = ReferenceEquals(entry.Value, panel) && (!ReferenceEquals(panel, _browserPanel) || ReferenceEquals(entry.Key, _topMessages) == messageActive);
-            entry.Key.BackColor = ReferenceUi.Sidebar;
-            ((ReferenceButton)entry.Key).Selected = selected;
+            var button = (ReferenceButton)entry.Key;
+            button.Selected = selected;
+            // Yazı tipi değişince hap genişliği de değişir; seçili öğe biraz daha belirgin.
+            var font = selected ? ReferenceUi.Semibold(9) : ReferenceUi.Font(9);
+            if (!button.IconOnly && !ReferenceEquals(button.Font, font)) { button.Font = font; button.Width = button.PillWidth(); }
             entry.Key.ForeColor = selected ? PremiumTheme.Gold : ReferenceUi.Muted;
             entry.Key.Invalidate();
         }
@@ -237,7 +195,7 @@ public sealed partial class MainForm
     private sealed class TopMenuColors : ProfessionalColorTable
     {
         public override Color ToolStripDropDownBackground => ReferenceUi.Surface;
-        public override Color MenuItemSelected => Color.FromArgb(58, 50, 36);
+        public override Color MenuItemSelected => Color.FromArgb(40, 41, 47);
         public override Color MenuItemBorder => ReferenceUi.Gold;
         public override Color MenuBorder => ReferenceUi.Line;
         public override Color SeparatorDark => ReferenceUi.Line;
