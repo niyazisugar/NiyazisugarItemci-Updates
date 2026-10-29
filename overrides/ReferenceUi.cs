@@ -67,6 +67,35 @@ internal sealed class ReferenceButton : Button
     internal string Badge {get;set;}="";
     /// <summary>İkon boyutu (mantıksal piksel); 0 = varsayılan.</summary>
     internal float IconSize {get;set;}
+    /// <summary>Üst çubuk hapı: tam yuvarlak; seçiliyken hafif açık zemin, birincilde altın.</summary>
+    internal bool Pill {get;set;}
+    private void PaintPill(Graphics g,float s)
+    {
+        g.SmoothingMode=SmoothingMode.AntiAlias;var r=new RectangleF(.5f,.5f,Width-1,Height-1);float radius=Height/2f;
+        using var path=ReferenceUi.Shape(r,radius);
+        if(Primary){using var fill=new SolidBrush(_hover?Color.FromArgb(224,190,116):ReferenceUi.Gold);g.FillPath(fill,path);}
+        else if(Selected){using var fill=new SolidBrush(Color.FromArgb(38,39,44));g.FillPath(fill,path);using var top=new Pen(Color.FromArgb(52,53,59));g.DrawPath(top,path);}
+        else if(_hover){using var fill=new SolidBrush(ReferenceUi.Hover);g.FillPath(fill,path);}
+        if(IconOnly&&!Primary&&!Selected){using var ring=new Pen(Color.FromArgb(42,43,48));g.DrawPath(ring,path);}
+        var tone=Primary?ReferenceUi.PrimaryText:Selected?ReferenceUi.Text:Color.FromArgb(150,151,158);
+        if(IconOnly){float icon=(IconSize>0?IconSize:16)*s;ReferenceUi.Icon(g,Icon,new RectangleF((Width-icon)/2,(Height-icon)/2,icon,icon),tone);}
+        else
+        {
+            int badgeWidth=0;var font=ReferenceUi.Semibold(7.5f);
+            if(!string.IsNullOrEmpty(Badge)){badgeWidth=(int)(TextRenderer.MeasureText(Badge,font,Size.Empty,TextFormatFlags.NoPadding).Width+10*s);}
+            var textWidth=TextRenderer.MeasureText(Text,Font,Size.Empty,TextFormatFlags.NoPadding).Width;int gap=badgeWidth>0?(int)(6*s):0;int x=(Width-textWidth-gap-badgeWidth)/2;
+            TextRenderer.DrawText(g,Text,Font,new Rectangle(x,0,textWidth+2,Height),tone,TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix|TextFormatFlags.SingleLine);
+            if(badgeWidth>0){var b=new RectangleF(x+textWidth+gap,(Height-16*s)/2,badgeWidth,16*s);using var bp=ReferenceUi.Shape(b,8*s);using var bf=new SolidBrush(ReferenceUi.Gold);g.FillPath(bf,bp);TextRenderer.DrawText(g,Badge,font,Rectangle.Round(b),ReferenceUi.PrimaryText,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);}
+        }
+        if(Focused){using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}
+    }
+    internal int PillWidth()
+    {
+        float s=DeviceDpi/96f;if(IconOnly)return Height>0?Height:(int)(34*s);
+        int w=TextRenderer.MeasureText(Text,Font,Size.Empty,TextFormatFlags.NoPadding).Width+(int)(30*s);
+        if(!string.IsNullOrEmpty(Badge))w+=TextRenderer.MeasureText(Badge,ReferenceUi.Semibold(7.5f),Size.Empty,TextFormatFlags.NoPadding).Width+(int)(16*s);
+        return w;
+    }
     private bool _hover;
     internal ReferenceButton(){FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Font=ReferenceUi.Font(10);Cursor=Cursors.Hand;BackColor=ReferenceUi.Surface;ForeColor=ReferenceUi.Text;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
     protected override void OnMouseEnter(EventArgs e){base.OnMouseEnter(e);_hover=true;Invalidate();}protected override void OnMouseLeave(EventArgs e){base.OnMouseLeave(e);_hover=false;Invalidate();}
@@ -102,7 +131,7 @@ internal sealed class ReferenceButton : Button
         }
         if(Focused){using var path=ReferenceUi.Shape(new RectangleF(2,2,Width-4,Height-4),(ReferenceUi.ControlRadius-2)*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}
     }
-    protected override void OnPaint(PaintEventArgs e){var g=e.Graphics;g.Clear(ReferenceUi.Host(this));float s=DeviceDpi/96f;if(SideNav){PaintSideNav(g,s);return;}var tone=Enabled?(Primary?ReferenceUi.PrimaryText:Selected||GoldOutline?ReferenceUi.Gold:ForeColor):ReferenceUi.Muted;
+    protected override void OnPaint(PaintEventArgs e){var g=e.Graphics;g.Clear(ReferenceUi.Host(this));float s=DeviceDpi/96f;if(Pill){PaintPill(g,s);return;}if(SideNav){PaintSideNav(g,s);return;}var tone=Enabled?(Primary?ReferenceUi.PrimaryText:Selected||GoldOutline?ReferenceUi.Gold:ForeColor):ReferenceUi.Muted;
         if(!Navigation){ReferenceUi.SurfacePaint(g,ClientRectangle,Primary?ReferenceUi.Gold:_hover?ReferenceUi.Hover:ReferenceUi.Field,!Primary,ReferenceUi.ControlRadius*s);if(GoldOutline){using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),ReferenceUi.ControlRadius*s);using var pen=new Pen(ReferenceUi.Gold);g.DrawPath(pen,path);}}else if(_hover){g.SmoothingMode=SmoothingMode.AntiAlias;using var path=ReferenceUi.Shape(new RectangleF(.5f,.5f,Width-1,Height-1),ReferenceUi.ControlRadius*s);using var fill=new SolidBrush(ReferenceUi.Hover);g.FillPath(fill,path);}
         float iconSize=(IconSize>0?IconSize:22)*s;int iconWidth=string.IsNullOrEmpty(Icon)?0:(int)(IconSize>0?iconSize:(Navigation?22:24)*s),gap=iconWidth==0?0:(int)((Navigation?8:10)*s);var display=IconOnly?"":Text;var measured=TextRenderer.MeasureText(display,Font,Size.Empty,TextFormatFlags.NoPadding);int total=measured.Width+iconWidth+gap;int left=IconOnly?(int)((Width-iconSize)/2):Math.Max((int)((Navigation?6:10)*s),(Width-total)/2);
         if(iconWidth>0)ReferenceUi.Icon(g,Icon,new RectangleF(left,(Height-iconSize)/2,iconSize,iconSize),tone);
@@ -174,8 +203,38 @@ internal sealed class ReferenceRow : Panel
 internal sealed class ReferenceBrand : Control
 {
     internal string Subtitle {get;set;}="Satıcı Çalışma Alanı";
-    internal ReferenceBrand(){BackColor=ReferenceUi.Background;Controls.Add(new BrandMark {Location=new Point(0,4),Size=new Size(48,48)});SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
-    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);float s=DeviceDpi/96f;var font=ReferenceUi.Bold(12);int x=(int)(60*s);var name="Niyazi";int w=TextRenderer.MeasureText(name,font,Size.Empty,TextFormatFlags.NoPadding).Width;TextRenderer.DrawText(e.Graphics,name,font,new Point(x,(int)(10*s)),ReferenceUi.Text,TextFormatFlags.NoPadding);TextRenderer.DrawText(e.Graphics,"SUGAR",font,new Point(x+w,(int)(10*s)),ReferenceUi.Gold,TextFormatFlags.NoPadding);TextRenderer.DrawText(e.Graphics,Subtitle,ReferenceUi.Font(8.5f),new Point(x,(int)(32*s)),ReferenceUi.Muted,TextFormatFlags.NoPadding);}
+    private readonly BrandMark _mark=new() {Location=new Point(0,4),Size=new Size(48,48)};
+    private bool _compact;
+    /// <summary>Üst çubuk için: küçük "N" karosu + tek satır isim, büyük logo gizlenir.</summary>
+    internal bool Compact {get=>_compact;set{_compact=value;_mark.Visible=!value;Invalidate();}}
+    internal ReferenceBrand(){BackColor=ReferenceUi.Background;Controls.Add(_mark);SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);float s=DeviceDpi/96f;var g=e.Graphics;
+        if(_compact)
+        {
+            g.SmoothingMode=SmoothingMode.AntiAlias;float tile=30*s;var r=new RectangleF(2*s,(Height-tile)/2,tile,tile);
+            using(var path=ReferenceUi.Shape(r,10*s)){using var fill=new SolidBrush(Color.FromArgb(38,39,44));g.FillPath(fill,path);using var pen=new Pen(Color.FromArgb(48,49,55));g.DrawPath(pen,path);}
+            TextRenderer.DrawText(g,"N",ReferenceUi.Bold(10.5f),Rectangle.Round(r),ReferenceUi.Gold,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);
+            var bold=ReferenceUi.Semibold(10.5f);int x=(int)(r.Right+10*s);var first="Niyazi";int fw=TextRenderer.MeasureText(first,bold,Size.Empty,TextFormatFlags.NoPadding).Width;
+            var flags=TextFormatFlags.NoPadding|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine;
+            TextRenderer.DrawText(g,first,bold,new Rectangle(x,0,fw+2,Height),ReferenceUi.Text,flags);
+            TextRenderer.DrawText(g,"SUGAR",bold,new Rectangle(x+fw,0,Math.Max(0,Width-x-fw),Height),ReferenceUi.Gold,flags);
+            return;
+        }
+        var font=ReferenceUi.Bold(12);int x0=(int)(60*s);var name="Niyazi";int w=TextRenderer.MeasureText(name,font,Size.Empty,TextFormatFlags.NoPadding).Width;TextRenderer.DrawText(g,name,font,new Point(x0,(int)(10*s)),ReferenceUi.Text,TextFormatFlags.NoPadding);TextRenderer.DrawText(g,"SUGAR",font,new Point(x0+w,(int)(10*s)),ReferenceUi.Gold,TextFormatFlags.NoPadding);TextRenderer.DrawText(g,Subtitle,ReferenceUi.Font(8.5f),new Point(x0,(int)(32*s)),ReferenceUi.Muted,TextFormatFlags.NoPadding);
+    }
+}
+
+/// <summary>Hap şeklindeki menü öğelerini taşıyan yuvarlak, koyu kap (Itemci · Mesajlar · ...).</summary>
+internal sealed class ReferencePillGroup : FlowLayoutPanel
+{
+    internal ReferencePillGroup(){BackColor=ReferenceUi.Background;WrapContents=false;FlowDirection=FlowDirection.LeftToRight;AutoSize=true;AutoSizeMode=AutoSizeMode.GrowAndShrink;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);}
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        var g=e.Graphics;g.Clear(ReferenceUi.Host(this));g.SmoothingMode=SmoothingMode.AntiAlias;var r=new RectangleF(.5f,.5f,Width-1,Height-1);
+        using var path=ReferenceUi.Shape(r,Height/2f);using var fill=new SolidBrush(BackColor);g.FillPath(fill,path);using var pen=new Pen(Color.FromArgb(35,35,39));g.DrawPath(pen,path);
+    }
 }
 internal sealed class ReferenceListHeading : Control
 {
