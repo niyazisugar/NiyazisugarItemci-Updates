@@ -1,4 +1,4 @@
 {
-  "version": "2.18.0",
-  "notes": "Yeni Graphite tasarımı: grafit renkler, sade başlıklar, tek parça özet kartı ve kart içi arama tüm sayfalarda. Tarayıcı sekmeleri ve adres çubuğu yenilendi. Mesajlar, hızlı cevaplar ve diğer özellikler aynen korunur."
+  "version": "2.19.0",
+  "notes": "Sol menü yerine yuvarlak üst menü çubuğu: bölümler hap şeklinde, Hızlı İlan ve ayarlar sağda; içerik artık tam genişlikte. Diğer özellikler aynen korunur."
 }
