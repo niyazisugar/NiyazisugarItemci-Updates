@@ -335,7 +335,7 @@ internal sealed class ReferenceWatchList : Control
     private int HeadH => LogicalToDeviceUnits(34);
     private int ViewH => Math.Max(0, Height - HeadH);
     private int MaxOffset => Math.Max(0, _items.Count * RowH - ViewH);
-    internal void SetItems(List<WatchRowItem> items) { _items = items; _offset = Math.Clamp(_offset, 0, MaxOffset); _hover = -1; Invalidate(); }
+    internal void SetItems(List<WatchRowItem> items) { _items = items; _offset = Math.Clamp(_offset, 0, MaxOffset); _hover = -1; _tips.Hide(this); _tips.SetToolTip(this, ""); Cursor = Cursors.Default; Invalidate(); }
     private Rectangle Track => new(Width - LogicalToDeviceUnits(12), HeadH + LogicalToDeviceUnits(6), LogicalToDeviceUnits(6), Math.Max(0, ViewH - LogicalToDeviceUnits(12)));
     private Rectangle Thumb
     {
@@ -367,7 +367,7 @@ internal sealed class ReferenceWatchList : Control
         int i = onThumb ? -1 : RowAt(e.Location);
         if (i != _hover) { _hover = i; Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; _tips.SetToolTip(this, i >= 0 ? _items[i].Tooltip : ""); Invalidate(); }
     }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; _thumbHover = false; Invalidate(); }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; _thumbHover = false; _tips.Hide(this); Invalidate(); }
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
