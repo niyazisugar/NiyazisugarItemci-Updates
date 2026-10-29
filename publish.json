@@ -1,4 +1,4 @@
 {
   "version": "2.16.1",
-  "notes": "Mesaj ekranında Fog açık görünüm: gerçek Itemci konuşma listesini ve mesaj bileşenlerini koruyan iki sütunlu yuvarlak kartlar, sade hızlı cevaplar ve turkuaz gönder butonu. Mesaj gönderme ve oturum aynı kalır. Uyumlu mesaj alanları bulunamazsa mevcut ekran korunur; Itemci görünümüne dönüş düğmesi bulunur."
+  "notes": "Fog mesaj görünümü: gerçek konuşma ve gönderme bileşenleri korunarak açık iki sütunlu tasarım. Hızlı cevaplar ve eski görünüme dönüş korunur. Türkçe karakterli mesaj ekranı ve gönderme davranışı test edilir."
 }
