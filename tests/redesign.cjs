@@ -7,21 +7,11 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const strip=await page.locator('#niyazi-quick-replies').boundingBox(),input=await page.locator('textarea').boundingBox();assert(strip.y+strip.height<=input.y);
  await page.locator('#send').click();assert.equal(await page.evaluate(()=>window.sent),1);
  await page.evaluate(()=>localStorage.setItem('niyazi_quick_replies_custom_v1',JSON.stringify([{id:'custom',short:'Kaydım',text:'Türkçe kayıtlı cevap'}])));await page.reload();await page.addScriptTag({content:fs.readFileSync('overrides/QuickReplyDock.js','utf8')});await page.getByRole('button',{name:'Kaydım',exact:true}).click();assert.equal(await page.locator('textarea').inputValue(),'Türkçe kayıtlı cevap');assert.equal(await page.evaluate(()=>window.sent),0);
- const fog=await browser.newPage({viewport:{width:1440,height:920}});
- await fog.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<html><head></head><body><main style="display:flex;height:800px"><section><h2>Mesajlar</h2><input placeholder="Kişi veya ilan ara..."><button id="thread">Test konuşması</button></section><section style="display:flex;flex-direction:column"><h3>Test kullanıcısı</h3><div style="flex:1">Test mesajı</div><form><textarea placeholder="Mesajınızı yazın"></textarea><button type="submit">Gönder</button></form></section></main><script>window.sent=0;document.querySelector('form').onsubmit=e=>{e.preventDefault();sent++;};</script></body></html>`}));
- await fog.goto('https://itemci.com/panel/mesajlar');await fog.addScriptTag({content:fs.readFileSync('overrides/QuickReplyDock.js','utf8')});
- await fog.locator('.niyazi-fog-root').waitFor();
- assert.equal(await fog.locator('.niyazi-fog-list input').count(),1);assert.equal(await fog.locator('.niyazi-fog-chat textarea').count(),1);
- await fog.locator('#niyazi-quick-replies button').first().click();assert.equal(await fog.evaluate(()=>sent),0);
- await fog.getByRole('button',{name:'Gönder',exact:true}).click();assert.equal(await fog.evaluate(()=>sent),1);
- for(const width of [760,1050,1440]){await fog.setViewportSize({width,height:920});const box=await fog.locator('.niyazi-fog-chat textarea').boundingBox();assert(box.x>=0&&box.x+box.width<=width,'Fog composer clipped');}
- await fog.screenshot({path:'test-results/messages-fog-fixture.png'});
- await fog.getByRole('button',{name:'Itemci görünümü',exact:true}).click();assert.equal(await fog.locator('.niyazi-fog-root').count(),0);assert.equal(await fog.locator('textarea').inputValue(),'CH1 depocudayım, bekliyorum.');
- await fog.reload();await fog.evaluate(()=>{document.querySelector('.niyazi-fog-chat')?.classList.remove('niyazi-fog-chat');const sections=document.querySelectorAll('main>section');sections[1].innerHTML='<div><h2>Mesajlarınızı Görüntüleyin</h2><p>Sol taraftan bir görüşme seçin.</p></div>';});
- await fog.addScriptTag({content:fs.readFileSync('overrides/QuickReplyDock.js','utf8')});await fog.locator('.niyazi-fog-root').waitFor();assert.equal(await fog.locator('textarea').count(),0);assert.equal(await fog.locator('.niyazi-fog-chat h2').textContent(),'Mesajlarınızı Görüntüleyin');
- await fog.evaluate(()=>{const pane=document.querySelector('.niyazi-fog-chat');pane.innerHTML='<form><textarea placeholder="Mesajınızı yazın"></textarea><button type="submit">Gönder</button></form>';});await fog.locator('#niyazi-quick-replies').waitFor();assert.equal(await fog.locator('.niyazi-fog-chat textarea').count(),1);
- console.log('PASS: exact user-reported no-conversation empty state activates Fog before any composer exists; selecting conversation retains skin and quick replies.');
- await fog.close();console.log('PASS: Fog preserves live input/send handlers and quick replies, responsive columns and original-view fallback. Synthetic message fixture only.');
+ const diagnostic=await page.evaluate(()=>{document.body.append(Object.assign(document.createElement('input'),{value:'SECRET_INPUT_VALUE',placeholder:'secret-placeholder'}));document.body.append(Object.assign(document.createElement('p'),{textContent:'PRIVATE_MESSAGE_BODY'}));return window.__niyaziMessageLayout();});
+ assert(!JSON.stringify(diagnostic).includes('SECRET_INPUT_VALUE'));assert(!JSON.stringify(diagnostic).includes('PRIVATE_MESSAGE_BODY'));assert(!JSON.stringify(diagnostic).includes('secret-placeholder'));
+ assert.equal(diagnostic.format,1);assert(JSON.stringify(diagnostic).includes('message-input'));
+ assert.equal(await page.locator('#niyazi-fog-style').count(),0,'Broken Fog site patch remains installed.');
+ console.log('PASS: read-only message layout diagnostics exclude text/input values; broken Fog patch removed.');
  // Report checks operate on isolated fixtures; no sample listing enters the app.
  await page.goto('https://itemci.com/categories/msp2-global-yeni-item-yang');
  let source=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarRunMarket = runAnalysis;','    window.__testReport=showReport; window.__testServer=()=>loadServers()[0];\n    window.__NiyazisugarRunMarket = runAnalysis;');await page.addScriptTag({content:source});

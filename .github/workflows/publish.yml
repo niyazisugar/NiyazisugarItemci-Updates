@@ -88,6 +88,7 @@ jobs:
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
           Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
           Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
+          Copy-Item "overrides/MessageDiagnostics.cs" "src/MessageDiagnostics.cs" -Force
           Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
           Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
           Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force

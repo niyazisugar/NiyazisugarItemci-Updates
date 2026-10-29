@@ -1,4 +1,4 @@
 {
-  "version": "2.16.3",
-  "notes": "Mesaj görünümü konuşma seçilmeden de açılır. Mesajlarınızı Görüntüleyin boş ekranı desteklenir; konuşma seçildiğinde aynı görünüm korunur. Site koyu tema renklerinin Fog açık görünümüne sızması azaltıldı. Kullanıcının bildirdiği boş mesaj ekranı regresyon testi eklendi."
+  "version": "2.16.4",
+  "notes": "Başarısız Fog sayfa stili kaldırıldı; normal Itemci mesaj ekranı ve hızlı cevaplar korundu. Mesajlar menüsünde sağ tık ile mesaj bağlantısı yapısını kaydetme eklendi. Teknik kayıt mesaj metinleri, giriş değerleri, çerezler, bağlantılar veya script içeriklerini okumaz; yalnızca arayüz yapısını kaydeder. Ayrı mesaj ekranının gerçek veriye bağlanması için hazırlık sürümü."
 }

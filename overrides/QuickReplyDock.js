@@ -1,62 +1,18 @@
-(() => {
- 'use strict';
- if(window.__niyaziFogMessages)return;
- window.__niyaziFogMessages=true;
- const css=`
- html.niyazi-fog {color-scheme:light!important;background:#eceef2!important}
- .niyazi-fog-root{position:fixed!important;inset:14px!important;z-index:30!important;display:flex!important;gap:14px!important;background:#eceef2!important;padding:0!important;margin:0!important;max-width:none!important;width:auto!important;height:auto!important;min-height:0!important;font:13px 'Segoe UI',Arial,sans-serif!important;color:#242832!important}
- .niyazi-fog-root *{box-sizing:border-box;color:#252932!important;border-color:#e3e7ed!important}
- .niyazi-fog-root [class*=bg-neutral],.niyazi-fog-root [class*="dark:bg"]{background-color:transparent!important}
- .niyazi-fog-root .niyazi-fog-list{background:white!important}
- .niyazi-fog-root .niyazi-fog-chat{background:#f9fafb!important}
- .niyazi-fog-list{flex:0 0 300px!important;min-width:240px!important;max-width:34%!important;overflow:auto!important;background:white!important;border:1px solid #dce0e7!important;border-radius:22px!important;padding:14px!important;height:100%!important}
- .niyazi-fog-chat{flex:1 1 0!important;min-width:0!important;height:100%!important;overflow:auto!important;background:#f9fafb!important;border:1px solid #dce0e7!important;border-radius:22px!important;color:#252932!important}
- .niyazi-fog-list :is(h1,h2,h3){font-size:16px!important;margin:4px 6px 18px!important}
- .niyazi-fog-list input{width:100%!important;margin-bottom:10px!important}
- .niyazi-fog-list :is(a,[role=button],button){display:block!important;width:100%!important;text-align:left!important;padding:14px!important;border:0!important;background:#f0f6f5!important;margin:4px 0!important}
- .niyazi-fog-chat>h3{font-size:14px!important;padding:20px 22px!important;margin:0!important;border-bottom:1px solid #e9edf1!important;background:white!important}
- .niyazi-fog-chat form{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center!important;padding:10px 12px!important;flex-shrink:0!important}
- .niyazi-fog-chat form textarea{flex:1 1 160px!important;min-width:0!important;resize:none!important;height:44px!important;min-height:44px!important}
- .niyazi-fog-chat form button[type=submit]{min-width:44px!important;min-height:44px!important;border:0!important;padding:10px 14px!important}
- .niyazi-fog-list input,.niyazi-fog-chat textarea,.niyazi-fog-chat input[type=text]{background:#f2f3f6!important;color:#252932!important;border:0!important;border-radius:14px!important;box-shadow:none!important;font:13px 'Segoe UI',sans-serif!important;padding:12px!important}
- .niyazi-fog-list :is(a,[role=button],button){border-radius:16px!important;color:#252932!important}
- .niyazi-fog-list :is([aria-selected=true],[data-state=active]){background:#edf5f4!important}
- .niyazi-fog-chat :is(form,[class*=border-t]){background:white!important;border-color:#e9edf1!important}
- .niyazi-fog-chat :is([class*=bg-orange-500],[class*=bg-blue-500],[class*=bg-primary]){background:#20242c!important;color:white!important;border-radius:18px!important}
- .niyazi-fog-chat button[type=submit]{background:#0e7875!important;color:white!important;border-radius:14px!important}
- .niyazi-fog-root #niyazi-quick-replies{background:white!important;border:0!important;border-radius:0!important;padding:6px 10px!important;gap:6px!important;margin:0!important}
- .niyazi-fog-root #niyazi-quick-replies>span{display:none}
- .niyazi-fog-root #niyazi-quick-replies button{background:white!important;border:1px solid #dce0e7!important;border-radius:20px!important;color:#505969!important;padding:8px 12px!important;font-size:12px!important}
- #niyazi-fog-toggle{position:fixed;right:26px;top:18px;z-index:45;border:1px solid #dce0e7;border-radius:12px;background:white;color:#505969;padding:6px 10px;font:11px 'Segoe UI',sans-serif;cursor:pointer}
- @media(max-width:760px){.niyazi-fog-root{inset:6px!important;gap:6px!important}.niyazi-fog-list{flex-basis:220px!important;min-width:160px!important;padding:8px!important}.niyazi-fog-chat{border-radius:16px!important}}
- `;
- let marked=[],frame=0,disabled=false;
- const style=document.createElement('style');style.id='niyazi-fog-style';style.textContent=css;document.head.append(style);
- const toggle=document.createElement('button');toggle.type='button';toggle.id='niyazi-fog-toggle';toggle.textContent='Itemci görünümü';toggle.title='Mesaj ekranının görünümünü değiştir';
- function clear(){for(const [el,cls]of marked)el.classList.remove(cls);marked=[];document.documentElement.classList.remove('niyazi-fog');toggle.remove();}
- function apply(){frame=0;if(disabled||!/^\/panel\/mesajlar(?:\/|$)/.test(location.pathname)){clear();return;}
-  const input=[...document.querySelectorAll('textarea,[contenteditable=true]')].find(e=>e.getBoundingClientRect().width>0);
-  const searches=[...document.querySelectorAll('input')].filter(e=>/ara/i.test(e.placeholder||'')&&e.getBoundingClientRect().width>0);
-  const search=searches.find(e=>/kullanıcı|kullanici|kişi|kisi/i.test(e.placeholder||''))||searches[0];
-  // Itemci has no composer until a conversation is selected. The empty
-  // conversation placeholder is equally valid as a right-pane anchor.
-  const empty=[...document.querySelectorAll('h1,h2,h3,p,div,span')].find(e=>/^mesajlarınızı görüntüleyin$/i.test(e.textContent.trim())&&e.children.length<2&&e.getBoundingClientRect().width>0);
-  const anchor=input||empty;
-  if(!anchor||!search){clear();return;}
-  let root=anchor.parentElement;while(root&&!root.contains(search))root=root.parentElement;
-  if(!root||root===document.body||root===document.documentElement){clear();return;}
-  const branch=el=>{while(el.parentElement!==root)el=el.parentElement;return el;};
-  const list=branch(search),chat=branch(anchor);if(list===chat){clear();return;}
-  if(marked[0]?.[0]===root&&marked[1]?.[0]===list&&marked[2]?.[0]===chat)return;
-  clear();marked=[[root,'niyazi-fog-root'],[list,'niyazi-fog-list'],[chat,'niyazi-fog-chat']];for(const[el,cls]of marked)el.classList.add(cls);
-  document.documentElement.classList.add('niyazi-fog');document.body.append(toggle);
+// Read-only structural diagnostics. No text, values, URLs, IDs or credentials.
+window.__niyaziMessageLayout = () => {
+ const skip=new Set(['SCRIPT','STYLE','NOSCRIPT','SVG','PATH','IMG']);let count=0;
+ function visit(el){
+  if(skip.has(el.tagName)||count++>=3000)return null;
+  const r=el.getBoundingClientRect();
+  const placeholder=el.getAttribute('placeholder')||'';
+  const kind=/mesaj/i.test(placeholder)?'message-input':/kullanıcı|kullanici|kişi|kisi/i.test(placeholder)?'person-search':/ara/i.test(placeholder)?'search':'';
+  const text=el.children.length===0?(el.textContent||'').trim():'';
+  const marker=/^Mesajlarınızı Görüntüleyin$/.test(text)?'empty-conversation':/^Mesajlar$/.test(text)?'messages-heading':/^Gönder$/.test(text)?'send':/^\d{1,2}:\d{2}$/.test(text)?'time':'';
+  const classes=[...el.classList].filter(x=>x.length<100&&!/[a-f0-9]{24,}|@|https?:/i.test(x)).slice(0,35);
+  return {tag:el.tagName,classes,role:el.getAttribute('role')||'',type:['text','submit','button','password'].includes(el.getAttribute('type'))?el.getAttribute('type'):'',kind,marker,editable:el.getAttribute('contenteditable')==='true',rect:[r.x,r.y,r.width,r.height].map(Math.round),children:[...el.children].map(visit).filter(Boolean)};
  }
- function schedule(){if(!frame)frame=requestAnimationFrame(apply);}
- toggle.onclick=()=>{disabled=true;clear();};
- new MutationObserver(records=>{if(records.some(r=>r.target!==style&&r.target!==toggle))schedule();}).observe(document.body,{childList:true,subtree:true});
- window.addEventListener('popstate',schedule);window.addEventListener('resize',schedule);schedule();
-})();
-
+ return {format:1,page:'itemci-messages',viewport:[innerWidth,innerHeight],tree:visit(document.body),truncated:count>=3000};
+};
 (() => { 'use strict';
 if(window.__niyaziQuickDockV24Installed){window.__niyaziQuickDockV24Refresh?.();return;}
 window.__niyaziQuickDockV24Installed=true;
