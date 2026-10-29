@@ -543,7 +543,7 @@
         return null;
     }
 
-    async function resolveItemYangCategory(serverUrl) {
+    async function resolveItemYangCategory(serverUrl, firstPages = null) {
         const cleanUrl = normalizeServerCategoryUrl(serverUrl);
 
         if (!cleanUrl) {
@@ -556,7 +556,10 @@
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const found = discoverItemYangUrl(doc, cleanUrl);
 
-            if (found) return found;
+            if (found) {
+                if (firstPages && found === cleanUrl) firstPages.set(found, {doc,url:cleanUrl});
+                return found;
+            }
         } catch (err) {
             // Eski V15'te otomatik eklenen yanlış "-itemyang" linkleri için
             // aşağıdaki geri dönüş yolunu deneyeceğiz.
@@ -1140,11 +1143,21 @@
         });
     }
 
-    async function fetchPage(page, categoryBase) {
+    async function fetchPage(page, categoryBase, firstPages = null) {
+        if (page === 1 && firstPages?.has(categoryBase)) return firstPages.get(categoryBase);
         const url = page === 1 ? categoryBase : `${categoryBase}?page=${page}`;
         const html = await requestHtml(url);
         const doc = new DOMParser().parseFromString(html, 'text/html');
         return { doc, url };
+    }
+
+    function categoryLastPage(doc, currentPage) {
+        // Missing pagination retains the original empty/duplicate-page fallback.
+        const text = [...doc.querySelectorAll('script')].map(s=>s.textContent || '').join('\n').split(String.fromCharCode(92,34)).join('"');
+        const pages = [...text.matchAll(/"current_page"\s*:\s*(\d+)[\s\S]{0,1500}?"last_page"\s*:\s*(\d+)/g)]
+            .filter(m=>Number(m[1])===currentPage && Number(m[2])>=currentPage)
+            .map(m=>Number(m[2]));
+        return pages.length ? Math.max(...pages) : null;
     }
 
     function makeProgress() {
@@ -2797,7 +2810,10 @@ ${categorySectionsHtml}
         });
     }
 
+    let analysisBusy = false;
     async function runAnalysis(serverOverride = null) {
+        if (analysisBusy) return;
+        analysisBusy = true;
         const validOverride =
             serverOverride &&
             typeof serverOverride === 'object' &&
@@ -2818,7 +2834,8 @@ ${categorySectionsHtml}
         try {
             progress.textContent = `${activeServer.name}: Item&Yang kategorisi bulunuyor...`;
 
-            const categoryBase = await resolveItemYangCategory(activeServer.url);
+            const firstPages = new Map();
+            const categoryBase = await resolveItemYangCategory(activeServer.url, firstPages);
 
             // Gerçek Item&Yang linkini bulduysak server kaydını güncelle.
             if (categoryBase !== activeServer.url) {
@@ -2838,7 +2855,7 @@ ${categorySectionsHtml}
 
                 let data;
                 try {
-                    data = await fetchPage(page, categoryBase);
+                    data = await fetchPage(page, categoryBase, firstPages);
                 } catch (err) {
                     // İlk sayfa açılmazsa gerçek hata, sonraki sayfalarda taramayı durdur.
                     if (page === 1) throw err;
@@ -2876,11 +2893,13 @@ ${categorySectionsHtml}
                 // Aynı sayfa tekrar dönmeye başladıysa pagination bitmiştir.
                 if (consecutiveNoNew >= 1 && page > 1) break;
 
-                await sleep(PAGE_DELAY);
+                const lastPage = categoryLastPage(data.doc, page);
+                if (lastPage !== null && page >= lastPage) break;
+                if (page === 1 && allByUrl.size) showReport([...allByUrl.values()],scannedPages,totalCards,activeServer);
+                // requestHtml already enforces the 2.5-second request interval.
             }
 
             progress.textContent = 'Rapor hazırlanıyor...';
-            await sleep(150);
 
             showReport(
                 [...allByUrl.values()],
@@ -2897,6 +2916,7 @@ ${categorySectionsHtml}
                 '\nKayıtlı link: ' + activeServer.url
             );
         } finally {
+            analysisBusy = false;
             progress.remove();
         }
     }

@@ -1,4 +1,4 @@
 {
-  "version": "2.21.3",
-  "notes": "Barbaros2 Yang hesabı M temelinde düzeltildi: 1 T = 1000 M. T/M/K ve birleşik miktarlar piyasa analizi ile satış takibinde aynı hesaplanır. Mevcut Barbaros2 kategori kayıtları otomatik uyarlanır."
+  "version": "2.21.4",
+  "notes": "Piyasa analizi ilk sayfayı tekrar indirmez; son sayfa bilgisi varsa gereksiz sonraki sayfa isteği yapmaz. Çok sayfalı taramada ilk sonuçlar erken gösterilir. Aynı anda mükerrer analiz engellenir; istek aralığı ve tüm sayfa taraması korunur."
 }

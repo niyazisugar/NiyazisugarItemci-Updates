@@ -60,5 +60,30 @@ const assert = require('assert/strict');
  const customUnit=await page.evaluate(id=>window.__NiyazisugarWatchUnitRows(id,[{title:'1S 300KT',price:2600}]),saved.id);assert.equal(customUnit[0].quantity,1300);
  console.log('PASS: 1-120 Global template persists with all MSP categories, old MSP migrates, S/KT compound and decimal units normalize to KT; unrelated S words and alternatives excluded.');
  console.log('PASS: KT, herb and fruit unit prices; unknown quantities remain unknown.');
+ const speedSource=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarRunMarket = runAnalysis;', `
+    window.__testSpeed = async last => {
+      const requests=[],reports=[];
+      const originalRequest=requestHtml,originalReport=showReport;
+      requestHtml=async url=>{
+        requests.push(url);const page=Number(new URL(url).searchParams.get('page')||1);
+        return '<script type="application/json">'+JSON.stringify({current_page:page,last_page:last})+'</script><a href="/product/test-itemyang/item-'+page+'"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span></a>';
+      };
+      showReport=(rows,pages)=>reports.push({rows:rows.length,pages});
+      try {
+        const server={id:'speed',name:'Speed',url:'https://itemci.com/categories/test-itemyang',categories:defaultCategoriesClone()};
+        await Promise.all([runAnalysis(server),runAnalysis(server)]);
+        return {requests,reports};
+      } finally {requestHtml=originalRequest;showReport=originalReport;}
+    };
+    window.__testLastPage=categoryLastPage;
+    window.__NiyazisugarRunMarket = runAnalysis;`);
+ await page.addScriptTag({content:speedSource});
+ const single=await page.evaluate(()=>window.__testSpeed(1));assert.equal(single.requests.length,1);assert.deepEqual(single.reports,[{rows:1,pages:1}]);
+ const multi=await page.evaluate(()=>window.__testSpeed(3));assert.equal(multi.requests.length,3);assert.deepEqual(multi.reports,[{rows:1,pages:1},{rows:3,pages:3}]);
+ const pagination=await page.evaluate(()=>{
+   const parse=text=>window.__testLastPage(new DOMParser().parseFromString('<script>'+text+'</script>','text/html'),1);
+   return [parse(JSON.stringify({current_page:1,last_page:4}).replaceAll('"','\\"')),parse('{}')];
+ });assert.deepEqual(pagination,[4,null]);
+ console.log('PASS: one-page analysis needs one request; all three pages retained, first results shown early, no duplicate concurrent scan, escaped pagination and missing-metadata fallback.');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
