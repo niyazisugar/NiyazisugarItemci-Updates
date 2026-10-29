@@ -1,4 +1,4 @@
 {
-  "version": "2.16.1",
-  "notes": "Fog mesaj görünümü: gerçek konuşma ve gönderme bileşenleri korunarak açık iki sütunlu tasarım. Hızlı cevaplar ve eski görünüme dönüş korunur. Türkçe karakterli mesaj ekranı ve gönderme davranışı test edilir."
+  "version": "2.16.2",
+  "notes": "Fog mesaj görünümünde iki sütunlu açık tasarım, tam genişlikte arama ve konuşma kartları, sade başlık ve esnek alt mesaj çubuğu. Gerçek Itemci konuşma ve gönderme bileşenleri korunur. Hızlı cevaplar ve eski görünüme dönüş çalışmaya devam eder."
 }

@@ -8,6 +8,13 @@
  .niyazi-fog-root *{box-sizing:border-box}
  .niyazi-fog-list{flex:0 0 300px!important;min-width:240px!important;max-width:34%!important;overflow:auto!important;background:white!important;border:1px solid #dce0e7!important;border-radius:22px!important;padding:14px!important;height:100%!important}
  .niyazi-fog-chat{flex:1 1 0!important;min-width:0!important;height:100%!important;overflow:auto!important;background:#f9fafb!important;border:1px solid #dce0e7!important;border-radius:22px!important;color:#252932!important}
+ .niyazi-fog-list :is(h1,h2,h3){font-size:16px!important;margin:4px 6px 18px!important}
+ .niyazi-fog-list input{width:100%!important;margin-bottom:10px!important}
+ .niyazi-fog-list :is(a,[role=button],button){display:block!important;width:100%!important;text-align:left!important;padding:14px!important;border:0!important;background:#f0f6f5!important;margin:4px 0!important}
+ .niyazi-fog-chat>h3{font-size:14px!important;padding:20px 22px!important;margin:0!important;border-bottom:1px solid #e9edf1!important;background:white!important}
+ .niyazi-fog-chat form{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center!important;padding:10px 12px!important;flex-shrink:0!important}
+ .niyazi-fog-chat form textarea{flex:1 1 160px!important;min-width:0!important;resize:none!important;height:44px!important;min-height:44px!important}
+ .niyazi-fog-chat form button[type=submit]{min-width:44px!important;min-height:44px!important;border:0!important;padding:10px 14px!important}
  .niyazi-fog-list input,.niyazi-fog-chat textarea,.niyazi-fog-chat input[type=text]{background:#f2f3f6!important;color:#252932!important;border:0!important;border-radius:14px!important;box-shadow:none!important;font:13px 'Segoe UI',sans-serif!important;padding:12px!important}
  .niyazi-fog-list :is(a,[role=button],button){border-radius:16px!important;color:#252932!important}
  .niyazi-fog-list :is([aria-selected=true],[data-state=active]){background:#edf5f4!important}
