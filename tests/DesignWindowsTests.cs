@@ -305,11 +305,11 @@ public sealed partial class MainForm
         await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);ShowPanel(_marketPanel);
         _marketWebView.CoreWebView2.NavigateToString("<html><body></body></html>");await Task.Delay(300);
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));
-        analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
+        analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'osi2',name:'OSİ2',url:'https://itemci.com/categories/osi2',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
         await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);await CaptureAsync("market");
         var localRows=new List<WatchSale> {new(){listing=new(){url="test-unit",title="700KT 350TL ANINDA TESLİM",price=350}}};
         bool wasSoldBusy=_soldScanBusy;_soldScanBusy=true;_watchUnitsKey="";
-        await RefreshWatchUnitsLocalAsync(new MarketServerInfo {Id="msp2-global-yeni",Name="Test",Url="https://itemci.com/categories/test"},localRows);
+        await RefreshWatchUnitsLocalAsync(new MarketServerInfo {Id="osi2",Name="Test",Url="https://itemci.com/categories/test"},localRows);
         _soldScanBusy=wasSoldBusy;
         if(localRows[0].listing.quantity!=700||WatchUnitPrice(localRows[0].listing)!="1 KT · 0,5 TL")throw new Exception("Saved unit prices waited for the blocked background scanner.");
         Console.WriteLine("PASS: saved unit prices calculate locally even while personal scan is busy.");
