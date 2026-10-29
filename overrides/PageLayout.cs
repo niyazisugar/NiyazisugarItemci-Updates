@@ -312,7 +312,7 @@ internal sealed class ReferenceEmptyState : Control
 }
 
 /// <summary>Satış takibi akışındaki tek satır: ürün, satıcı, fiyat, zaman ve sinyal.</summary>
-internal sealed record WatchRowItem(string Title, string Seller, string Price, string Time, string Signal, bool Strong, string Tooltip, System.Action Open);
+internal sealed record WatchRowItem(string Title, string Seller, string Price, string Time, string Signal, bool Strong, string Tooltip, System.Action Open, string UnitPrice="—");
 
 /// <summary>Tek kontrolde çizilen, sanal kaydırmalı yoğun liste: başlık satırı, 40 px satırlar,
 /// üzerine gelince vurgulanan satır, sağda ince koyu kaydırma çubuğu (tekerlek + sürükleme).</summary>
@@ -322,8 +322,8 @@ internal sealed class ReferenceWatchList : Control
     private int _offset, _hover = -1, _dragStart = -1, _dragOffset;
     private bool _thumbHover;
     private readonly ToolTip _tips;
-    private static readonly string[] Heads = { "Ürün", "Satıcı", "Son fiyat", "Tespit", "Sinyal" };
-    private static readonly float[] Cols = { .40f, .18f, .13f, .10f, .19f };
+    private static readonly string[] Heads = { "Ürün", "Satıcı", "Son fiyat", "Birim fiyat", "Tespit", "Sinyal" };
+    private static readonly float[] Cols = { .30f, .16f, .105f, .17f, .09f, .175f };
     internal string EmptyTitle { get; set; } = "Henüz satış tespit edilmedi";
     internal string EmptyText { get; set; } = "Seçili sunucuda tespit edilen satışlar burada listelenecek.";
     internal ReferenceWatchList(ToolTip tips)
@@ -378,7 +378,7 @@ internal sealed class ReferenceWatchList : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics; g.Clear(BackColor); float s = DeviceDpi / 96f;
-        int pad = LogicalToDeviceUnits(20), right = LogicalToDeviceUnits(22), usable = Math.Max(10, Width - pad - right);
+        int pad = LogicalToDeviceUnits(20), right = LogicalToDeviceUnits(22), usable = Math.Max(10, Math.Min(Width - pad - right, LogicalToDeviceUnits(1050)));
         var x = new int[Cols.Length + 1]; x[0] = pad; for (int c = 0; c < Cols.Length; c++) x[c + 1] = x[c] + (int)(usable * Cols[c]);
         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
         for (int c = 0; c < Heads.Length; c++)
@@ -406,11 +406,12 @@ internal sealed class ReferenceWatchList : Control
             TextRenderer.DrawText(g, it.Title, ReferenceUi.Semibold(9), new Rectangle(x[0], top, x[1] - x[0] - gap, RowH), ReferenceUi.Text, flags);
             TextRenderer.DrawText(g, it.Seller, ReferenceUi.Font(9), new Rectangle(x[1], top, x[2] - x[1] - gap, RowH), ReferenceUi.Gold, flags);
             TextRenderer.DrawText(g, it.Price, ReferenceUi.Semibold(9), new Rectangle(x[2], top, x[3] - x[2] - gap, RowH), ReferenceUi.Text, flags | TextFormatFlags.Right);
-            TextRenderer.DrawText(g, it.Time, ReferenceUi.Font(9), new Rectangle(x[3], top, x[4] - x[3] - gap, RowH), ReferenceUi.Muted, flags);
+            TextRenderer.DrawText(g, it.UnitPrice, ReferenceUi.Font(9), new Rectangle(x[3], top, x[4] - x[3] - gap, RowH), ReferenceUi.Aqua, flags);
+            TextRenderer.DrawText(g, it.Time, ReferenceUi.Font(9), new Rectangle(x[4], top, x[5] - x[4] - gap, RowH), ReferenceUi.Muted, flags);
             // Sinyal: renkli nokta + kısa etiket, yuvarlak hap içinde.
             var tone = it.Strong ? ReferenceUi.Aqua : ReferenceUi.Gold; var font = ReferenceUi.Font(8.5f);
-            int tw = TextRenderer.MeasureText(it.Signal, font, Size.Empty, TextFormatFlags.NoPadding).Width; int pw = Math.Min(x[5] - x[4] - gap, tw + LogicalToDeviceUnits(30)); int ph = LogicalToDeviceUnits(22);
-            var pill = new RectangleF(x[4], top + (RowH - ph) / 2f, pw, ph);
+            int tw = TextRenderer.MeasureText(it.Signal, font, Size.Empty, TextFormatFlags.NoPadding).Width; int pw = Math.Min(x[6] - x[5] - gap, tw + LogicalToDeviceUnits(30)); int ph = LogicalToDeviceUnits(22);
+            var pill = new RectangleF(x[5], top + (RowH - ph) / 2f, pw, ph);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (var path = ReferenceUi.Shape(pill, ph / 2f)) { using var fill = new SolidBrush(it.Strong ? Color.FromArgb(22, 38, 30) : Color.FromArgb(40, 34, 22)); g.FillPath(fill, path); }
             using (var dot = new SolidBrush(tone)) g.FillEllipse(dot, pill.X + 10 * s, pill.Y + ph / 2f - 3 * s, 6 * s, 6 * s);

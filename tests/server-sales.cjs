@@ -114,7 +114,8 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  assert.deepEqual(pages,[1,2,3]);
  await page.evaluate(()=>window.calls=[]);
  const recorded=[1,2,3].map(n=>'https://itemci.com/product/msp2-global-yeni-itemyang/active-'+n);
- const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[],[],urls),recorded);
+ const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[],[],urls,[{url:'https://itemci.com/product/test/old',title:'750KT YANG',price:350}]),recorded);
+ assert.equal(withoutDuplicates.units[0].quantity,750);assert.equal(withoutDuplicates.units[0].unitLabel,'KT');assert(Math.abs(withoutDuplicates.units[0].unitPrice-350/750)<1e-12);
  assert.equal(withoutDuplicates.attemptedUrls.length,0,'Already recorded category listings consumed new sale-check slots.');
  assert.equal(await page.evaluate(()=>window.calls.filter(u=>u.includes('/product/')).length),0);
  await page.evaluate(()=>window.calls=[]);

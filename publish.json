@@ -1,4 +1,4 @@
 {
-  "version": "2.20.0",
-  "notes": "Satış Takibi yenilendi: sunucu seçimi solda, satışlar fiyatı net görünen sütunlu listede, ince koyu kaydırma çubuğu ve sayfaya daha çok satır sığıyor. Diğer özellikler aynen korunur."
+  "version": "2.20.1",
+  "notes": "Satış takibinde sütunlar birbirine yaklaştırıldı; geniş ekranda içerik gereksiz yere yayılmaz. Son fiyatın yanına piyasa analizindeki sunucu/kategori miktar mantığıyla hesaplanan birim fiyat eklendi. Örneğin 750 KT ve 350 TL için 1 KT = 0,4667 TL. Miktarı bilinmeyen ilanlarda hesap üretilmez; yeni istek veya zamanlayıcı eklenmedi."
 }

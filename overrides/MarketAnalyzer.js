@@ -3041,7 +3041,7 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = []) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = [], unitRows = []) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         const deadline = Date.now() + 30000;
@@ -3085,7 +3085,7 @@ ${categorySectionsHtml}
                     if(/ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)){complete=true;nextPage=1;break;}
                     failed++;break;
                 }
-                for(const card of cards){card.href=new URL(card.getAttribute('href'),url).href;const row=parseCard(card);if(row)active.set(row.url,row);}
+                for(const card of cards){card.href=new URL(card.getAttribute('href'),url).href;const row=parseCard(card);if(row)active.set(row.url,liveListingRow(row,server));}
                 nextPage=page>=MAX_PAGES?1:page+1;
                 const hasNext=[...doc.querySelectorAll('a[href]')].some(a=>{try{const u=new URL(a.getAttribute('href'),url);return u.pathname===new URL(base).pathname&&Number(u.searchParams.get('page'))>page;}catch{return false;}});
                 if(!hasNext||page===3){complete=true;nextPage=1;break;}
@@ -3139,7 +3139,7 @@ ${categorySectionsHtml}
             }catch{failed++;}
             await sleep(250);
         }
-        return {rows:[...active.values()],sold,observations,attemptedUrls,sellerResults,sellerAttempts,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
+        return {units:(unitRows||[]).map(row=>liveListingRow(row,server)),rows:[...active.values()],sold,observations,attemptedUrls,sellerResults,sellerAttempts,complete,nextCursor:(Number(cursor)||0)+1,nextPage,pagesRead,checked,failed,rateLimited};
     };
     window.__NiyazisugarSaveQuickServer = (name, url) => {
         const normalized = normalizeServerCategoryUrl(url);

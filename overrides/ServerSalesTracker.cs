@@ -38,20 +38,27 @@ public sealed partial class MainForm
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
         _liveCount.Text=rows.Count.ToString(); _liveLast.Text=(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
         _liveStatus.Text = $"Bugün tespit: {rows.Count} · Son tam liste kontrolü: {(state is not null&&state.lastSuccessUtc!=DateTime.MinValue?state.lastSuccessUtc.ToLocalTime().ToString("HH:mm:ss"):"henüz yok")} · {state?.status ?? "Takip hazırlanıyor"}";
-        var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller));
+        var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller+":"+s.listing.quantity+":"+s.listing.unitLabel));
         if(key==_serverWatchRenderedKey)return;
         _serverWatchRenderedKey=key;
         var culture=System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
         var items=rows.Select(sale=>
         {
             var row=sale.listing;
+            var unit=WatchUnitPrice(row);
             var strong=sale.evidence!="category-counter";
             var signal=sale.evidence=="category-counter"?$"Olası · sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü · sayaç +{sale.sellerIncrease}":"Satıldı işareti";
             var tip=$"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price.ToString("N2",culture)} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="category-counter"?"İlan listede görüldükten sonra güncellendi, satışa kapandı ve satıcı sayacı arttı. İlanın açık olduğu ayrı bir ürün ölçümü yok; satış kesinleşmedi.":sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.";
-            return new WatchRowItem(row.title,row.seller,row.price.ToString("N2",culture)+" TL",sale.detectedAt.ToString("HH:mm:ss"),signal,strong,tip,()=>_=OpenOrActivateBrowserTabAsync(row.url,row.title));
+            return new WatchRowItem(row.title,row.seller,row.price.ToString("N2",culture)+" TL",sale.detectedAt.ToString("HH:mm:ss"),signal,strong,tip+"\nBirim fiyat: "+unit,()=>_=OpenOrActivateBrowserTabAsync(row.url,row.title),unit);
         }).ToList();
         _liveList?.SetItems(items);
         PositionLiveMarket();
+    }
+    private static string WatchUnitPrice(LiveListing row)
+    {
+        if(row.quantity is not >0||row.price<=0||string.IsNullOrWhiteSpace(row.unitLabel))return "—";
+        var unit=row.price/row.quantity.Value;
+        return "1 "+row.unitLabel+" · "+unit.ToString(unit<0.0001m?"0.########":"0.####",System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))+" TL";
     }
     private async Task<WatchScan> ReadServerWatchAsync(MarketServerInfo server, ServerWatch state)
     {
@@ -76,7 +83,7 @@ public sealed partial class MainForm
             var soldUrls=state.sales.Select(s=>s.listing.url).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var known=state.threePageWindow?state.known.Values.Where(row=>!soldUrls.Contains(row.url)).OrderByDescending(row=>state.pending.TryGetValue(row.url,out var since)?since:DateTime.MinValue).ToList():new List<LiveListing>();
             var repairs=state.sales.Where(s=>!s.priceFromDetail).OrderBy(s=>s.priceCheckAttemptUtc).ThenByDescending(s=>s.detectedAt).Take(1).Select(s=>s.listing).ToList();
-            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)},{JsonSerializer.Serialize(state.sellers.Values)},{JsonSerializer.Serialize(soldUrls)}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
+            await core.ExecuteScriptAsync($"window.__NiyazisugarServerSalesScan({JsonSerializer.Serialize(server.Id)},{JsonSerializer.Serialize(known)},{state.cursor},{state.pageCursor},{JsonSerializer.Serialize(state.observations.Values)},{JsonSerializer.Serialize(state.lastChecked)},{JsonSerializer.Serialize(repairs)},{JsonSerializer.Serialize(state.sellers.Values)},{JsonSerializer.Serialize(soldUrls)},{JsonSerializer.Serialize(state.sales.Where(s=>s.detectedAt.Date==TurkeyToday).Select(s=>s.listing))}).then(result=>chrome.webview.postMessage({{watchToken:'{token}',result}})).catch(e=>chrome.webview.postMessage({{watchToken:'{token}',error:String(e.message||e)}}));");
             return await task.Task.WaitAsync(TimeSpan.FromSeconds(45));
         }
         finally { core.WebMessageReceived -= Message; }
@@ -113,6 +120,11 @@ public sealed partial class MainForm
                     state.status = "Taranıyor…";
                     if((_liveServer.SelectedItem as MarketServerInfo)?.Id==server.Id)RenderServerSalesWatch();
                     var scan = await ReadServerWatchAsync(server,state);
+                    foreach(var unit in scan.units)
+                    {
+                        var saved=state.sales.FirstOrDefault(s=>s.listing.url==unit.url)?.listing;
+                        if(saved is not null&&saved.title==unit.title){saved.quantity=unit.quantity;saved.unitLabel=unit.unitLabel;saved.categoryName=unit.categoryName;}
+                    }
                     UpdateThreePageWatchWindow(state,scan,DateTime.UtcNow);
                     foreach(var url in scan.attemptedUrls){state.lastChecked[url]=DateTime.UtcNow;foreach(var sale in state.sales.Where(s=>s.listing.url==url))sale.priceCheckAttemptUtc=DateTime.UtcNow;}
                     foreach(var snapshot in scan.sellerResults)ApplyWatchSellerSnapshot(state,snapshot,DateTime.UtcNow);
@@ -261,7 +273,7 @@ public sealed partial class MainForm
     {
         if(current.price<=0)return;
         listing.price=current.price;
-        if(!string.IsNullOrWhiteSpace(current.title))listing.title=current.title;
+        if(!string.IsNullOrWhiteSpace(current.title)){if(listing.title!=current.title){listing.quantity=null;listing.unitPrice=null;listing.unitLabel="";}listing.title=current.title;}
         if(!string.IsNullOrWhiteSpace(current.seller))listing.seller=current.seller;
     }
     private sealed class ProductObservation
@@ -314,6 +326,7 @@ public sealed partial class MainForm
     }
     private sealed class WatchScan
     {
+        public List<LiveListing> units {get;set;} = new();
         public List<LiveListing> rows {get;set;} = new();
         public List<LiveListing> sold {get;set;} = new();
         public List<ProductObservation> observations {get;set;}=new();
