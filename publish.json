@@ -1,4 +1,4 @@
 {
-  "version": "2.20.4",
-  "notes": "Satışlar ve Kazanç özetindeki satış toplamı yumuşak turuncu, komisyon soluk kırmızı ve net kazanç yeşil olarak düzenlendi. Hesaplama ve diğer ekranlar korunur."
+  "version": "2.21.0",
+  "notes": "1-120 Global (MSP tarzı) sunucu şablonu eklendi. Yeni sunucu eklerken hazır MSP kategorileri seçilebilir. Yang hesabı KT temelindedir: 1 S=1000 KT; 1 S 300 KT=1300 KT. Mevcut MSP ayarları ve kayıtları korunur; piyasa analizi ve takip birim fiyatı aynı miktar çözümlemesini kullanır."
 }

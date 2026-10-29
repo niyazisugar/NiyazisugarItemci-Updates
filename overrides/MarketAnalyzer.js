@@ -4,6 +4,7 @@
     const DEFAULT_SERVER = {
         id: 'msp2-global-yeni',
         name: 'MSP2 Global - Yeni',
+        template: 'global-120',
         url: 'https://itemci.com/categories/msp2-global-yeni-itemyang',
         categories: [
             {
@@ -109,8 +110,23 @@
             mode,
             keywords: [...new Set(keywords)],
             tokens: [...new Set(tokens)],
-            unitLabel: unitLabel || (mode === 'search' ? '' : 'ADET')
+            unitLabel: unitLabel || (mode === 'search' ? '' : 'ADET'),
+            quantityStyle: mode==='token'&&unitLabel==='KT'&&(category.quantityStyle==='global-120'||category.id==='msp-yang')?'global-120':''
         };
+    }
+
+    function chooseServerTemplate() {
+        return new Promise(resolve=>{
+            document.getElementById('niyazi-server-template')?.remove();
+            const overlay=document.createElement('div');overlay.id='niyazi-server-template';
+            overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#0009;display:grid;place-items:center;font:14px "Segoe UI",sans-serif;color:#e7e7ea';
+            overlay.innerHTML='<div style="width:min(440px,92vw);padding:24px;background:#16171a;border:1px solid #303138;border-radius:18px"><h3 style="margin:0 0 16px">Sunucu şablonu</h3><select aria-label="Sunucu şablonu" style="width:100%;padding:12px;background:#232429;color:#e7e7ea;border:1px solid #35363b;border-radius:10px"><option value="global-120">1-120 Global · MSP tarzı</option><option value="custom">Özel · Kategorileri kendim belirleyeceğim</option></select><p style="color:#aaaeb8;line-height:1.6">1-120 Global: Yang (KT/S), Soluk Kır Otu ve Derece Meyvesi kategorileri hazır gelir. 1 S = 1.000 KT; 1 S 300 KT = 1.300 KT. Fiyat, ilanın toplam tutarından hesaplanır.</p><div style="display:flex;justify-content:flex-end;gap:10px"><button type="button" data-cancel style="padding:10px;border-radius:10px;border:1px solid #3a3b42;background:#24252a;color:white">Vazgeç</button><button type="button" data-apply style="padding:10px 18px;border-radius:10px;border:0;background:#d4b062;color:#17140c">Şablonu kullan</button></div></div>';
+            const finish=value=>{overlay.remove();resolve(value);};
+            overlay.querySelector('[data-cancel]').onclick=()=>finish(null);
+            overlay.querySelector('[data-apply]').onclick=()=>finish(overlay.querySelector('select').value);
+            overlay.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();finish(null);}});
+            document.body.append(overlay);overlay.querySelector('select').focus();
+        });
     }
 
     function defaultCategoriesClone() {
@@ -123,7 +139,7 @@
 
     function categoriesForServer(server) {
         if (Array.isArray(server?.categories)) {
-            return server.categories.map(normalizeCategory).filter(Boolean);
+            return server.categories.map(c=>normalizeCategory({...c,quantityStyle:(server.template==='global-120'||server.id===DEFAULT_SERVER.id)&&c.mode==='token'&&String(c.unitLabel).toUpperCase()==='KT'?'global-120':c.quantityStyle})).filter(Boolean);
         }
 
         // V16 gibi eski sürümlerde Yang profili varsa onu yeni kategori sistemine taşı.
@@ -287,7 +303,8 @@
             mode,
             keywords,
             tokens,
-            unitLabel
+            unitLabel,
+            quantityStyle: current?.quantityStyle||''
         });
     }
 
@@ -864,6 +881,16 @@
         return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    function globalYangAmount(title) {
+        const text=normalizeSearchText(title).replace(/\([^)]*\b1\s*kt\s*=[^)]*\)/gi,' ').replace(/(\d)\s*(kt|s)(?=\d)/gi,'$1$2 ');
+        const parts=[...text.matchAll(/(?<![a-z0-9.,])(\d+(?:[.,]\d+)*)\s*(kt|s)(?![a-z0-9])/gi)];
+        if(!parts.length||parts.length>2||new Set(parts.map(m=>m[2])).size!==parts.length)return null;
+        if(parts.length===2&&!/^[\s+]*$/.test(text.slice(parts[0].index+parts[0][0].length,parts[1].index)))return null;
+        let amount=0;
+        for(const m of parts){const number=countNumber(m[1]);if(!number||number<=0)return null;amount+=number*(m[2]==='s'?1000:1);}
+        return Number.isFinite(amount)&&amount>0?amount:null;
+    }
+
     function tokenAmountFromTitle(title, category) {
         const c = normalizeCategory(category);
         if (!c || c.mode !== 'token') return null;
@@ -878,6 +905,7 @@
             .sort((a, b) => b.length - a.length);
 
         if (!aliases.length) return null;
+        if(c.quantityStyle==='global-120')return globalYangAmount(title);
 
         const aliasPattern = aliases.map(escapeRegExp).join('|');
         const t = normalizeSearchText(title);
@@ -2211,7 +2239,7 @@ ${categorySectionsHtml}
             runAnalysis(selected);
         };
 
-        root.querySelector('.addServer').onclick = () => {
+        root.querySelector('.addServer').onclick = async () => {
             const name = prompt('Serverin adını yaz.');
             if (!name || !name.trim()) return;
 
@@ -2236,12 +2264,13 @@ ${categorySectionsHtml}
                 return;
             }
 
-            const newServer = {
-                id: serverIdFromName(name.trim()),
-                name: name.trim(),
-                url: normalizedUrl,
-                categories: []
-            };
+            const template=await chooseServerTemplate();
+
+
+            if(template===null)return;
+
+
+            const newServer = {id:serverIdFromName(name.trim()),name:name.trim(),url:normalizedUrl,template,categories:template==='global-120'?defaultCategoriesClone():[]};
 
             currentServers.push(newServer);
             saveServers(currentServers);
@@ -2630,7 +2659,7 @@ ${categorySectionsHtml}
             runAnalysis(selected);
         };
 
-        overlay.querySelector('.add').onclick = () => {
+        overlay.querySelector('.add').onclick = async () => {
             const name = prompt('Serverin listede görünecek adını yaz.');
             if (!name || !name.trim()) return;
 
@@ -2657,12 +2686,13 @@ ${categorySectionsHtml}
                 return;
             }
 
-            const newServer = {
-                id: serverIdFromName(name.trim()),
-                name: name.trim(),
-                url: normalizedUrl,
-                categories: []
-            };
+            const template=await chooseServerTemplate();
+
+
+            if(template===null)return;
+
+
+            const newServer = {id:serverIdFromName(name.trim()),name:name.trim(),url:normalizedUrl,template,categories:template==='global-120'?defaultCategoriesClone():[]};
 
             currentServers.push(newServer);
             saveServers(currentServers);
@@ -2904,7 +2934,7 @@ ${categorySectionsHtml}
         }));
     }
 
-    function desktopAddServer() {
+    async function desktopAddServer() {
         const name = prompt(
             'Serverin listede görünecek adını yaz.\n\nÖrnek: Azyrah2'
         );
@@ -2935,12 +2965,13 @@ ${categorySectionsHtml}
             return;
         }
 
-        const newServer = {
-            id: serverIdFromName(name.trim()),
-            name: name.trim(),
-            url: normalizedUrl,
-            categories: []
-        };
+        const template=await chooseServerTemplate();
+
+
+        if(template===null)return;
+
+
+        const newServer = {id:serverIdFromName(name.trim()),name:name.trim(),url:normalizedUrl,template,categories:template==='global-120'?defaultCategoriesClone():[]};
 
         currentServers.push(newServer);
         saveServers(currentServers);
