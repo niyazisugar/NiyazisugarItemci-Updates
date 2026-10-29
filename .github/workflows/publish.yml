@@ -33,7 +33,6 @@ jobs:
       - run: node tests/composer-view.cjs
       - run: node tests/auto-bump.cjs
       - run: node tests/redesign.cjs
-      - run: node tests/message-workspace.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -89,7 +88,6 @@ jobs:
           Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
           Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
           Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
-          Copy-Item "overrides/MessageDiagnostics.cs" "src/MessageDiagnostics.cs" -Force
           Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
           Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
           Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force
@@ -348,7 +346,6 @@ jobs:
             "design-screenshots/*.png" `
             "screenshots/quick-listing-desktop.png" `
             "screenshots/quick-listing-small.png" `
-            "screenshots/message-workspace.png" `
             --target "${{ github.sha }}" `
             --title "Niyazisugar Itemci V$version" `
             --notes "${{ steps.manifest.outputs.notes }}" `

@@ -66,10 +66,6 @@ public sealed partial class MainForm
             _ = OpenOrActivateBrowserTabAsync(_messageUrl ?? "https://itemci.com/panel/mesajlar", "Mesajlar");
         });
         _topSections.Add(_topMessages, _browserPanel);
-        var messageTools=new ContextMenuStrip();
-        messageTools.Items.Add("Mesaj bağlantısı kaydını kaydet",null,async(_,_)=>await SaveMessageLayoutAsync());
-        _topMessages.ContextMenuStrip=messageTools;
-        FormClosed+=(_,_)=>messageTools.Dispose();
         menu.Controls.Add(_topMessages);
         Section("İlanlarım", _listingsPanel, () => { ShowPanel(_listingsPanel); _ = RefreshCurrentListingsAsync(true); });
         Section("Satışlar", _salesPanel, () => { ShowPanel(_salesPanel); _ = RefreshSoldListingsAsync(true); });
