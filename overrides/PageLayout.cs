@@ -30,6 +30,30 @@ internal static class PageLayout
         return header;
     }
 
+    /// <summary>Başlık + açıklama solda, hemen yanında sol araçlar (ör. sunucu seçimi), en sağda işlemler.</summary>
+    internal static TableLayoutPanel HeaderLeft(Control owner, string title, Label subtitle, Control[] left, Control[] right)
+    {
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = owner.LogicalToDeviceUnits(56), ColumnCount = 4, RowCount = 1, BackColor = ReferenceUi.Background, Margin = new Padding(0) };
+        header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var name = ReferenceUi.Label(title, 15); name.Font = ReferenceUi.Semibold(15); name.Dock = DockStyle.Top; name.Height = owner.LogicalToDeviceUnits(32);
+        subtitle.Font = ReferenceUi.Font(9); subtitle.ForeColor = ReferenceUi.Muted; subtitle.BackColor = Color.Transparent; subtitle.AutoEllipsis = true; subtitle.Dock = DockStyle.Top; subtitle.Height = owner.LogicalToDeviceUnits(20);
+        int width = Math.Max(TextRenderer.MeasureText(title, name.Font).Width, TextRenderer.MeasureText(subtitle.Text, subtitle.Font).Width) + owner.LogicalToDeviceUnits(8);
+        var headings = new Panel { Width = width, Height = owner.LogicalToDeviceUnits(52), BackColor = ReferenceUi.Background, Margin = new Padding(0) };
+        headings.Controls.Add(subtitle); headings.Controls.Add(name);
+        header.Controls.Add(headings, 0, 0);
+        FlowLayoutPanel Tools(Control[] controls, bool leading)
+        {
+            var tools = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, BackColor = ReferenceUi.Background, Margin = new Padding(leading ? owner.LogicalToDeviceUnits(20) : 0, owner.LogicalToDeviceUnits(9), 0, 0), Anchor = AnchorStyles.Top | (leading ? AnchorStyles.Left : AnchorStyles.Right) };
+            foreach (var control in controls) { control.Height = owner.LogicalToDeviceUnits(36); control.Margin = new Padding(leading ? 0 : owner.LogicalToDeviceUnits(8), 0, leading ? owner.LogicalToDeviceUnits(8) : 0, 0); tools.Controls.Add(control); }
+            return tools;
+        }
+        header.Controls.Add(Tools(left, true), 1, 0);
+        header.Controls.Add(Tools(right, false), 3, 0);
+        return header;
+    }
+
     internal static ReferenceButton Action(string text, string icon, System.Action click, int width, bool primary = false)
     {
         var button = ReferenceUi.Button(text, icon, click, width, primary);
@@ -284,5 +308,122 @@ internal sealed class ReferenceEmptyState : Control
         TextRenderer.DrawText(g, _title, ReferenceUi.Bold(10.5f), new Rectangle(12, (int)(y + 58 * s), Width - 24, (int)(24 * s)), ReferenceUi.Text, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         int textWidth = Math.Min(Width - 48, (int)(420 * s));
         TextRenderer.DrawText(g, _text, ReferenceUi.Font(9), new Rectangle((Width - textWidth) / 2, (int)(y + 86 * s), textWidth, (int)(46 * s)), ReferenceUi.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+    }
+}
+
+/// <summary>Satış takibi akışındaki tek satır: ürün, satıcı, fiyat, zaman ve sinyal.</summary>
+internal sealed record WatchRowItem(string Title, string Seller, string Price, string Time, string Signal, bool Strong, string Tooltip, System.Action Open);
+
+/// <summary>Tek kontrolde çizilen, sanal kaydırmalı yoğun liste: başlık satırı, 40 px satırlar,
+/// üzerine gelince vurgulanan satır, sağda ince koyu kaydırma çubuğu (tekerlek + sürükleme).</summary>
+internal sealed class ReferenceWatchList : Control
+{
+    private List<WatchRowItem> _items = new();
+    private int _offset, _hover = -1, _dragStart = -1, _dragOffset;
+    private bool _thumbHover;
+    private readonly ToolTip _tips;
+    private static readonly string[] Heads = { "Ürün", "Satıcı", "Son fiyat", "Tespit", "Sinyal" };
+    private static readonly float[] Cols = { .40f, .18f, .13f, .10f, .19f };
+    internal string EmptyTitle { get; set; } = "Henüz satış tespit edilmedi";
+    internal string EmptyText { get; set; } = "Seçili sunucuda tespit edilen satışlar burada listelenecek.";
+    internal ReferenceWatchList(ToolTip tips)
+    {
+        _tips = tips; BackColor = ReferenceUi.Surface; Dock = DockStyle.Fill; TabStop = true;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+    }
+    private int RowH => LogicalToDeviceUnits(40);
+    private int HeadH => LogicalToDeviceUnits(34);
+    private int ViewH => Math.Max(0, Height - HeadH);
+    private int MaxOffset => Math.Max(0, _items.Count * RowH - ViewH);
+    internal void SetItems(List<WatchRowItem> items) { _items = items; _offset = Math.Clamp(_offset, 0, MaxOffset); _hover = -1; Invalidate(); }
+    private Rectangle Track => new(Width - LogicalToDeviceUnits(12), HeadH + LogicalToDeviceUnits(6), LogicalToDeviceUnits(6), Math.Max(0, ViewH - LogicalToDeviceUnits(12)));
+    private Rectangle Thumb
+    {
+        get
+        {
+            var t = Track; int total = _items.Count * RowH; if (total <= ViewH || t.Height <= 0) return Rectangle.Empty;
+            int h = Math.Max(LogicalToDeviceUnits(36), (int)(t.Height * (ViewH / (float)total)));
+            int y = t.Y + (int)((t.Height - h) * (_offset / (float)Math.Max(1, MaxOffset)));
+            return new Rectangle(t.X, y, t.Width, h);
+        }
+    }
+    private void ScrollTo(int value) { var v = Math.Clamp(value, 0, MaxOffset); if (v != _offset) { _offset = v; Invalidate(); } }
+    protected override void OnResize(EventArgs e) { base.OnResize(e); _offset = Math.Clamp(_offset, 0, MaxOffset); }
+    protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollTo(_offset - Math.Sign(e.Delta) * RowH * 3); }
+    protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); if (!Focused && FindForm()?.ActiveControl is not TextBoxBase) Focus(); }
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e); Focus();
+        var thumb = Thumb;
+        if (thumb.Contains(e.Location)) { _dragStart = e.Y; _dragOffset = _offset; Capture = true; return; }
+        if (Track.Contains(e.Location) && !thumb.IsEmpty) { ScrollTo(_offset + (e.Y < thumb.Y ? -ViewH : ViewH)); }
+    }
+    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); if (_dragStart >= 0) { _dragStart = -1; Capture = false; return; } int i = RowAt(e.Location); if (i >= 0 && e.Button == MouseButtons.Left) _items[i].Open(); }
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (_dragStart >= 0) { var t = Track; var th = Thumb; float range = Math.Max(1, t.Height - th.Height); ScrollTo(_dragOffset + (int)((e.Y - _dragStart) / range * MaxOffset)); return; }
+        bool onThumb = Thumb.Contains(e.Location); if (onThumb != _thumbHover) { _thumbHover = onThumb; Invalidate(); }
+        int i = onThumb ? -1 : RowAt(e.Location);
+        if (i != _hover) { _hover = i; Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; _tips.SetToolTip(this, i >= 0 ? _items[i].Tooltip : ""); Invalidate(); }
+    }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; _thumbHover = false; Invalidate(); }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        switch (e.KeyCode) { case Keys.Down: ScrollTo(_offset + RowH); break; case Keys.Up: ScrollTo(_offset - RowH); break; case Keys.PageDown: ScrollTo(_offset + ViewH); break; case Keys.PageUp: ScrollTo(_offset - ViewH); break; case Keys.Home: ScrollTo(0); break; case Keys.End: ScrollTo(MaxOffset); break; }
+    }
+    protected override bool IsInputKey(Keys keyData) => keyData is Keys.Up or Keys.Down or Keys.PageUp or Keys.PageDown or Keys.Home or Keys.End || base.IsInputKey(keyData);
+    private int RowAt(Point p) { if (p.Y < HeadH || p.X > Width - LogicalToDeviceUnits(16)) return -1; int i = (p.Y - HeadH + _offset) / RowH; return i >= 0 && i < _items.Count ? i : -1; }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics; g.Clear(BackColor); float s = DeviceDpi / 96f;
+        int pad = LogicalToDeviceUnits(20), right = LogicalToDeviceUnits(22), usable = Math.Max(10, Width - pad - right);
+        var x = new int[Cols.Length + 1]; x[0] = pad; for (int c = 0; c < Cols.Length; c++) x[c + 1] = x[c] + (int)(usable * Cols[c]);
+        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+        for (int c = 0; c < Heads.Length; c++)
+            TextRenderer.DrawText(g, Heads[c], ReferenceUi.Font(8.5f), new Rectangle(x[c], 0, x[c + 1] - x[c] - LogicalToDeviceUnits(12), HeadH), ReferenceUi.Muted, flags | (c == 2 ? TextFormatFlags.Right : TextFormatFlags.Default));
+        using (var line = new Pen(ReferenceUi.Line)) g.DrawLine(line, 0, HeadH - 1, Width, HeadH - 1);
+        if (_items.Count == 0)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias; int y = HeadH + Math.Max(LogicalToDeviceUnits(30), ViewH / 2 - LogicalToDeviceUnits(60));
+            var tile = new RectangleF((Width - 40 * s) / 2, y, 40 * s, 40 * s);
+            using (var path = ReferenceUi.Shape(tile, 12 * s)) { using var fill = new SolidBrush(ReferenceUi.Field); g.FillPath(fill, path); using var pen = new Pen(ReferenceUi.Line); g.DrawPath(pen, path); }
+            ReferenceUi.Icon(g, "bag", new RectangleF(tile.X + 11 * s, tile.Y + 11 * s, 18 * s, 18 * s), ReferenceUi.Gold);
+            TextRenderer.DrawText(g, EmptyTitle, ReferenceUi.Semibold(10), new Rectangle(0, (int)(y + 50 * s), Width, (int)(22 * s)), ReferenceUi.Text, TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(g, EmptyText, ReferenceUi.Font(9), new Rectangle(0, (int)(y + 74 * s), Width, (int)(20 * s)), ReferenceUi.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
+            return;
+        }
+        g.SetClip(new Rectangle(0, HeadH, Width, ViewH));
+        int first = _offset / RowH, last = Math.Min(_items.Count - 1, (_offset + ViewH) / RowH);
+        using var sep = new Pen(Color.FromArgb(30, 31, 35));
+        for (int i = first; i <= last; i++)
+        {
+            var it = _items[i]; int top = HeadH + i * RowH - _offset; var row = new Rectangle(0, top, Width - LogicalToDeviceUnits(16), RowH);
+            if (i == _hover) { using var hb = new SolidBrush(Color.FromArgb(29, 30, 34)); g.FillRectangle(hb, row); }
+            g.DrawLine(sep, pad, row.Bottom - 1, Width - right, row.Bottom - 1);
+            int gap = LogicalToDeviceUnits(12);
+            TextRenderer.DrawText(g, it.Title, ReferenceUi.Semibold(9), new Rectangle(x[0], top, x[1] - x[0] - gap, RowH), ReferenceUi.Text, flags);
+            TextRenderer.DrawText(g, it.Seller, ReferenceUi.Font(9), new Rectangle(x[1], top, x[2] - x[1] - gap, RowH), ReferenceUi.Gold, flags);
+            TextRenderer.DrawText(g, it.Price, ReferenceUi.Semibold(9), new Rectangle(x[2], top, x[3] - x[2] - gap, RowH), ReferenceUi.Text, flags | TextFormatFlags.Right);
+            TextRenderer.DrawText(g, it.Time, ReferenceUi.Font(9), new Rectangle(x[3], top, x[4] - x[3] - gap, RowH), ReferenceUi.Muted, flags);
+            // Sinyal: renkli nokta + kısa etiket, yuvarlak hap içinde.
+            var tone = it.Strong ? ReferenceUi.Aqua : ReferenceUi.Gold; var font = ReferenceUi.Font(8.5f);
+            int tw = TextRenderer.MeasureText(it.Signal, font, Size.Empty, TextFormatFlags.NoPadding).Width; int pw = Math.Min(x[5] - x[4] - gap, tw + LogicalToDeviceUnits(30)); int ph = LogicalToDeviceUnits(22);
+            var pill = new RectangleF(x[4], top + (RowH - ph) / 2f, pw, ph);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var path = ReferenceUi.Shape(pill, ph / 2f)) { using var fill = new SolidBrush(it.Strong ? Color.FromArgb(22, 38, 30) : Color.FromArgb(40, 34, 22)); g.FillPath(fill, path); }
+            using (var dot = new SolidBrush(tone)) g.FillEllipse(dot, pill.X + 10 * s, pill.Y + ph / 2f - 3 * s, 6 * s, 6 * s);
+            g.SmoothingMode = SmoothingMode.None;
+            TextRenderer.DrawText(g, it.Signal, font, new Rectangle((int)(pill.X + 22 * s), (int)pill.Y, (int)(pill.Width - 26 * s), ph), tone, flags);
+        }
+        g.ResetClip();
+        var thumb = Thumb;
+        if (!thumb.IsEmpty)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var tp = ReferenceUi.Shape(Track, Track.Width / 2f)) { using var tb = new SolidBrush(Color.FromArgb(26, 27, 31)); g.FillPath(tb, tp); }
+            using var path = ReferenceUi.Shape(thumb, thumb.Width / 2f); using var fill = new SolidBrush(_thumbHover || _dragStart >= 0 ? Color.FromArgb(86, 88, 96) : Color.FromArgb(58, 59, 66)); g.FillPath(fill, path);
+        }
     }
 }
