@@ -34,6 +34,13 @@
         ]
     };
 
+    const BARBAROS_SERVER = {
+        id: 'barbaros2', name: 'Barbaros2',
+        url: 'https://itemci.com/categories/barbaros2',
+        categories: [{id:'barbaros-yang', name:'Yang', mode:'magnitude',
+            keywords:['yang'], tokens:[], unitLabel:'M'}]
+    };
+
     const SERVER_LIST_KEY = 'itemci_v15_servers';
     const ACTIVE_SERVER_KEY = 'itemci_v15_active_server';
 
@@ -368,6 +375,12 @@
             });
         }
 
+        const barbarosMigration = 'itemci_barbaros2_added_v1';
+        const addBarbaros = storageGet(barbarosMigration, '') !== 'done';
+        if (addBarbaros && !saved.some(x => x.id === BARBAROS_SERVER.id || /\/categories\/barbaros2(?:-itemyang)?\/?$/.test(x.url))) {
+            saved.push({...BARBAROS_SERVER, categories:BARBAROS_SERVER.categories.map(normalizeCategory)});
+        }
+
         // Aynı URL iki kere kayıtlıysa tekini tut.
         const seen = new Set();
         saved = saved.filter(x => {
@@ -377,9 +390,10 @@
             return true;
         });
 
-        if (migrate) {
+        if (migrate || addBarbaros) {
             storageSet(SERVER_LIST_KEY, JSON.stringify(saved));
-            storageSet(migrationKey, 'done');
+            if (migrate) storageSet(migrationKey, 'done');
+            if (addBarbaros) storageSet(barbarosMigration, 'done');
         }
         return saved;
     }

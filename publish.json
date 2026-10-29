@@ -1,4 +1,4 @@
 {
-  "version": "2.21.1",
-  "notes": "MSP ve Sezar2 aktif takipten çıkarıldı; OSİ2 eklendi. KT/S hesapları korunur. Soluk Kır Otu yerine Mitril kategorisi ve Türkçe yazım eşleştirmeleri ve yeni sunucu için Windows işlev kontrolü kullanılır. Diğer sunucular ve geçmiş satış kayıtları korunur."
+  "version": "2.21.2",
+  "notes": "Barbaros2 piyasa ve satış takibine eklendi. Yang kategorisi mevcut K/M ölçekli hesaplama ile çalışır. OSİ2 profili, diğer sunucular ve satış geçmişi korunur."
 }

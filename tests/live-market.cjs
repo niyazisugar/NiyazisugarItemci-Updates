@@ -13,12 +13,17 @@ const assert = require('assert/strict');
  ])));
  await page.addScriptTag({content:source});
  const exposed=await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()));assert(exposed.every(s=>typeof s.url==='string'&&s.url.startsWith('https://itemci.com/categories/')),'desktop server export must retain real category URLs');
- assert.deepEqual(exposed.map(s=>s.id),['osi2','keep']);
+ assert.deepEqual(exposed.map(s=>s.id),['osi2','keep','barbaros2']);
  assert.equal(exposed[0].name,'OSİ2');assert.equal(exposed[0].url,'https://itemci.com/categories/osi2');
  const mitril=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('osi2',['100 mitril','100 Mitril','100 mıtrıl','100 MİTRİL','Mıtrıl 100 adet','100 soluk kır otu','100 ot'].map(title=>({title,price:200}))));
  assert.deepEqual(mitril.map(r=>r.quantity),[100,100,100,100,100,null,null]);assert.equal(mitril[0].unitPrice,2);assert.equal(mitril[0].unitLabel,'MİTRİL');
- const persisted=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')));assert.deepEqual(persisted.map(s=>s.id),['osi2','keep']);
+ const persisted=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')));assert.deepEqual(persisted.map(s=>s.id),['osi2','keep','barbaros2']);
  console.log('PASS: persisted MSP/Sezar migration, unrelated servers retained, Mitril Turkish spelling variants and per-item pricing.');
+ const barbaros=exposed.find(s=>s.id==='barbaros2');assert.equal(barbaros.url,'https://itemci.com/categories/barbaros2');assert.equal(barbaros.categoryCount,1);
+ const barbarosUnits=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('barbaros2',['500M YANG','1,5M yang','Yang 500K','100 mitril','100KT YANG'].map(title=>({title,price:1000}))));
+ assert.deepEqual(barbarosUnits.map(r=>r.quantity),[500,1.5,0.5,null,null]);assert.equal(barbarosUnits[0].unitLabel,'M');assert.equal(barbarosUnits[0].unitPrice,2);
+ assert.equal((await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()))).filter(s=>s.id==='barbaros2').length,1);
+ console.log('PASS: Barbaros2 added once with Yang-only magnitude pricing, no OSI KT/Mitril profile leakage.');
  const result=await page.evaluate(()=>{
  const server={id:'test',name:'Test',url:'https://itemci.com/categories/test',categories:[
  {id:'yang',name:'Yang',mode:'token',tokens:['KT'],keywords:[],unitLabel:'KT'},
