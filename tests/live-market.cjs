@@ -6,8 +6,19 @@ const assert = require('assert/strict');
  const page=await browser.newPage();
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<html><body></body></html>'}));await page.goto('https://itemci.com/categories/test');
  const source=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarLiveListings = async','    window.__testLiveRow = liveListingRow;\n    window.__NiyazisugarLiveListings = async');
+ await page.evaluate(()=>localStorage.setItem('itemci_v15_servers',JSON.stringify([
+ {id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni-itemyang'},
+ {id:'custom-sezar',name:'Sezar 2',url:'https://itemci.com/categories/sezar2'},
+ {id:'keep',name:'Diğer',url:'https://itemci.com/categories/other',categories:[]}
+ ])));
  await page.addScriptTag({content:source});
  const exposed=await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()));assert(exposed.every(s=>typeof s.url==='string'&&s.url.startsWith('https://itemci.com/categories/')),'desktop server export must retain real category URLs');
+ assert.deepEqual(exposed.map(s=>s.id),['osi2','keep']);
+ assert.equal(exposed[0].name,'OSİ2');assert.equal(exposed[0].url,'https://itemci.com/categories/osi2');
+ const mitril=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('osi2',['100 mitril','100 Mitril','100 mıtrıl','100 MİTRİL','Mıtrıl 100 adet','100 soluk kır otu','100 ot'].map(title=>({title,price:200}))));
+ assert.deepEqual(mitril.map(r=>r.quantity),[100,100,100,100,100,null,null]);assert.equal(mitril[0].unitPrice,2);assert.equal(mitril[0].unitLabel,'MİTRİL');
+ const persisted=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')));assert.deepEqual(persisted.map(s=>s.id),['osi2','keep']);
+ console.log('PASS: persisted MSP/Sezar migration, unrelated servers retained, Mitril Turkish spelling variants and per-item pricing.');
  const result=await page.evaluate(()=>{
  const server={id:'test',name:'Test',url:'https://itemci.com/categories/test',categories:[
  {id:'yang',name:'Yang',mode:'token',tokens:['KT'],keywords:[],unitLabel:'KT'},
@@ -25,7 +36,7 @@ const assert = require('assert/strict');
  });
  assert.deepEqual(actualTitles.map(r=>r.quantity),[500,700,2000,468,677,500,426,1400,null]);
  await page.evaluate(()=>{window.fetch=()=>{throw Error('Unit calculation must not use network');};});
- const local=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('msp2-global-yeni',[{title:'700KT 350TL ANINDA TESLİM',price:350}]));
+ const local=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('osi2',[{title:'700KT 350TL ANINDA TESLİM',price:350}]));
  assert.equal(local[0].quantity,700);assert.equal(local[0].unitPrice,0.5);
  console.log('PASS: real reported title formats including quoted unit rates, adjoining TL and no-network saved-row calculation.');
  const globalRows=await page.evaluate(()=>{
@@ -34,7 +45,7 @@ const assert = require('assert/strict');
  });
  assert.deepEqual(globalRows.map(r=>r.quantity),[1,100,1000,1000,1300,1300,2500,1500,1500,1000,null,null,null,null,1300]);
  assert.equal(globalRows[4].unitPrice,2);assert.equal(globalRows[4].unitLabel,'KT');
- const migrated=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('msp2-global-yeni',[{title:'1S 300KT',price:2600}]));assert.equal(migrated[0].quantity,1300);assert.equal(migrated[0].unitPrice,2);
+ const migrated=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('osi2',[{title:'1S 300KT',price:2600}]));assert.equal(migrated[0].quantity,1300);assert.equal(migrated[0].unitPrice,2);
  await page.evaluate(()=>{window.answers=['Test Global','https://itemci.com/categories/test-global-itemyang'];window.prompt=()=>window.answers.shift()??null;window.__NiyazisugarAddServer();});
  await page.getByLabel('Sunucu şablonu').waitFor();assert.equal(await page.getByLabel('Sunucu şablonu').inputValue(),'global-120');await page.getByRole('button',{name:'Şablonu kullan',exact:true}).click();
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')).find(s=>s.name==='Test Global'));assert.equal(saved.template,'global-120');assert.equal(saved.categories.length,3);assert.equal(saved.categories.find(c=>c.unitLabel==='KT').quantityStyle,'global-120');

@@ -88,6 +88,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  // Exercise the actual server scanner, not only its sold-marker helper.
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
  await page.goto('https://itemci.com/categories/msp2-global-yeni-itemyang');
+ await page.evaluate(()=>{localStorage.setItem('itemci_osi2_migration_v1','done');localStorage.setItem('itemci_v15_servers',JSON.stringify([{id:'osi2',name:'OSİ2',url:'https://itemci.com/categories/msp2-global-yeni-itemyang',template:'global-120'}]));});
  await page.addScriptTag({content:fs.readFileSync('overrides/ServerSales.js','utf8')});
  await page.addScriptTag({content:fs.readFileSync('overrides/MarketAnalyzer.js','utf8')});
  await page.evaluate(()=>{
@@ -105,28 +106,28 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
   };
  });
  const known=[{url:'https://itemci.com/product/msp2-global-yeni-itemyang/sold',title:'Önceden görülen ilan',price:100,seller:''}, {url:'https://itemci.com/product/msp2-global-yeni-itemyang/deleted',title:'Kaldırılan ilan',price:100}];
- const scan=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
+ const scan=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('osi2',known,0),known);
  assert.equal(scan.complete,false);assert.equal(scan.sold.length,1);assert.equal(scan.sold[0].title,'Önceden görülen ilan');assert.equal(scan.failed,2);assert.equal(scan.nextCursor,1);
  await page.evaluate(()=>{window.mode='pages';window.calls=[];});
- const paged=await page.evaluate(()=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,4));
+ const paged=await page.evaluate(()=>window.__NiyazisugarServerSalesScan('osi2',[],0,4));
  assert.equal(paged.rows.length,3);assert.equal(paged.nextPage,1);assert.equal(paged.sold.length,3,'Sold markers must be checked even while listing remains in category');
  const pages=await page.evaluate(()=>window.calls.filter(x=>x.includes('/categories/')).map(x=>Number(new URL(x).searchParams.get('page')||1)));
  assert.deepEqual(pages,[1,2,3]);
  await page.evaluate(()=>window.calls=[]);
  const recorded=[1,2,3].map(n=>'https://itemci.com/product/msp2-global-yeni-itemyang/active-'+n);
- const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[],[],urls,[{url:'https://itemci.com/product/test/old',title:'750KT YANG',price:350}]),recorded);
+ const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('osi2',[],0,1,[],{},[],[],urls,[{url:'https://itemci.com/product/test/old',title:'750KT YANG',price:350}]),recorded);
  assert.equal(withoutDuplicates.units[0].quantity,750);assert.equal(withoutDuplicates.units[0].unitLabel,'KT');assert(Math.abs(withoutDuplicates.units[0].unitPrice-350/750)<1e-12);
  assert.equal(withoutDuplicates.attemptedUrls.length,0,'Already recorded category listings consumed new sale-check slots.');
  assert.equal(await page.evaluate(()=>window.calls.filter(u=>u.includes('/product/')).length),0);
  await page.evaluate(()=>window.calls=[]);
  const pending=[1,2,3].map(n=>({url:'https://itemci.com/product/msp2-global-yeni-itemyang/missing-'+n,title:'Önceki pencere ilanı',price:100}));
- await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0,38),pending);
+ await page.evaluate(known=>window.__NiyazisugarServerSalesScan('osi2',known,0,38),pending);
  const detailOrder=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
  assert(detailOrder[0].endsWith('/missing-1'));assert(detailOrder[1].includes('/active-'));assert(detailOrder[2].includes('/active-'),'Active listing baselines must retain a slot.');
  assert.equal(await page.evaluate(()=>window.calls.some(x=>/[?&]page=(?:4|38)/.test(x))),false);
  await page.evaluate(()=>window.calls=[]);
  const repairRow={url:'https://itemci.com/product/msp2-global-yeni-itemyang/price-repair',title:'Existing sale',price:175};
- const repairScan=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[],0,1,[],{},[row]),repairRow);
+ const repairScan=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('osi2',[],0,1,[],{},[row]),repairRow);
  const repairRequests=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));
  assert.equal(repairRequests.length,3);assert(repairRequests.some(u=>u.endsWith('/price-repair')),'Price repairs should still use spare capacity.');assert(repairRequests[0].includes('/active-'),'Live checks must precede old price repairs.');
  assert.equal(repairScan.attemptedUrls.length,3);
@@ -143,13 +144,13 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
   };
  });
  const missingRow={url:'https://itemci.com/product/msp2-global-yeni-itemyang/just-sold',title:'Observed listing',price:175,seller:'TestSeller'};
- const batch=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',[row],0,1,[],{},[],[{url:'https://itemci.com/user/store/TestSeller',sellerId:'owner',seller:'TestSeller',salesCount:10,complete:true,observedAtUtc:new Date(Date.now()-60000).toISOString(),products:[row]}]),missingRow);
+ const batch=await page.evaluate(row=>window.__NiyazisugarServerSalesScan('osi2',[row],0,1,[],{},[],[{url:'https://itemci.com/user/store/TestSeller',sellerId:'owner',seller:'TestSeller',salesCount:10,complete:true,observedAtUtc:new Date(Date.now()-60000).toISOString(),products:[row]}]),missingRow);
  assert.equal(batch.sellerResults.length,1);assert.equal(batch.sellerResults[0].salesCount,11);
  const detailBatch=await page.evaluate(()=>window.calls.filter(x=>x.includes('/product/')));assert(detailBatch[0].endsWith('/just-sold'));
  assert.equal(await page.evaluate(()=>window.calls.filter(x=>!x.includes('/categories/')).length),3,'Seller snapshots and product verification must share the old request budget.');
  assert.equal(batch.sold[0].url,missingRow.url);
  await page.evaluate(()=>{window.mode='limit';window.calls=[];window.fetch=async url=>{window.calls.push(String(url));return new Response('limit',{status:429});};});
- const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('msp2-global-yeni',known,0),known);
+ const limit=await page.evaluate(known=>window.__NiyazisugarServerSalesScan('osi2',known,0),known);
  assert.equal(limit.rateLimited,true);assert.equal(await page.evaluate(()=>window.calls.length),1);
  console.log('PASS: incomplete pagination still verifies sales, deleted pages excluded, retained category listings checked, bounded page rotation and 429 stops requests.');
  await browser.close();

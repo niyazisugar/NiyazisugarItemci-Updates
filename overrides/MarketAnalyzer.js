@@ -2,10 +2,10 @@
     'use strict';
 
     const DEFAULT_SERVER = {
-        id: 'msp2-global-yeni',
-        name: 'MSP2 Global - Yeni',
+        id: 'osi2',
+        name: 'OSİ2',
         template: 'global-120',
-        url: 'https://itemci.com/categories/msp2-global-yeni-itemyang',
+        url: 'https://itemci.com/categories/osi2',
         categories: [
             {
                 id: 'msp-yang',
@@ -16,12 +16,12 @@
                 unitLabel: 'KT'
             },
             {
-                id: 'msp-soluk',
-                name: 'Soluk Kır Otu',
+                id: 'osi-mitril',
+                name: 'Mitril',
                 mode: 'token',
                 keywords: [],
-                tokens: ['soluk kır otu', 'soluk kır', 'soluk', 'ot'],
-                unitLabel: 'OT'
+                tokens: ['mitril', 'mıtrıl', 'mitrıl', 'mıtril'],
+                unitLabel: 'MİTRİL'
             },
             {
                 id: 'msp-derece',
@@ -120,7 +120,7 @@
             document.getElementById('niyazi-server-template')?.remove();
             const overlay=document.createElement('div');overlay.id='niyazi-server-template';
             overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#0009;display:grid;place-items:center;font:14px "Segoe UI",sans-serif;color:#e7e7ea';
-            overlay.innerHTML='<div style="width:min(440px,92vw);padding:24px;background:#16171a;border:1px solid #303138;border-radius:18px"><h3 style="margin:0 0 16px">Sunucu şablonu</h3><select aria-label="Sunucu şablonu" style="width:100%;padding:12px;background:#232429;color:#e7e7ea;border:1px solid #35363b;border-radius:10px"><option value="global-120">1-120 Global · MSP tarzı</option><option value="custom">Özel · Kategorileri kendim belirleyeceğim</option></select><p style="color:#aaaeb8;line-height:1.6">1-120 Global: Yang (KT/S), Soluk Kır Otu ve Derece Meyvesi kategorileri hazır gelir. 1 S = 1.000 KT; 1 S 300 KT = 1.300 KT. Fiyat, ilanın toplam tutarından hesaplanır.</p><div style="display:flex;justify-content:flex-end;gap:10px"><button type="button" data-cancel style="padding:10px;border-radius:10px;border:1px solid #3a3b42;background:#24252a;color:white">Vazgeç</button><button type="button" data-apply style="padding:10px 18px;border-radius:10px;border:0;background:#d4b062;color:#17140c">Şablonu kullan</button></div></div>';
+            overlay.innerHTML='<div style="width:min(440px,92vw);padding:24px;background:#16171a;border:1px solid #303138;border-radius:18px"><h3 style="margin:0 0 16px">Sunucu şablonu</h3><select aria-label="Sunucu şablonu" style="width:100%;padding:12px;background:#232429;color:#e7e7ea;border:1px solid #35363b;border-radius:10px"><option value="global-120">1-120 Global · KT/S</option><option value="custom">Özel · Kategorileri kendim belirleyeceğim</option></select><p style="color:#aaaeb8;line-height:1.6">1-120 Global: Yang (KT/S), Mitril ve Derece Meyvesi kategorileri hazır gelir. 1 S = 1.000 KT; 1 S 300 KT = 1.300 KT. Fiyat, ilanın toplam tutarından hesaplanır.</p><div style="display:flex;justify-content:flex-end;gap:10px"><button type="button" data-cancel style="padding:10px;border-radius:10px;border:1px solid #3a3b42;background:#24252a;color:white">Vazgeç</button><button type="button" data-apply style="padding:10px 18px;border-radius:10px;border:0;background:#d4b062;color:#17140c">Şablonu kullan</button></div></div>';
             const finish=value=>{overlay.remove();resolve(value);};
             overlay.querySelector('[data-cancel]').onclick=()=>finish(null);
             overlay.querySelector('[data-apply]').onclick=()=>finish(overlay.querySelector('select').value);
@@ -218,7 +218,7 @@
                 'Bu kategori için ilan başlığında ayrıca aranacak kelime/ifadeler var mı?\n' +
                 'Birden fazlaysa virgülle ayır.\n\n' +
                 'Örnek Yang için: yang\n' +
-                'MSP2 KT ilanlarında sadece KT yeterliyse boş bırakabilirsin.\n\n' +
+                'KT/S ilanlarında sadece KT yeterliyse boş bırakabilirsin.\n\n' +
                 'NOT: M veya S gibi kısa birimlerde yanlış eşleşmeyi azaltmak için "yang" yazman iyi olur.',
                 current?.mode === 'token' ? current.keywords.join(', ') : ''
             );
@@ -333,6 +333,22 @@
             saved = [];
         }
 
+        const migrationKey = 'itemci_osi2_migration_v1';
+        const migrate = storageGet(migrationKey, '') !== 'done';
+        if (migrate) {
+            const retired = x => /(?:msp|sezar2)/.test(normalizeSearchText(`${x?.id || ''} ${x?.name || ''} ${x?.url || ''}`).replace(/[^a-z0-9]/g, ''));
+            saved = saved.filter(x => !retired(x));
+            const existing = saved.find(x => x?.id === DEFAULT_SERVER.id || /\/categories\/osi2(?:-itemyang)?\/?$/.test(x?.url || ''));
+            if (existing) {
+                existing.id = DEFAULT_SERVER.id;
+                existing.name = DEFAULT_SERVER.name;
+                existing.template = DEFAULT_SERVER.template;
+                existing.url = DEFAULT_SERVER.url;
+                existing.categories = defaultCategoriesClone();
+            }
+            storageSet(ACTIVE_SERVER_KEY, DEFAULT_SERVER.id);
+        }
+
         saved = saved
             .filter(x =>
                 x &&
@@ -361,6 +377,10 @@
             return true;
         });
 
+        if (migrate) {
+            storageSet(SERVER_LIST_KEY, JSON.stringify(saved));
+            storageSet(migrationKey, 'done');
+        }
         return saved;
     }
 
@@ -2300,7 +2320,7 @@ ${categorySectionsHtml}
             if (!selected) return;
 
             if (selected.id === DEFAULT_SERVER.id) {
-                alert('Varsayılan MSP2 Global - Yeni serveri silinemez.');
+                alert('Varsayılan OSİ2 sunucusu silinemez.');
                 return;
             }
 
@@ -2721,7 +2741,7 @@ ${categorySectionsHtml}
             if (!selected) return;
 
             if (selected.id === DEFAULT_SERVER.id) {
-                alert('Varsayılan MSP2 Global - Yeni serveri silinemez.');
+                alert('Varsayılan OSİ2 sunucusu silinemez.');
                 return;
             }
 
@@ -2997,7 +3017,7 @@ ${categorySectionsHtml}
 
     function desktopDeleteServer(serverId) {
         if (serverId === DEFAULT_SERVER.id) {
-            alert('MSP2 varsayılan server olduğu için silinemez.');
+            alert('OSİ2 varsayılan sunucu olduğu için silinemez.');
             return false;
         }
 
