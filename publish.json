@@ -1,4 +1,4 @@
 {
-  "version": "2.20.1",
-  "notes": "Satış takibinde sütunlar birbirine yaklaştırıldı; geniş ekranda içerik gereksiz yere yayılmaz. Son fiyatın yanına piyasa analizindeki sunucu/kategori miktar mantığıyla hesaplanan birim fiyat eklendi. Örneğin 750 KT ve 350 TL için 1 KT = 0,4667 TL. Miktarı bilinmeyen ilanlarda hesap üretilmez; yeni istek veya zamanlayıcı eklenmedi."
+  "version": "2.20.2",
+  "notes": "Birim fiyat eski kayıtlar için ekran açılırken yerel hesaplanır; arka plan taraması veya site bekleme süresi gerekmez. 500kt250tl gibi bitişik başlıklar ve (1KT=...) ön fiyat notları desteklendi. KT hasar ifadesi miktar sayılmaz. Kullanıcının bildirdiği gerçek başlık biçimleri regresyon testine eklendi."
 }

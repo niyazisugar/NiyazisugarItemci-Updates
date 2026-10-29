@@ -3013,8 +3013,10 @@ ${categorySectionsHtml}
 
     window.__NiyazisugarOpenMarket = openServerMenu;
     function liveListingRow(row, server) {
-        const match = categoriesForServer(server)
-            .map(category => ({ category, parsed: analyzeCategoryRow(row, category) }))
+        // A quoted unit rate in parentheses is not the offered quantity.
+        const title=String(row.title||'').replace(/\([^)]*\b1\s*kt\s*=[^)]*\)/gi,' ').replace(/(\d)\s*(kt)(?=\d+(?:[.,]\d+)?\s*tl)/gi,'$1$2 ');
+        const match = (suspiciousByText(title)?[]:categoriesForServer(server))
+            .map(category => ({ category, parsed: analyzeCategoryRow({...row,title}, category) }))
             .find(result => result.parsed && Number.isFinite(result.parsed.unit) && result.parsed.amount > 0);
         return { ...row,
             quantity: match?.parsed.amount ?? null,
@@ -3024,6 +3026,11 @@ ${categorySectionsHtml}
         };
     }
 
+    window.__NiyazisugarWatchUnitRows = (serverId, rows) => {
+        const server=loadServers().find(s=>s.id===serverId);
+        if(!server)return [];
+        return (rows||[]).map(row=>liveListingRow(row,server));
+    };
     window.__NiyazisugarLiveListings = async serverId => {
         const server = loadServers().find(s => s.id === serverId) || getActiveServer();
         const base = await resolveItemYangCategory(server.url);

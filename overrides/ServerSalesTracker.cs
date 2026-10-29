@@ -6,6 +6,8 @@ public sealed partial class MainForm
 {
     private readonly Dictionary<string, ServerWatch> _serverWatch = new();
     private string _serverWatchRenderedKey="";
+    private bool _watchUnitsBusy;
+    private string _watchUnitsKey="";
     private DateTime _serverWatchNextTurnUtc;
     private DateTime _serverWatchRetryUtc;
     private int _serverWatchVisibleCount=50;
@@ -38,6 +40,7 @@ public sealed partial class MainForm
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
         _liveCount.Text=rows.Count.ToString(); _liveLast.Text=(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
         _liveStatus.Text = $"Bugün tespit: {rows.Count} · Son tam liste kontrolü: {(state is not null&&state.lastSuccessUtc!=DateTime.MinValue?state.lastSuccessUtc.ToLocalTime().ToString("HH:mm:ss"):"henüz yok")} · {state?.status ?? "Takip hazırlanıyor"}";
+        _=RefreshWatchUnitsLocalAsync(server,rows);
         var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller+":"+s.listing.quantity+":"+s.listing.unitLabel));
         if(key==_serverWatchRenderedKey)return;
         _serverWatchRenderedKey=key;
@@ -53,6 +56,35 @@ public sealed partial class MainForm
         }).ToList();
         _liveList?.SetItems(items);
         PositionLiveMarket();
+    }
+    private async Task RefreshWatchUnitsLocalAsync(MarketServerInfo server,List<WatchSale> sales)
+    {
+        var core=_marketWebView.CoreWebView2;
+        if(_watchUnitsBusy||core is null||sales.Count==0||IsDisposed)return;
+        var payload=JsonSerializer.Serialize(sales.Select(s=>s.listing));
+        var key=server.Id+payload;
+        if(_watchUnitsKey==key)return;
+        _watchUnitsBusy=true;
+        try
+        {
+            core.Resume();
+            if(await core.ExecuteScriptAsync("typeof window.__NiyazisugarWatchUnitRows==='function'")!="true")
+                await core.ExecuteScriptAsync(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js")));
+            var raw=await core.ExecuteScriptAsync($"window.__NiyazisugarWatchUnitRows({JsonSerializer.Serialize(server.Id)},{payload})");
+            var units=JsonSerializer.Deserialize<List<LiveListing>>(raw)??new();
+            bool changed=false;
+            foreach(var unit in units)
+            {
+                var saved=sales.FirstOrDefault(s=>s.listing.url==unit.url&&s.listing.title==unit.title)?.listing;
+                if(saved is null)continue;
+                changed|=saved.quantity!=unit.quantity||saved.unitLabel!=unit.unitLabel;
+                saved.quantity=unit.quantity;saved.unitLabel=unit.unitLabel;saved.categoryName=unit.categoryName;
+            }
+            _watchUnitsKey=server.Id+JsonSerializer.Serialize(sales.Select(s=>s.listing));
+            if(changed){_serverWatchRenderedKey="";RenderServerSalesWatch();}
+        }
+        catch{_watchUnitsKey="";}
+        finally{_watchUnitsBusy=false;if(!IsDisposed)await SuspendIdleMarketAsync();}
     }
     private static string WatchUnitPrice(LiveListing row)
     {

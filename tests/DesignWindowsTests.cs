@@ -299,6 +299,12 @@ public sealed partial class MainForm
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));
         analyzer=analyzer.Replace("    window.__NiyazisugarRunMarket = runAnalysis;","    window.__DesignEmptyReport=()=>showReport([],0,0,{id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni',categories:defaultCategoriesClone()});\n    window.__NiyazisugarRunMarket = runAnalysis;");
         await _marketWebView.CoreWebView2.ExecuteScriptAsync(analyzer);await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__DesignEmptyReport()");await Task.Delay(300);await CaptureAsync("market");
+        var localRows=new List<WatchSale> {new(){listing=new(){url="test-unit",title="700KT 350TL ANINDA TESLİM",price=350}}};
+        bool wasSoldBusy=_soldScanBusy;_soldScanBusy=true;_watchUnitsKey="";
+        await RefreshWatchUnitsLocalAsync(new MarketServerInfo {Id="msp2-global-yeni",Name="Test",Url="https://itemci.com/categories/test"},localRows);
+        _soldScanBusy=wasSoldBusy;
+        if(localRows[0].listing.quantity!=700||WatchUnitPrice(localRows[0].listing)!="1 KT · 0,5 TL")throw new Exception("Saved unit prices waited for the blocked background scanner.");
+        Console.WriteLine("PASS: saved unit prices calculate locally even while personal scan is busy.");
         Console.WriteLine("PASS: actual MainForm screens, filters, commission math, rail layout, viewport sizes and no-send quick replies.");
         static IEnumerable<Control> Descendants(Control root) {foreach(Control child in root.Controls){yield return child;foreach(var nested in Descendants(child))yield return nested;}}
         static Bitmap TestThumbnail(int n) {var image=new Bitmap(100,76);using var g=Graphics.FromImage(image);g.Clear(Color.FromArgb(22,33,42));ReferenceUi.Icon(g,"list",new RectangleF(34,8,30,30),ReferenceUi.Gold);TextRenderer.DrawText(g,"TEST "+n,ReferenceUi.Font(9),new Rectangle(0,42,100,24),ReferenceUi.Text,TextFormatFlags.HorizontalCenter);return image;}
