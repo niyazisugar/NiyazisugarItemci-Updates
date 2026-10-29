@@ -1,4 +1,4 @@
 {
-  "version": "2.17.1",
-  "notes": "Özel mesaj arayüzü ve teknik kayıt menüsü kaldırıldı; normal Itemci mesaj ekranı geri getirildi. Mevcut hızlı cevaplar, kayıtlı cevaplar, hesap oturumu ve mesaj bildirimleri korunur. Diğer bölümler değiştirilmedi."
+  "version": "2.18.0",
+  "notes": "Yeni Graphite tasarımı: grafit renkler, sade başlıklar, tek parça özet kartı ve kart içi arama tüm sayfalarda. Tarayıcı sekmeleri ve adres çubuğu yenilendi. Mesajlar, hızlı cevaplar ve diğer özellikler aynen korunur."
 }
