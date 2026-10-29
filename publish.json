@@ -1,4 +1,4 @@
 {
-  "version": "2.21.2",
-  "notes": "Barbaros2 piyasa ve satış takibine eklendi. Yang kategorisi mevcut K/M ölçekli hesaplama ile çalışır. OSİ2 profili, diğer sunucular ve satış geçmişi korunur."
+  "version": "2.21.3",
+  "notes": "Barbaros2 Yang hesabı M temelinde düzeltildi: 1 T = 1000 M. T/M/K ve birleşik miktarlar piyasa analizi ile satış takibinde aynı hesaplanır. Mevcut Barbaros2 kategori kayıtları otomatik uyarlanır."
 }

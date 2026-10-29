@@ -118,7 +118,7 @@
             keywords: [...new Set(keywords)],
             tokens: [...new Set(tokens)],
             unitLabel: unitLabel || (mode === 'search' ? '' : 'ADET'),
-            quantityStyle: mode==='token'&&unitLabel==='KT'&&(category.quantityStyle==='global-120'||category.id==='msp-yang')?'global-120':''
+            quantityStyle: mode==='token'&&unitLabel==='KT'&&(category.quantityStyle==='global-120'||category.id==='msp-yang')?'global-120':mode==='magnitude'&&unitLabel==='M'&&(category.quantityStyle==='yang-m'||category.id==='barbaros-yang')?'yang-m':''
         };
     }
 
@@ -978,9 +978,30 @@
         return null;
     }
 
+    function yangMAmount(title) {
+        const text = normalizeSearchText(title)
+            .replace(/\([^)]*\b1\s*m\s*=[^)]*\)/gi, ' ')
+            .replace(/(\d)\s*(t|m|k)(?=\d)/gi, '$1$2 ');
+        const matches = [...text.matchAll(/(?:^|[^a-z0-9.,])(\d+(?:[.,]\d+)?)\s*(t|m|k)(?![a-z0-9])/gi)];
+        if (!matches.length || matches.length > 3) return null;
+        const units = new Set();
+        let amount = 0;
+        for (let i = 0; i < matches.length; i++) {
+            const match = matches[i], unit = match[2];
+            if (units.has(unit)) return null;
+            units.add(unit);
+            if (i && !/^[\s+]*$/.test(text.slice(matches[i-1].index + matches[i-1][0].length, match.index))) return null;
+            const value = countNumber(match[1]);
+            if (!value || value <= 0) return null;
+            amount += value * (unit === 't' ? 1000 : unit === 'k' ? 0.001 : 1);
+        }
+        return Number.isFinite(amount) && amount > 0 ? amount : null;
+    }
+
     function magnitudeAmountFromTitle(title, category) {
         const c = normalizeCategory(category);
         if (!c || c.mode !== 'magnitude') return null;
+        if (c.quantityStyle === 'yang-m') return c.keywords.length && !phraseMatch(title,c.keywords) ? null : yangMAmount(title);
 
         const t = normalizeSearchText(title);
         const items = c.keywords
