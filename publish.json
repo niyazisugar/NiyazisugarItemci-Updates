@@ -1,4 +1,4 @@
 {
-  "version": "2.20.2",
-  "notes": "Birim fiyat eski kayıtlar için ekran açılırken yerel hesaplanır; arka plan taraması veya site bekleme süresi gerekmez. 500kt250tl gibi bitişik başlıklar ve (1KT=...) ön fiyat notları desteklendi. KT hasar ifadesi miktar sayılmaz. Kullanıcının bildirdiği gerçek başlık biçimleri regresyon testine eklendi."
+  "version": "2.20.3",
+  "notes": "Kaynak kullanımı: mesaj takibi açık Mesajlar sekmesini paylaşır, gereksiz gizli mesaj sayfası boşaltılır. Mesaj kontrolleri çakışmaz ve 10 saniyelik aralıkta yapılır; gizli sekmeler kontrol sonrası askıya alınır. Reklam filtresi sıradan mesaj/animasyon değişikliklerinde tüm sayfayı taramaz. Bildirimler, satış takibi ve otomasyonlar korunur."
 }

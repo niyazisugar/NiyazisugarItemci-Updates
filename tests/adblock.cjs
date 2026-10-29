@@ -38,6 +38,16 @@ const assert = require('assert/strict');
  await new Promise(r=>setTimeout(r,500)); observer.disconnect();return count;
  });
  assert.equal(writes,0,'Repeated scan must not rewrite blocked elements');
+ await page.waitForTimeout(6000);
+ const scans=await page.evaluate(async()=>{
+  const original=document.querySelectorAll.bind(document);let count=0;
+  document.querySelectorAll=(selector)=>{if(selector==='div,section,aside,a')count++;return original(selector);};
+  const text=document.createElement('div');text.id='normal-chat-message';document.body.append(text);
+  for(let i=0;i<20;i++){text.className='chat-animation-'+i;text.textContent='Normal message '+i;await new Promise(r=>setTimeout(r,20));}
+  await new Promise(r=>setTimeout(r,700));document.querySelectorAll=original;return count;
+ });
+ assert.equal(scans,0,'Ordinary chat and animation mutations triggered full-page layout scans.');
+ console.log('PASS: ordinary text/animation changes do not trigger full-page ad scans.');
  console.log(`PASS: ${before} real banners hidden; late tall banner hidden; product/login preserved; no repeated hiding writes.`);
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -294,6 +294,14 @@ public sealed partial class MainForm
         // Only adapt route detection in the test's about:blank fixture.
         reply=reply.Replace("function isMessagesPage(){return /\\/(panel\\/mesaj|messages?|chat)/i.test(location.pathname);}","function isMessagesPage(){return true;}");await _webView.CoreWebView2.ExecuteScriptAsync(reply);await Task.Delay(300);
         var check=await _webView.CoreWebView2.ExecuteScriptAsync("document.querySelector('#niyazi-quick-replies button').click();document.querySelector('textarea').value.length>0&&window.sent===0");if(check!="true")throw new Exception("Reply chip sent or failed to fill the input.");firstTab.RequestedUrl="https://itemci.com/panel/mesajlar";SelectTopSection(_browserPanel);if(_topMessages!.ForeColor!=PremiumTheme.Gold)throw new Exception("Messages menu did not become active.");await CaptureAsync("messages");
+        await _messageMonitorWebView.EnsureCoreWebView2Async(_browserEnvironment);
+        _messageMonitorWebView.CoreWebView2.Navigate("about:blank#duplicate-monitor");await Task.Delay(150);
+        var previousWebReady=_webReady;_webReady=true;
+        _messagePollBusy=true;await MonitorItemciAsync();
+        if(_messageMonitorWebView.CoreWebView2.Source=="about:blank")throw new Exception("Busy monitor guard performed another poll.");
+        _messagePollBusy=false;await MonitorItemciAsync();await Task.Delay(150);_webReady=previousWebReady;
+        if(_messageMonitorWebView.CoreWebView2.Source!="about:blank")throw new Exception("Shared message tab did not unload duplicate monitor.");
+        Console.WriteLine("PASS: overlapping message poll is skipped and existing inbox tab unloads the duplicate renderer.");
         await _marketWebView.EnsureCoreWebView2Async(_browserEnvironment);ShowPanel(_marketPanel);
         _marketWebView.CoreWebView2.NavigateToString("<html><body></body></html>");await Task.Delay(300);
         var analyzer=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"MarketAnalyzer.js"));

@@ -138,7 +138,7 @@ function refresh(){if(frame)return;frame=requestAnimationFrame(()=>{frame=0;if(!
  if(host.parentElement && (strip.parentElement!==host.parentElement || strip.nextElementSibling!==host))host.before(strip);
  });}
 window.__niyaziQuickDockV24Refresh=refresh;
-new MutationObserver(records=>{if(records.some(r=>!strip?.contains(r.target)))refresh();}).observe(document.documentElement,{childList:true,subtree:true});
+new MutationObserver(records=>{if(isMessagesPage()&&records.some(r=>!strip?.contains(r.target)))refresh();}).observe(document.documentElement,{childList:true,subtree:true});
 window.addEventListener('resize',refresh);window.addEventListener('popstate',refresh);
 document.addEventListener('keydown',e=>{if(!isMessagesPage()||!e.altKey||e.ctrlKey||e.metaKey)return;const r=REPLIES[Number(e.key)-1];if(!r)return;const target=findMessageInput();if(target){e.preventDefault();setValue(target,r.text);}});
 refresh();})();

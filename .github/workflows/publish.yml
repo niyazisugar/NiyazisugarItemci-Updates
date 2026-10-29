@@ -168,6 +168,19 @@ jobs:
           $mainForm = [regex]::Replace($mainForm, $borderPattern, "    private static void DrawBorder(Graphics g, Rectangle rect)`r`n    {`r`n        PremiumTheme.DrawBorder(g, rect);`r`n    }", 1)
 
           $mainForm = $mainForm.Replace('public sealed class MainForm : Form', 'public sealed partial class MainForm : Form')
+          # Keep one inbox renderer and prevent overlapping polling callbacks.
+          $start = $mainForm.IndexOf('    private async Task MonitorItemciAsync()')
+          $end = $mainForm.IndexOf('    private static bool UrlsEquivalent', $start)
+          if ($start -lt 0 -or $end -lt 0) { throw 'Message monitor hook missing' }
+          $monitor = $mainForm.Substring($start, $end - $start)
+          $monitor = $monitor.Replace('MonitorItemciAsync()', 'LegacyMonitorItemciAsync(WebView2 monitorView, bool sharedMonitor)')
+          $monitor = $monitor.Replace('_messageMonitorWebView', 'monitorView').Replace('_messageMonitorReady', 'monitorReady')
+          $monitor = $monitor.Replace('        if (!_webReady', '        bool monitorReady=sharedMonitor||_messageMonitorReady;' + "`r`n" + '        if (!_webReady')
+          $monitor = $monitor.Replace('if (monitorView.CoreWebView2 is not null &&', 'if (!sharedMonitor && monitorView.CoreWebView2 is not null &&')
+          $monitor = $monitor.Replace('if ((inboxState.Note', 'if (!sharedMonitor && (inboxState.Note')
+          $mainForm = $mainForm.Substring(0,$start) + $monitor + $mainForm.Substring($end)
+          $mainForm = $mainForm.Replace('Interval = 4000', 'Interval = 10000')
+
           # Keep tray transitions from recreating the parent HWND of live WebViews.
           $mainForm = $mainForm.Replace('private void HideToTray(bool showInfo)', 'private void LegacyHideToTray(bool showInfo)')
           $mainForm = $mainForm.Replace('private void RestoreFromTray()', 'private void LegacyRestoreFromTray()')

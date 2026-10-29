@@ -449,7 +449,7 @@
         // Dismiss the known popup immediately; don't repeatedly force layout
         // over every page element during chat, animation or list mutations.
         try{hideWelcomePopup();hideExplicitItemciAds();hideKnownNetworkFrames();hideItemciImageAds();hideAttributeAds();}catch{}
-        const wait=1500-(Date.now()-lastFullScan);
+        const wait=5000-(Date.now()-lastFullScan);
         if(wait<=0){if(fullScanTimer)clearTimeout(fullScanTimer);fullScanTimer=null;scan();}
         else if(!fullScanTimer)fullScanTimer=setTimeout(()=>{fullScanTimer=null;scan();},wait);
     }
@@ -466,9 +466,12 @@
 
     const observer = new MutationObserver(records => {
         // Ignore our own hiding writes and changes within already hidden ads.
-        if (records.some(record => !record.target.closest?.(
-            '[data-niyazisugar-ad-blocked="1"]'
-        ))) scheduleScan();
+        const candidate='img,picture,iframe,embed,object,[role="dialog"],[aria-modal="true"],[class*="banner"],[class*="popup"],[class*="modal"],[class*="advert"],[id*="banner"]';
+        if(records.some(record=>{
+            if(record.target.closest?.('[data-niyazisugar-ad-blocked="1"],#niyazi-quick-replies,#itemci-v17'))return false;
+            if(record.type==='attributes')return record.attributeName==='src'||record.attributeName==='href'||record.target.matches?.(candidate);
+            return [...record.addedNodes].some(node=>node.nodeType===1&&(node.matches?.(candidate)||node.querySelector?.(candidate)));
+        }))scheduleScan();
     });
     observer.observe(document.documentElement, {
         childList: true,
