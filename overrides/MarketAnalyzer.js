@@ -2857,9 +2857,7 @@ ${categorySectionsHtml}
                 try {
                     data = await fetchPage(page, categoryBase, firstPages);
                 } catch (err) {
-                    // İlk sayfa açılmazsa gerçek hata, sonraki sayfalarda taramayı durdur.
-                    if (page === 1) throw err;
-                    break;
+                    throw new Error(`Sayfa ${page} okunamadı; analiz tamamlanmadı. ${err.message || err}`);
                 }
 
                 const cards = cardsFromDocument(data.doc, categoryBase);
@@ -2895,7 +2893,8 @@ ${categorySectionsHtml}
 
                 const lastPage = categoryLastPage(data.doc, page);
                 if (lastPage !== null && page >= lastPage) break;
-                if (page === 1 && allByUrl.size) showReport([...allByUrl.values()],scannedPages,totalCards,activeServer);
+                // Do not present the first page as a finished analysis.
+                // Keep the progress indicator above the previous report until completion.
                 // requestHtml already enforces the 2.5-second request interval.
             }
 
