@@ -1,4 +1,4 @@
 {
-  "version": "2.21.5",
-  "notes": "Piyasa analizinde medyan kartı ve medyana göre ilan eleme kaldırıldı. Tarihi okunamayan ilanlar Bilinmiyor etiketiyle listelenir. Kısa pencerelerde sonuç tablosu görünür kalır; reklam engelleyici uygulamanın kendi analiz ekranına müdahale etmez."
+  "version": "2.21.6",
+  "notes": "Son piyasa analizi değişiklikleri geri alındı. Arayüz, filtreler ve hesaplama davranışı v2.21.4 durumuna döndürüldü. OSİ2 ve Barbaros2 profilleri, T/M dönüşümü ve önceki analiz hızlandırmaları korunur."
 }

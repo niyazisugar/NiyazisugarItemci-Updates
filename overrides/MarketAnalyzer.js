@@ -616,6 +616,13 @@
         });
     }
 
+    function median(arr) {
+        if (!arr.length) return 0;
+        const a = [...arr].sort((x, y) => x - y);
+        const m = Math.floor(a.length / 2);
+        return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    }
+
     function esc(s) {
         return String(s).replace(/[&<>"']/g, c => ({
             '&': '&amp;',
@@ -1171,8 +1178,26 @@
     }
 
     function splitRows(rows) {
-        // Price differences alone must not hide genuine listings.
-        return {valid:rows.filter(x=>!x.suspiciousText), suspicious:rows.filter(x=>x.suspiciousText)};
+        const nonTextSuspicious = rows.filter(x => !x.suspiciousText);
+        const baseUnits = nonTextSuspicious.map(x => x.unit);
+        const med = median(baseUnits);
+
+        const valid = [];
+        const suspicious = [];
+
+        for (const x of rows) {
+            let outlier = false;
+
+            if (med > 0) {
+                // Çok uç/placeholder fiyatları istatistikten ayır.
+                outlier = x.unit < med * 0.45 || x.unit > med * 2.20;
+            }
+
+            if (x.suspiciousText || outlier) suspicious.push(x);
+            else valid.push(x);
+        }
+
+        return { valid, suspicious };
     }
 
     function csvDownload(rows, amountLabel = 'KT', fileBase = 'itemci_kt_analiz') {
@@ -1444,7 +1469,7 @@
                     <tbody class="${prefix}Body">
                         ${rows.length
                             ? rowHtml(rows, prefix + 'Valid', amountLabel)
-                            : '<tr><td colspan="8" class="empty">Miktarı okunabilen eşleşen ilan bulunamadı.</td></tr>'}
+                            : '<tr><td colspan="8" class="empty">Son 36 saatte miktarı okunabilen ilan bulunamadı.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -1700,7 +1725,7 @@
 
     function categoryResult(allRows, category) {
         const recentRows = allRows.filter(x =>
-            x.ageHours === null || x.ageHours <= 36
+            x.ageHours !== null && x.ageHours <= 36
         );
 
         const rows = recentRows
@@ -1717,6 +1742,7 @@
                 valid: rows,
                 suspicious: [],
                 cheapest: prices.length ? Math.min(...prices) : 0,
+                median: median(prices),
                 average: prices.length
                     ? prices.reduce((a,b) => a+b, 0) / prices.length
                     : 0,
@@ -1734,6 +1760,7 @@
             valid: split.valid,
             suspicious: split.suspicious,
             cheapest: units.length ? Math.min(...units) : 0,
+            median: median(units),
             average: units.length
                 ? units.reduce((a,b) => a+b, 0) / units.length
                 : 0,
@@ -1776,7 +1803,7 @@
         document.getElementById('itemci-v17')?.remove();
 
         const recentAll = allRows.filter(x =>
-            x.ageHours === null || x.ageHours <= 36
+            x.ageHours !== null && x.ageHours <= 36
         );
 
         const olderOrUnknownCount = allRows.length - recentAll.length;
@@ -1832,7 +1859,7 @@
                 <section id="${prefix}View" class="view ${i === 0 ? 'active' : ''}">
                     <div class="stats">
                         <div class="stat"><span>En ucuz ilan</span><strong class="green">${fmt(r.cheapest)} TL</strong></div>
-
+                        <div class="stat"><span>Medyan fiyat</span><strong>${fmt(r.median)} TL</strong></div>
                         <div class="stat"><span>Ortalama fiyat</span><strong>${fmt(r.average)} TL</strong></div>
                         <div class="stat"><span>İLAN SAYISI</span><strong>${r.valid.length}</strong></div>
                         <div class="stat"><span>SON 36 SAAT</span><strong>${r.valid.length}</strong></div>
@@ -1878,7 +1905,7 @@
                                     <tbody class="${prefix}Body">
                                         ${r.valid.length
                                             ? categorySearchRowHtml(r.valid)
-                                            : '<tr><td colspan="6" class="empty">Eşleşen ilan bulunamadı.</td></tr>'}
+                                            : '<tr><td colspan="6" class="empty">Son 36 saatte eşleşen ilan bulunamadı.</td></tr>'}
                                     </tbody>
                                 </table>
                             </div>
@@ -1897,7 +1924,7 @@
             <section id="${prefix}View" class="view ${i === 0 ? 'active' : ''}">
                 <div class="stats">
                     <div class="stat"><span>En ucuz</span><strong class="green">${fmt(r.cheapest)} TL / ${esc(c.unitLabel)}</strong></div>
-
+                    <div class="stat"><span>Medyan</span><strong>${fmt(r.median)} TL / ${esc(c.unitLabel)}</strong></div>
                     <div class="stat"><span>Ortalama</span><strong>${fmt(r.average)} TL / ${esc(c.unitLabel)}</strong></div>
                     <div class="stat"><span>Toplam miktar</span><strong>${fmt(r.totalAmount, 2)} ${esc(c.unitLabel)}</strong></div>
                     <div class="stat"><span>Geçerli ilan</span><strong>${r.valid.length}</strong></div>
@@ -1922,7 +1949,7 @@
 
                         <div class="filterInfo">
                             Gösterilen: <b class="${prefix}Shown">${r.valid.length}</b> / ${r.valid.length}
-                            · Son 36 saat ve tarihi belirsiz ilanlar
+                            · Son 36 saat
                         </div>
                     </div>
 
@@ -2109,19 +2136,6 @@
 @media(max-width:700px){#itemci-v17 .topbar{padding:18px 16px 0}#itemci-v17 .stats{padding:12px 16px}#itemci-v17 .workspace{padding:14px 16px 20px}}
 #itemci-v17 .tableWrap{max-height:calc(100vh - 410px);min-height:170px}
 @media(max-width:950px){#itemci-v17 .stats{padding:14px 16px 0}#itemci-v17 .topbar{padding:18px 16px 12px}#itemci-v17 .workspace{padding:14px 16px}#itemci-v17 .title{font-size:24px}#itemci-v17 .stat strong{font-size:21px}#itemci-v17 .serverbar{flex-wrap:wrap}}
-/* Keep rows visible in short windows / high Windows display scaling. */
-@media(max-height:650px){
-#itemci-v17 .topbar{position:static;padding:10px 14px 0}
-#itemci-v17 .title{font-size:18px}#itemci-v17 .sub{font-size:11px;margin-top:2px;padding-bottom:4px}
-#itemci-v17 .serverbar{margin:8px 0;gap:6px;flex-wrap:wrap}
-#itemci-v17 .tabs{margin:6px 0;gap:4px}
-#itemci-v17 .stats{margin:6px 14px 0;grid-template-columns:repeat(4,minmax(0,1fr))}
-#itemci-v17 .stat{padding:8px 10px;gap:3px;min-height:0}#itemci-v17 .stat strong{font-size:16px}#itemci-v17 .stat span{font-size:11px}
-#itemci-v17 .workspace{padding:8px 14px 16px}#itemci-v17 .modeHint{padding:5px 9px;margin-bottom:6px}
-#itemci-v17 .toolbar{margin-bottom:8px;gap:6px}#itemci-v17 .search{height:32px}
-#itemci-v17 .tableWrap{max-height:max(170px,calc(100vh - 240px));min-height:170px}
-#itemci-v17 td{height:40px;padding:7px 10px}
-}
 </style>
 
 <div class="topbar">
@@ -2131,7 +2145,7 @@
             <div class="sub">
                 ${esc(activeServer.name)} · ${categories.length} özel kategori ·
                 ${scannedPages} sayfa · ${totalCards} kart ·
-                ${recentAll.length} son 36 saat veya tarihi belirsiz ilan · ${buyerRows.length} son 24 saat alıcı ilanı
+                ${recentAll.length} son 36 saat ilan · ${buyerRows.length} son 24 saat alıcı ilanı
             </div>
         </div>
 
@@ -2215,6 +2229,7 @@ ${categorySectionsHtml}
 <section id="generalView" class="view">
     <div class="stats generalStats">
         <div class="stat"><span>En ucuz ilan</span><strong class="generalMin green">—</strong></div>
+        <div class="stat"><span>Medyan fiyat</span><strong class="generalMedian">—</strong></div>
         <div class="stat"><span>Ortalama fiyat</span><strong class="generalAverage">—</strong></div>
         <div class="stat"><span>EŞLEŞEN İLAN</span><strong class="generalCount">${generalRows.length}</strong></div>
         <div class="stat"><span>SON 36 SAAT</span><strong>${recentAll.length}</strong></div>
@@ -2249,14 +2264,14 @@ ${categorySectionsHtml}
                     <tbody class="generalBody">
                         ${generalRows.length
                             ? generalRowHtml(generalRows)
-                            : '<tr><td colspan="6" class="empty">Eşleşen ilan bulunamadı.</td></tr>'}
+                            : '<tr><td colspan="6" class="empty">Son 36 saatte ilan bulunamadı.</td></tr>'}
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div class="footnote">
-            <span>${olderOrUnknownCount} ilan 36 saatten eski olduğu için genel aramaya alınmadı.</span>
+            <span>${olderOrUnknownCount} ilan 36 saat dışında veya zamanı okunamadığı için genel aramaya alınmadı.</span>
             <button class="generalCsv">GÖRÜNENLERİ CSV</button>
         </div>
     </div>
@@ -2421,11 +2436,13 @@ ${categorySectionsHtml}
                 .filter(Number.isFinite);
 
             const min = prices.length ? Math.min(...prices) : null;
+            const medValue = prices.length ? median(prices) : null;
             const avgValue = prices.length
                 ? prices.reduce((a,b) => a+b, 0) / prices.length
                 : null;
 
             root.querySelector('.generalMin').textContent = min === null ? '—' : `${fmt(min)} TL`;
+            root.querySelector('.generalMedian').textContent = medValue === null ? '—' : `${fmt(medValue)} TL`;
             root.querySelector('.generalAverage').textContent = avgValue === null ? '—' : `${fmt(avgValue)} TL`;
             root.querySelector('.generalCount').textContent = String(visibleRows.length);
         }

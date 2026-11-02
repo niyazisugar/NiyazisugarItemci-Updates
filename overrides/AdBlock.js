@@ -124,8 +124,6 @@
         if (!el || !el.matches)
             return true;
 
-        if (el.closest?.("#itemci-v17,#itemci-server-menu,#niyazi-server-template")) return true;
-
         if (
             el === document.body ||
             el === document.documentElement ||
