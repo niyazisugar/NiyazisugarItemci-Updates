@@ -1,4 +1,4 @@
 {
-  "version": "2.21.4",
-  "notes": "Piyasa analizi ilk sayfayı tekrar indirmez; son sayfa bilgisi varsa gereksiz sonraki sayfa isteği yapmaz. Çok sayfalı taramada ilk sonuçlar erken gösterilir. Aynı anda mükerrer analiz engellenir; istek aralığı ve tüm sayfa taraması korunur."
+  "version": "2.21.5",
+  "notes": "Piyasa analizinde medyan kartı ve medyana göre ilan eleme kaldırıldı. Tarihi okunamayan ilanlar Bilinmiyor etiketiyle listelenir. Kısa pencerelerde sonuç tablosu görünür kalır; reklam engelleyici uygulamanın kendi analiz ekranına müdahale etmez."
 }
