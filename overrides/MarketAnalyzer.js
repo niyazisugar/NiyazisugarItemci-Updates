@@ -3194,13 +3194,14 @@ ${categorySectionsHtml}
                 pagesRead++;
                 if(!cards.length){
                     const body=normalizeSearchText(doc.body.textContent);
-                    if(/ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok/.test(body)){complete=true;nextPage=1;break;}
+                    if(/ilan bulunamadi|urun bulunamadi|sonuc bulunamadi|ilan yok|henuz ilan bulunmuyor/.test(body)){complete=true;nextPage=1;break;}
                     failed++;break;
                 }
                 for(const card of cards){card.href=new URL(card.getAttribute('href'),url).href;const row=parseCard(card);if(row)active.set(row.url,liveListingRow(row,server));}
                 nextPage=page>=MAX_PAGES?1:page+1;
-                const hasNext=[...doc.querySelectorAll('a[href]')].some(a=>{try{const u=new URL(a.getAttribute('href'),url);return u.pathname===new URL(base).pathname&&Number(u.searchParams.get('page'))>page;}catch{return false;}});
-                if(!hasNext||page===3){complete=true;nextPage=1;break;}
+                // Itemci can render pagination without anchor links.
+                const lastPage=categoryLastPage(doc,page);
+                if(page===3||(lastPage!==null&&page>=lastPage)){complete=true;nextPage=1;break;}
             } catch {failed++;break;}
             await sleep(250);
         }

@@ -1,4 +1,4 @@
 {
-  "version": "2.21.7",
-  "notes": "İlk sayfanın geçici sonucunun tamamlanmış piyasa analizi gibi görünmesi düzeltildi. Rapor tüm tarama tamamlanınca açılır; ilerleme göstergesi görünür kalır. Sonraki sayfa hataları artık sessizce eksik rapor üretmez. Görünüm ve fiyat filtreleri korunur."
+  "version": "2.21.8",
+  "notes": "Satış takibinde sayfa bağlantısı görünmediğinde taramanın ilk sayfada bitmesi düzeltildi. İlk üç sayfa taranır; doğrulanmış son sayfada durulur. Piyasa analizi ve satış doğrulama kuralları korunur."
 }

@@ -102,7 +102,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
    if(window.mode==='limit')return new Response('limit',{status:429});
    if(window.mode==='incomplete')return new Response('<p>Sayfa yüklenemedi</p>');
    const n=Number(u.searchParams.get('page')||1);
-   return new Response(`<a href="/product/msp2-global-yeni-itemyang/active-${n}"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span></a><a href="?page=${n+1}">Sonraki</a>`);
+   return new Response(`<a href="/product/msp2-global-yeni-itemyang/active-${n}"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span></a><script type="application/json">{"current_page":${n},"last_page":10}</script>`);
   };
  });
  const known=[{url:'https://itemci.com/product/msp2-global-yeni-itemyang/sold',title:'Önceden görülen ilan',price:100,seller:''}, {url:'https://itemci.com/product/msp2-global-yeni-itemyang/deleted',title:'Kaldırılan ilan',price:100}];
@@ -112,7 +112,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  const paged=await page.evaluate(()=>window.__NiyazisugarServerSalesScan('osi2',[],0,4));
  assert.equal(paged.rows.length,3);assert.equal(paged.nextPage,1);assert.equal(paged.sold.length,3,'Sold markers must be checked even while listing remains in category');
  const pages=await page.evaluate(()=>window.calls.filter(x=>x.includes('/categories/')).map(x=>Number(new URL(x).searchParams.get('page')||1)));
- assert.deepEqual(pages,[1,2,3]);
+ assert.deepEqual(pages,[1,2,3], "All three watch pages must be scanned without pagination links");
  await page.evaluate(()=>window.calls=[]);
  const recorded=[1,2,3].map(n=>'https://itemci.com/product/msp2-global-yeni-itemyang/active-'+n);
  const withoutDuplicates=await page.evaluate(urls=>window.__NiyazisugarServerSalesScan('osi2',[],0,1,[],{},[],[],urls,[{url:'https://itemci.com/product/test/old',title:'750KT YANG',price:350}]),recorded);
