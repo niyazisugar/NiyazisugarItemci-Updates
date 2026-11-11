@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');const fs=require('fs');const assert=require('assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true});const page=await browser.newPage();
- await page.addScriptTag({content:fs.readFileSync('overrides/ServerSales.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/ServerSales.js','utf8')});
  const results=await page.evaluate(()=>{
   const url='https://itemci.com/product/test/item-123';
   const check=html=>window.__NiyaziConfirmedPublicSale(html,url);
@@ -89,8 +89,8 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
  await page.goto('https://itemci.com/categories/msp2-global-yeni-itemyang');
  await page.evaluate(()=>{localStorage.setItem('itemci_osi2_migration_v1','done');localStorage.setItem('itemci_v15_servers',JSON.stringify([{id:'osi2',name:'OSİ2',url:'https://itemci.com/categories/msp2-global-yeni-itemyang',template:'global-120'}]));});
- await page.addScriptTag({content:fs.readFileSync('overrides/ServerSales.js','utf8')});
- await page.addScriptTag({content:fs.readFileSync('overrides/MarketAnalyzer.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/ServerSales.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/MarketAnalyzer.js','utf8')});
  await page.evaluate(()=>{
   window.calls=[];window.mode='incomplete';
   window.fetch=async url=>{

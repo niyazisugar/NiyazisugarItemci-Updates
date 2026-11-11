@@ -20,7 +20,7 @@ const assert = require('assert/strict');
  modal.querySelector('button').onclick=()=>modal.remove();document.body.append(modal);
  });
  });
- await page.addScriptTag({content:fs.readFileSync('overrides/SoldListings.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/SoldListings.js','utf8')});
  const result=await page.evaluate(()=>window.__niyaziScanSoldListings());
  assert.equal(result.Sales.length,2);
  assert.deepEqual(result.Sales[0],{OrderId:'01A1380A',ListingId:'29902744045',ItemTitle:'250KT YANG',ImageUrl:'',Server:'Bilinmeyen sunucu',Date:'14.10.2026',Time:'04:50',Price:'500,00',IsDelivered:true});

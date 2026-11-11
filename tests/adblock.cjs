@@ -8,7 +8,7 @@ const assert = require('assert/strict');
  await page.goto('https://itemci.com/');
  const before = await page.locator('a[title="Reklam"]').count();
  assert(before >= 3, 'Live HTML must contain top and side advertisements');
- await page.addScriptTag({content:fs.readFileSync('overrides/AdBlock.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/AdBlock.js','utf8')});
  assert(await page.evaluate(()=>document.cookie.includes('site_login_advert=1')), 'Welcome advertisement cookie must be set');
  assert.equal(await page.locator('a[title="Reklam"]').evaluateAll(els => els.filter(e => e.getBoundingClientRect().height > 0).length),0);
  await page.evaluate(() => {

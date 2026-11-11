@@ -5,7 +5,7 @@ const assert = require('assert/strict');
  const browser=await chromium.launch({headless:true});
  const page=await browser.newPage();
  await page.route('https://itemci.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<html><body></body></html>'}));await page.goto('https://itemci.com/categories/test');
- const source=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarLiveListings = async','    window.__testLiveRow = liveListingRow;\n    window.__NiyazisugarLiveListings = async');
+ const source=fs.readFileSync('src/NiyazisugarItemci/Web/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarLiveListings = async','    window.__testLiveRow = liveListingRow;\n    window.__NiyazisugarLiveListings = async');
  await page.evaluate(()=>localStorage.setItem('itemci_v15_servers',JSON.stringify([
  {id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni-itemyang'},
  {id:'custom-sezar',name:'Sezar 2',url:'https://itemci.com/categories/sezar2'},
@@ -60,7 +60,7 @@ const assert = require('assert/strict');
  const customUnit=await page.evaluate(id=>window.__NiyazisugarWatchUnitRows(id,[{title:'1S 300KT',price:2600}]),saved.id);assert.equal(customUnit[0].quantity,1300);
  console.log('PASS: 1-120 Global template persists with all MSP categories, old MSP migrates, S/KT compound and decimal units normalize to KT; unrelated S words and alternatives excluded.');
  console.log('PASS: KT, herb and fruit unit prices; unknown quantities remain unknown.');
- const speedSource=fs.readFileSync('overrides/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarRunMarket = runAnalysis;', `
+ const speedSource=fs.readFileSync('src/NiyazisugarItemci/Web/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarRunMarket = runAnalysis;', `
     window.__testSpeed = async (last,failAt=0) => {
       const requests=[],reports=[],errors=[];
       const originalRequest=requestHtml,originalReport=showReport,originalAlert=window.alert;window.alert=message=>errors.push(message);
