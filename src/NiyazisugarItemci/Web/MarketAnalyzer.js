@@ -46,10 +46,13 @@
 
     const MAX_PAGES = 40;
     const PAGE_DELAY = 250;
-    const ANALYSIS_REQUEST_GAP = 1500;
-    // Rapor yalnızca son 36 saatin ilanlarını kullanır; arka arkaya bu kadar
-    // sayfada hiç yeni ilan yoksa daha eski sayfalar okunmaz.
-    const STALE_PAGES_TO_STOP = 2;
+    // Bir sayfa ~0,3 sn'de gelir; asıl süre istekler arası beklemedir.
+    const ANALYSIS_REQUEST_GAP = 1000;
+    // Rapora giren en eski ilan: "2 gün önce" (48 saat) dahil, "3 gün önce" hariç.
+    const MAX_AGE_HOURS = 48;
+    // Itemci kategorileri en yeniden eskiye sıralar; arka arkaya bu kadar sayfanın
+    // tamamı 48 saatten eskiyse daha eski sayfalar okunmaz.
+    const STALE_PAGES_TO_STOP = 3;
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1118,7 +1121,7 @@
 
     let lastAnalysisRequestAt=0;
     async function requestHtml(url) {
-        // Analiz sürerken arka plan takibi bekler; tek akış olarak 1,5 sn aralık yeterli.
+        // Analiz sürerken arka plan takibi bekler; analiz tek başına 1 sn aralıkla okur.
         await sleep(Math.max(0,ANALYSIS_REQUEST_GAP-(Date.now()-lastAnalysisRequestAt)));
         if(Date.now()<(window.__niyaziSitePauseUntil||0))throw new Error('Itemci işlem sınırı; bekleme süresi dolunca tekrar deneyebilirsin.');
         lastAnalysisRequestAt=Date.now();
@@ -1428,7 +1431,7 @@
                     <tbody class="${prefix}Body">
                         ${rows.length
                             ? rowHtml(rows, prefix + 'Valid', amountLabel)
-                            : '<tr><td colspan="8" class="empty">Son 36 saatte miktarı okunabilen ilan bulunamadı.</td></tr>'}
+                            : '<tr><td colspan="8" class="empty">Son 2 günde miktarı okunabilen ilan bulunamadı.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -1684,7 +1687,7 @@
 
     function categoryResult(allRows, category) {
         const recentRows = allRows.filter(x =>
-            x.ageHours !== null && x.ageHours <= 36
+            x.ageHours !== null && x.ageHours <= MAX_AGE_HOURS
         );
 
         const rows = recentRows
@@ -1757,7 +1760,7 @@
         document.getElementById('itemci-v17')?.remove();
 
         const recentAll = allRows.filter(x =>
-            x.ageHours !== null && x.ageHours <= 36
+            x.ageHours !== null && x.ageHours <= MAX_AGE_HOURS
         );
 
         const olderOrUnknownCount = allRows.length - recentAll.length;
@@ -1816,7 +1819,7 @@
                         <div class="stat"><span>Medyan fiyat</span><strong>${fmt(r.median)} TL</strong></div>
                         <div class="stat"><span>Ortalama fiyat</span><strong>${fmt(r.average)} TL</strong></div>
                         <div class="stat"><span>İLAN SAYISI</span><strong>${r.valid.length}</strong></div>
-                        <div class="stat"><span>SON 36 SAAT</span><strong>${r.valid.length}</strong></div>
+                        <div class="stat"><span>SON 2 GÜN</span><strong>${r.valid.length}</strong></div>
                     </div>
 
                     <div class="workspace">
@@ -1859,7 +1862,7 @@
                                     <tbody class="${prefix}Body">
                                         ${r.valid.length
                                             ? categorySearchRowHtml(r.valid)
-                                            : '<tr><td colspan="6" class="empty">Son 36 saatte eşleşen ilan bulunamadı.</td></tr>'}
+                                            : '<tr><td colspan="6" class="empty">Son 2 günde eşleşen ilan bulunamadı.</td></tr>'}
                                     </tbody>
                                 </table>
                             </div>
@@ -1903,7 +1906,7 @@
 
                         <div class="filterInfo">
                             Gösterilen: <b class="${prefix}Shown">${r.valid.length}</b> / ${r.valid.length}
-                            · Son 36 saat
+                            · Son 2 gün
                         </div>
                     </div>
 
@@ -2120,7 +2123,7 @@
             <div class="sub">
                 ${esc(activeServer.name)} · ${categories.length} özel kategori ·
                 ${scannedPages} sayfa · ${totalCards} kart ·
-                ${recentAll.length} son 36 saat ilan · ${buyerRows.length} son 24 saat alıcı ilanı
+                ${recentAll.length} son 2 gün ilan · ${buyerRows.length} son 24 saat alıcı ilanı
             </div>
         </div>
 
@@ -2207,7 +2210,7 @@ ${categorySectionsHtml}
         <div class="stat"><span>Medyan fiyat</span><strong class="generalMedian">—</strong></div>
         <div class="stat"><span>Ortalama fiyat</span><strong class="generalAverage">—</strong></div>
         <div class="stat"><span>EŞLEŞEN İLAN</span><strong class="generalCount">${generalRows.length}</strong></div>
-        <div class="stat"><span>SON 36 SAAT</span><strong>${recentAll.length}</strong></div>
+        <div class="stat"><span>SON 2 GÜN</span><strong>${recentAll.length}</strong></div>
     </div>
 
     <div class="workspace">
@@ -2239,14 +2242,14 @@ ${categorySectionsHtml}
                     <tbody class="generalBody">
                         ${generalRows.length
                             ? generalRowHtml(generalRows)
-                            : '<tr><td colspan="6" class="empty">Son 36 saatte ilan bulunamadı.</td></tr>'}
+                            : '<tr><td colspan="6" class="empty">Son 2 günde ilan bulunamadı.</td></tr>'}
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div class="footnote">
-            <span>${olderOrUnknownCount} ilan 36 saat dışında veya zamanı okunamadığı için genel aramaya alınmadı.</span>
+            <span>${olderOrUnknownCount} ilan 2 günden eski veya zamanı okunamadığı için genel aramaya alınmadı.</span>
             <button class="generalCsv">GÖRÜNENLERİ CSV</button>
         </div>
     </div>
@@ -2828,7 +2831,7 @@ ${categorySectionsHtml}
 
             for (let page = 1; page <= MAX_PAGES; page++) {
                 progress.textContent =
-                    `${activeServer.name} taranıyor... Sayfa ${page} • Son 36 saat: ${recentCount} ilan`;
+                    `${activeServer.name} taranıyor... Sayfa ${page} • Son 2 gün: ${recentCount} ilan`;
 
                 let data;
                 try {
@@ -2863,7 +2866,7 @@ ${categorySectionsHtml}
                     const row = parseCard(card);
                     if (row) {
                         if (row.ageHours !== null) datedThisPage++;
-                        if (!allByUrl.has(absoluteUrl) && row.ageHours !== null && row.ageHours <= 36) recentThisPage++;
+                        if (!allByUrl.has(absoluteUrl) && row.ageHours !== null && row.ageHours <= MAX_AGE_HOURS) recentThisPage++;
                         allByUrl.set(absoluteUrl, row);
                     }
                 }
@@ -2871,7 +2874,7 @@ ${categorySectionsHtml}
                 recentCount += recentThisPage;
                 // Yalnızca tarihi okunabilen ve hepsi eski olan sayfa "eski" sayılır.
                 consecutiveStale = recentThisPage === 0 && datedThisPage > 0 ? consecutiveStale + 1 : 0;
-                // Sayfalar en yeniden eskiye gelir; iki sayfa üst üste 36 saatten eskiyse rapora girecek ilan kalmamıştır.
+                // Sayfalar en yeniden eskiye gelir; üç sayfa üst üste 2 günden eskiyse rapora girecek ilan kalmamıştır.
                 if (consecutiveStale >= STALE_PAGES_TO_STOP) break;
 
                 if (newUrlsThisPage === 0) consecutiveNoNew++;
