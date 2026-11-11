@@ -1,4 +1,4 @@
 {
-  "version": "2.21.8",
-  "notes": "Satış takibinde sayfa bağlantısı görünmediğinde taramanın ilk sayfada bitmesi düzeltildi. İlk üç sayfa taranır; doğrulanmış son sayfada durulur. Piyasa analizi ve satış doğrulama kuralları korunur. Windows paketi ayrıca derleme çıktısı olarak saklanır."
+  "version": "2.22.0",
+  "notes": "Uygulamanın kodu yeni, düzenli bir yapıya taşındı. Görünüm ve özellikler aynen korunur; bundan sonraki geliştirmeler daha hızlı ve güvenli yapılacak."
 }
