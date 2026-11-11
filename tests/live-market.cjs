@@ -61,13 +61,13 @@ const assert = require('assert/strict');
  console.log('PASS: 1-120 Global template persists with all MSP categories, old MSP migrates, S/KT compound and decimal units normalize to KT; unrelated S words and alternatives excluded.');
  console.log('PASS: KT, herb and fruit unit prices; unknown quantities remain unknown.');
  const speedSource=fs.readFileSync('src/NiyazisugarItemci/Web/MarketAnalyzer.js','utf8').replace('    window.__NiyazisugarRunMarket = runAnalysis;', `
-    window.__testSpeed = async (last,failAt=0) => {
+    window.__testSpeed = async (last,failAt=0,ageOf=null) => {
       const requests=[],reports=[],errors=[];
       const originalRequest=requestHtml,originalReport=showReport,originalAlert=window.alert;window.alert=message=>errors.push(message);
       requestHtml=async url=>{
         requests.push(url);const page=Number(new URL(url).searchParams.get('page')||1);
         if(page===failAt)throw new Error('HTTP 503');
-        return '<script type="application/json">'+JSON.stringify({current_page:page,last_page:last})+'</script><a href="/product/test-itemyang/item-'+page+'"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span></a>';
+        return '<script type="application/json">'+JSON.stringify({current_page:page,last_page:last})+'</script><a href="/product/test-itemyang/item-'+page+'"><h3>100KT YANG</h3><span class="tabular-nums">200,00 TL</span>'+(ageOf?'<span>'+ageOf(page)+'</span>':'')+'</a>';
       };
       showReport=(rows,pages)=>reports.push({rows:rows.length,pages});
       try {
@@ -82,12 +82,14 @@ const assert = require('assert/strict');
  const single=await page.evaluate(()=>window.__testSpeed(1));assert.equal(single.requests.length,1);assert.deepEqual(single.reports,[{rows:1,pages:1}]);
  const multi=await page.evaluate(()=>window.__testSpeed(3));assert.equal(multi.requests.length,3);assert.deepEqual(multi.reports,[{rows:3,pages:3}]);
  const ten=await page.evaluate(()=>window.__testSpeed(10));assert.equal(ten.requests.length,10);assert.deepEqual(ten.reports,[{rows:10,pages:10}]);
+ const stale=await page.evaluate(()=>window.__testSpeed(10,0,p=>p<=3?(p*5)+' saat önce':(p+1)+' gün önce'));assert.equal(stale.requests.length,5,'two consecutive pages older than 36 hours end the scan');assert.deepEqual(stale.reports,[{rows:5,pages:5}]);
+ const fresh=await page.evaluate(()=>window.__testSpeed(6,0,p=>p+' saat önce'));assert.equal(fresh.requests.length,6,'recent pages are all read');
  const failed=await page.evaluate(()=>window.__testSpeed(10,2));assert.equal(failed.reports.length,0,'a failed second page must not publish first-page results as complete');assert(failed.errors.some(e=>e.includes('Sayfa 2')&&e.includes('tamamlanmadı')));
  const retry=await page.evaluate(()=>window.__testSpeed(3));assert.deepEqual(retry.reports,[{rows:3,pages:3}],'failed scans must release the analysis lock');
  const pagination=await page.evaluate(()=>{
    const parse=text=>window.__testLastPage(new DOMParser().parseFromString('<script>'+text+'</script>','text/html'),1);
    return [parse(JSON.stringify({current_page:1,last_page:4}).replaceAll('"','\\"')),parse('{}')];
  });assert.deepEqual(pagination,[4,null]);
- console.log('PASS: one-page analysis needs one request; all ten pages retained, no first-page partial report, failed pages explicitly reported, no duplicate concurrent scan, escaped pagination and missing-metadata fallback.');
+ console.log('PASS: scan stops after two pages older than 36 hours; one-page analysis needs one request; all ten pages retained, no first-page partial report, failed pages explicitly reported, no duplicate concurrent scan, escaped pagination and missing-metadata fallback.');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

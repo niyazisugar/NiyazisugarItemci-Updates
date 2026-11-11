@@ -46,8 +46,18 @@
 
     const MAX_PAGES = 40;
     const PAGE_DELAY = 250;
+    const ANALYSIS_REQUEST_GAP = 1500;
+    // Rapor yalnızca son 36 saatin ilanlarını kullanır; arka arkaya bu kadar
+    // sayfada hiç yeni ilan yoksa daha eski sayfalar okunmaz.
+    const STALE_PAGES_TO_STOP = 2;
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // Satır işlemleri: yazı yerine küçük simge düğmeler (A · Sıkı tablo).
+    const ICON_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+    const ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
+    const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L19 8"/></svg>';
+    const rowActionsHtml = url => `<div class="rowActions"><button class="miniBtn iconBtn openListing" type="button" data-url="${esc(url)}" title="İlanı aç" aria-label="İlanı aç">${ICON_OPEN}</button><button class="miniBtn iconBtn copyLink" type="button" data-url="${esc(url)}" title="İlan linkini kopyala" aria-label="İlan linkini kopyala">${ICON_COPY}</button></div>`;
 
     function storageGet(key, fallback = null) {
         try {
@@ -1108,7 +1118,8 @@
 
     let lastAnalysisRequestAt=0;
     async function requestHtml(url) {
-        await sleep(Math.max(0,2500-(Date.now()-lastAnalysisRequestAt)));
+        // Analiz sürerken arka plan takibi bekler; tek akış olarak 1,5 sn aralık yeterli.
+        await sleep(Math.max(0,ANALYSIS_REQUEST_GAP-(Date.now()-lastAnalysisRequestAt)));
         if(Date.now()<(window.__niyaziSitePauseUntil||0))throw new Error('Itemci işlem sınırı; bekleme süresi dolunca tekrar deneyebilirsin.');
         lastAnalysisRequestAt=Date.now();
         if (typeof GM_xmlhttpRequest === 'function') {
@@ -1290,23 +1301,7 @@
                 <td class="timeCell">
                     <span class="timeBadge">${esc(x.time || 'Bilinmiyor')}</span>
                 </td>
-                <td class="actionCell">
-                    <div class="rowActions">
-                        <button
-                            class="miniBtn openListing"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlanı yeni sekmede aç"
-                        >↗ Git</button>
-
-                        <button
-                            class="miniBtn copyLink"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlan linkini kopyala"
-                        >⧉ Kopyala</button>
-                    </div>
-                </td>
+                <td class="actionCell">${rowActionsHtml(x.url)}</td>
             </tr>
             `;
         }).join('');
@@ -1344,23 +1339,7 @@
                     <span class="timeBadge">${esc(x.time || 'Bilinmiyor')}</span>
                 </td>
 
-                <td class="actionCell">
-                    <div class="rowActions">
-                        <button
-                            class="miniBtn openListing"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlanı yeni sekmede aç"
-                        >↗ Git</button>
-
-                        <button
-                            class="miniBtn copyLink"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlan linkini kopyala"
-                        >⧉ Kopyala</button>
-                    </div>
-                </td>
+                <td class="actionCell">${rowActionsHtml(x.url)}</td>
             </tr>
             `;
         }).join('');
@@ -1411,27 +1390,7 @@
                     <span class="timeBadge">${esc(x.time || 'Bilinmiyor')}</span>
                 </td>
 
-                <td class="actionCell">
-                    <div class="rowActions">
-                        <button
-                            class="miniBtn openListing"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlanı yeni sekmede aç"
-                        >
-                            ↗ Git
-                        </button>
-
-                        <button
-                            class="miniBtn copyLink"
-                            type="button"
-                            data-url="${esc(x.url)}"
-                            title="İlan linkini kopyala"
-                        >
-                            ⧉ Kopyala
-                        </button>
-                    </div>
-                </td>
+                <td class="actionCell">${rowActionsHtml(x.url)}</td>
             </tr>
         `;
         }).join('');
@@ -1788,12 +1747,7 @@
                 <td class="timeCell">
                     <span class="timeBadge">${esc(x.time || 'Bilinmiyor')}</span>
                 </td>
-                <td class="actionCell">
-                    <div class="rowActions">
-                        <button class="miniBtn openListing" type="button" data-url="${esc(x.url)}">↗ Git</button>
-                        <button class="miniBtn copyLink" type="button" data-url="${esc(x.url)}">⧉ Kopyala</button>
-                    </div>
-                </td>
+                <td class="actionCell">${rowActionsHtml(x.url)}</td>
             </tr>
             `;
         }).join('');
@@ -2136,6 +2090,27 @@
 @media(max-width:700px){#itemci-v17 .topbar{padding:18px 16px 0}#itemci-v17 .stats{padding:12px 16px}#itemci-v17 .workspace{padding:14px 16px 20px}}
 #itemci-v17 .tableWrap{max-height:calc(100vh - 410px);min-height:170px}
 @media(max-width:950px){#itemci-v17 .stats{padding:14px 16px 0}#itemci-v17 .topbar{padding:18px 16px 12px}#itemci-v17 .workspace{padding:14px 16px}#itemci-v17 .title{font-size:24px}#itemci-v17 .stat strong{font-size:21px}#itemci-v17 .serverbar{flex-wrap:wrap}}
+/* A · Sıkı tablo: sütunlar içeriğe göre dar, yalnızca ilan başlığı esner */
+#itemci-v17 table{min-width:720px}
+#itemci-v17 th:first-child{width:38px}
+#itemci-v17 th[data-sort=seller]{width:150px}
+#itemci-v17 th[data-sort=amount]{width:90px}
+#itemci-v17 th[data-sort=unit]{width:104px}
+#itemci-v17 th[data-sort=price]{width:104px}
+#itemci-v17 th[data-sort=intent]{width:112px}
+#itemci-v17 th[data-sort=age]{width:96px}
+#itemci-v17 th:last-child{width:76px;text-align:right;padding-right:14px}
+#itemci-v17 th{padding:9px 10px;font-size:11px;letter-spacing:.02em}
+#itemci-v17 td{height:44px;padding:0 10px;font-size:12.5px}
+#itemci-v17 .rank{color:#6e7079;font-size:11px}
+#itemci-v17 .num.unit{font-weight:600}
+#itemci-v17 .lowest-unit{background:#1b1c20}
+#itemci-v17 .lowest-unit .unit:after{font-size:9px;letter-spacing:.06em;font-weight:600;margin-top:1px}
+#itemci-v17 .timeBadge{height:auto;min-width:0;padding:0;border:0;background:transparent;color:var(--muted);font-size:11px;font-weight:400;justify-content:flex-start}
+#itemci-v17 .actionCell{padding-right:12px}
+#itemci-v17 .rowActions{gap:6px}
+#itemci-v17 .miniBtn.iconBtn{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px}
+#itemci-v17 .iconBtn svg{width:13px;height:13px;display:block}
 </style>
 
 <div class="topbar">
@@ -2582,13 +2557,13 @@ ${categorySectionsHtml}
                     ta.remove();
                 }
 
-                const oldText = copyBtn.textContent;
-                copyBtn.textContent = '✓ Kopyalandı';
+                const oldText = copyBtn.innerHTML;
+                copyBtn.innerHTML = copyBtn.classList.contains('iconBtn') ? ICON_CHECK : '✓ Kopyalandı';
                 copyBtn.classList.add('copied');
                 showToast('İlan linki kopyalandı');
 
                 setTimeout(() => {
-                    copyBtn.textContent = oldText;
+                    copyBtn.innerHTML = oldText;
                     copyBtn.classList.remove('copied');
                 }, 1400);
             }
@@ -2830,6 +2805,8 @@ ${categorySectionsHtml}
         let scannedPages = 0;
         let totalCards = 0;
         let consecutiveNoNew = 0;
+        let consecutiveStale = 0;
+        let recentCount = 0;
 
         try {
             progress.textContent = `${activeServer.name}: Item&Yang kategorisi bulunuyor...`;
@@ -2851,7 +2828,7 @@ ${categorySectionsHtml}
 
             for (let page = 1; page <= MAX_PAGES; page++) {
                 progress.textContent =
-                    `${activeServer.name} taranıyor... Sayfa ${page} • Okunan ilan: ${allByUrl.size}`;
+                    `${activeServer.name} taranıyor... Sayfa ${page} • Son 36 saat: ${recentCount} ilan`;
 
                 let data;
                 try {
@@ -2868,6 +2845,8 @@ ${categorySectionsHtml}
                 totalCards += cards.length;
 
                 let newUrlsThisPage = 0;
+                let recentThisPage = 0;
+                let datedThisPage = 0;
 
                 for (const card of cards) {
                     if (!card.href) continue;
@@ -2882,8 +2861,18 @@ ${categorySectionsHtml}
                     }
 
                     const row = parseCard(card);
-                    if (row) allByUrl.set(absoluteUrl, row);
+                    if (row) {
+                        if (row.ageHours !== null) datedThisPage++;
+                        if (!allByUrl.has(absoluteUrl) && row.ageHours !== null && row.ageHours <= 36) recentThisPage++;
+                        allByUrl.set(absoluteUrl, row);
+                    }
                 }
+
+                recentCount += recentThisPage;
+                // Yalnızca tarihi okunabilen ve hepsi eski olan sayfa "eski" sayılır.
+                consecutiveStale = recentThisPage === 0 && datedThisPage > 0 ? consecutiveStale + 1 : 0;
+                // Sayfalar en yeniden eskiye gelir; iki sayfa üst üste 36 saatten eskiyse rapora girecek ilan kalmamıştır.
+                if (consecutiveStale >= STALE_PAGES_TO_STOP) break;
 
                 if (newUrlsThisPage === 0) consecutiveNoNew++;
                 else consecutiveNoNew = 0;
@@ -3156,12 +3145,14 @@ ${categorySectionsHtml}
     window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = [], unitRows = []) => {
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
+        if (analysisBusy) throw new Error('Piyasa analizi sürüyor; takip birazdan devam eder.');
         const deadline = Date.now() + 30000;
         let rateLimited = false, failed = 0, checked = 0, complete = false;
         let lastRequestAt=0;
         const read = async url => {
             await sleep(Math.max(0,2500-(Date.now()-lastRequestAt)));
             if(Date.now()<(window.__niyaziSitePauseUntil||0)){rateLimited=true;throw new Error("Itemci işlem sınırı");}
+            if(analysisBusy)throw new Error('Piyasa analizi sürüyor');
             lastRequestAt=Date.now();
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), Math.min(8000, Math.max(1, deadline-Date.now())));
