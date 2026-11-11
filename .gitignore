@@ -1,0 +1,7 @@
+bin/
+obj/
+node_modules/
+test-results/
+ui-test-src/
+publish-main/
+publish-updater/

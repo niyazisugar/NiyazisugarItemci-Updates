@@ -11,7 +11,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  for(const button of document.querySelectorAll('button[data-id]'))button.onclick=async()=>{window.clicked.push(button.dataset.id);const response=await fetch('/api/auth/product/'+button.dataset.id+'/up',{method:'POST',body:JSON.stringify({product_id:button.dataset.id})});if(response.ok){button.disabled=true;button.title='İlanı Yukarı Taşı (ücretsiz) · 01:00:00';}};
  for(const button of document.querySelectorAll('.paid'))button.onclick=()=>window.paidClicks++;
  });
- await page.addScriptTag({content:fs.readFileSync('overrides/AutoBump.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/AutoBump.js','utf8')});
  const read=await page.evaluate(()=>window.__niyaziReadBumpPage());assert.equal(read.hasNext,true);assert.deepEqual(read.listings.map(x=>[x.id,x.enabled]),[['101',true],['102',false],['106',false]]);assert.deepEqual(await page.evaluate(()=>window.clicked),[]);
  await page.evaluate(()=>document.querySelector('button[data-id="102"]').title='Tekrar 00:30:00 sonra');
  const cooldownRead=await page.evaluate(()=>window.__niyaziReadBumpPage());assert.equal(cooldownRead.listings.find(x=>x.id==='102').waitSeconds,1800);
@@ -39,6 +39,6 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  button.onclick=()=>{const dialog=document.createElement('div');dialog.setAttribute('role','dialog');dialog.innerHTML='<p>İlanı ücretsiz yukarı taşımak istiyor musunuz?</p><button>Evet</button>';dialog.querySelector('button').onclick=async()=>{await fetch('/api/auth/product/101/up',{method:'POST',body:'{"id":"101"}'});dialog.remove();};document.body.append(dialog);};
  });
  const confirmed=await page.evaluate(()=>window.__niyaziBumpOne('101'));assert(confirmed.ok);assert.equal(await page.locator('[role="dialog"]').count(),0);
- await page.goto('https://itemci.com/product/another');await page.addScriptTag({content:fs.readFileSync('overrides/AutoBump.js','utf8')});await assert.rejects(page.evaluate(()=>window.__niyaziReadBumpPage()));
+ await page.goto('https://itemci.com/product/another');await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/AutoBump.js','utf8')});await assert.rejects(page.evaluate(()=>window.__niyaziReadBumpPage()));
  console.log('PASS: own active listings only, exact free-action label, sold/inactive/disabled/paid exclusions, pagination, verified success, hourly cooldown, duplicate request guard and uncertain network outcome.');await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

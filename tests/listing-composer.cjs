@@ -10,7 +10,7 @@ const {chromium}=require('playwright');const fs=require('fs');const assert=requi
  window.fetch=async()=>new Response(JSON.stringify({status:true,data:{id:'test-listing',url:'https://itemci.com/product/test/example'}}),{status:200,headers:{'Content-Type':'application/json'}});
  document.querySelector('form').onsubmit=e=>{e.preventDefault();window.sent++;fetch('/api/auth/product',{method:'POST',body:JSON.stringify({name:document.querySelector('input[type=text]').value,price:Number(document.querySelector('input[type=number]').value)})});};
  });
- await page.addScriptTag({content:fs.readFileSync('overrides/ListingComposer.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('src/NiyazisugarItemci/Web/ListingComposer.js','utf8')});
  const payload={server:'Sezar2',title:'250 KT YANG',categoryUrl:'https://itemci.com/categories/sezar2',description:'İlan açıklaması.',price:500,delivery:2,validity:30,stock:true,orders:false};
  const prepared=await page.evaluate(p=>window.__NiyaziPrepareOwnListing(p),payload);
  assert(prepared.ok);assert.equal(await page.evaluate(()=>window.sent),0);

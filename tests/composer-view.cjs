@@ -6,7 +6,7 @@ const description='Ürün hakkında detaylı bilgi almak için mesaj gönderebil
  const page=await browser.newPage({viewport:{width:1100,height:790},deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{window.messages=[];window.chrome={webview:{postMessage:m=>window.messages.push(m),addEventListener:()=>{}}};});
- const html=fs.readFileSync('overrides/ComposerView.html','utf8');
+ const html=fs.readFileSync('src/NiyazisugarItemci/Web/ComposerView.html','utf8');
  await page.route('https://composer-test.local/',r=>r.fulfill({contentType:'text/html',body:html}));
  // Local test image: no illustrated sample artwork is substituted into the released UI.
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nwoAAAAASUVORK5CYII=','base64');

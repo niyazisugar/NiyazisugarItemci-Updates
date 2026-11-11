@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <AssemblyName>NiyazisugarItemci</AssemblyName>
+    <RootNamespace>NiyazisugarItemci</RootNamespace>
+    <!-- Gerçek sürüm publish.json'dan gelir: dotnet publish -p:Version=X.Y.Z -->
+    <Version>0.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
+  </ItemGroup>
+
+  <!-- Web/ içindeki betikler ve sayfalar uygulama klasörüne düz olarak kopyalanır. -->
+  <ItemGroup>
+    <Content Include="Web\*.js;Web\*.html" Link="%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

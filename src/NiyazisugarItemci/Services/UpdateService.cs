@@ -25,7 +25,9 @@ internal sealed class UpdateManifest
 
 internal static class UpdateService
 {
-    public const string CurrentVersion = "2.7.1";
+    // Sürüm, derleme sırasında publish.json'dan gelir (dotnet publish -p:Version=...).
+    public static readonly string CurrentVersion =
+        typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public const string FeedUrl =
         "https://github.com/niyazisugar/NiyazisugarItemci-Updates/releases/latest/download/latest.json";
@@ -390,3 +392,4 @@ internal static class UpdateService
         Process.Start(psi);
     }
 }
+
