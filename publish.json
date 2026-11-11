@@ -1,4 +1,4 @@
 {
-  "version": "2.22.0",
-  "notes": "Uygulamanın kodu yeni, düzenli bir yapıya taşındı. Görünüm ve özellikler aynen korunur; bundan sonraki geliştirmeler daha hızlı ve güvenli yapılacak."
+  "version": "2.23.0",
+  "notes": "Piyasa Analizi tablosu sadeleşti: sütunlar sıkı, Git/Kopyala küçük simge düğmeler. Analiz daha hızlı: 36 saatten eski sayfalar okunmuyor ve analiz sırasında arka plan takibi bekliyor."
 }
