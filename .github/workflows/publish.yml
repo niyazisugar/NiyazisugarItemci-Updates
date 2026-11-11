@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-save --package-lock=false playwright@1.61.1
       - run: npx playwright install --with-deps chromium
-      - run: node --check overrides/AdBlock.js
+      - run: node --check src/NiyazisugarItemci/Web/AdBlock.js
       - run: node tests/adblock.cjs
       - run: node tests/sales.cjs
       - run: node tests/live-market.cjs
@@ -61,185 +61,6 @@ jobs:
           $notes = ($manifest.notes -replace "`r", "" -replace "`n", " ")
           "notes=$notes" >> $env:GITHUB_OUTPUT
 
-      - name: Extract and prepare source
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "source-current.zip")) {
-            throw "source-current.zip bulunamadi."
-          }
-
-          New-Item -ItemType Directory -Force -Path src | Out-Null
-          Expand-Archive -Path "source-current.zip" -DestinationPath "src" -Force
-
-          # Baseline ZIP eski olsa bile kritik updater/proje dosyalarini
-          # repodaki denetlenebilir metin override'larindan kullan.
-          Copy-Item "overrides/UpdateService.cs" "src/UpdateService.cs" -Force
-          Copy-Item "overrides/NiyazisugarItemci.csproj" "src/NiyazisugarItemci.csproj" -Force
-          Copy-Item "overrides/AdBlock.js" "src/AdBlock.js" -Force
-          Copy-Item "overrides/AdBlockRules.cs" "src/AdBlockRules.cs" -Force
-          Copy-Item "overrides/ListingThumbnails.cs" "src/ListingThumbnails.cs" -Force
-          Copy-Item "overrides/ReferenceUi.cs" "src/ReferenceUi.cs" -Force
-          Copy-Item "overrides/PageLayout.cs" "src/PageLayout.cs" -Force
-          Copy-Item "overrides/BrandMark.cs" "src/BrandMark.cs" -Force
-          Copy-Item "overrides/ListingsDesign.cs" "src/ListingsDesign.cs" -Force
-          Copy-Item "overrides/QuickReplyDock.js" "src/QuickReplyDock.js" -Force
-          Copy-Item "overrides/app.ico.b64" "src/app.ico.b64" -Force
-          if (Test-Path "src/app.ico") { Remove-Item "src/app.ico" }
-          Copy-Item "overrides/PremiumTheme.cs" "src/PremiumTheme.cs" -Force
-          Copy-Item "overrides/SalesIntegration.cs" "src/SalesIntegration.cs" -Force
-          Copy-Item "overrides/TopNavigation.cs" "src/TopNavigation.cs" -Force
-          Copy-Item "overrides/BrowserWorkspace.cs" "src/BrowserWorkspace.cs" -Force
-          Copy-Item "overrides/BrowserTabRules.cs" "src/BrowserTabRules.cs" -Force
-          Copy-Item "overrides/LiveMarket.cs" "src/LiveMarket.cs" -Force
-          Copy-Item "overrides/ServerSalesTracker.cs" "src/ServerSalesTracker.cs" -Force
-          Copy-Item "overrides/ServerSales.js" "src/ServerSales.js" -Force
-          Copy-Item "overrides/QuickListing.cs" "src/QuickListing.cs" -Force
-          Copy-Item "overrides/QuickListing.js" "src/QuickListing.js" -Force
-          Copy-Item "overrides/ListingComposer.cs" "src/ListingComposer.cs" -Force
-          Copy-Item "overrides/ComposerPopup.cs" "src/ComposerPopup.cs" -Force
-          Copy-Item "overrides/ComposerSurface.cs" "src/ComposerSurface.cs" -Force
-          Copy-Item "overrides/ComposerModal.cs" "src/ComposerModal.cs" -Force
-          Copy-Item "overrides/SiteTraffic.cs" "src/SiteTraffic.cs" -Force
-          Copy-Item "overrides/TrayLifecycle.cs" "src/TrayLifecycle.cs" -Force
-          Copy-Item "overrides/ResourceManagement.cs" "src/ResourceManagement.cs" -Force
-          Copy-Item "overrides/AutoBump.cs" "src/AutoBump.cs" -Force
-          Copy-Item "overrides/AutoBumpSchedule.cs" "src/AutoBumpSchedule.cs" -Force
-          Copy-Item "overrides/AutoBump.js" "src/AutoBump.js" -Force
-          Copy-Item "overrides/ComposerView.html" "src/ComposerView.html" -Force
-          Copy-Item "overrides/ListingComposer.js" "src/ListingComposer.js" -Force
-          $settingsSource = Get-Content "src/AppSettings.cs" -Raw
-          $settingsSource = $settingsSource.Replace('public bool NotificationsEnabled', 'public string LastQuickListingServer { get; set; } = ""; public bool AutoFreeBumpEnabled { get; set; } = true; public bool NotificationsEnabled')
-          Set-Content "src/AppSettings.cs" $settingsSource -Encoding utf8
-          Copy-Item "overrides/MarketAnalyzer.js" "src/MarketAnalyzer.js" -Force
-          Copy-Item "overrides/SoldListings.js" "src/SoldListings.js" -Force
-
-          if (-not (Test-Path "src/app.ico") -and (Test-Path "src/app.ico.b64")) {
-            $b64 = (Get-Content "src/app.ico.b64" -Raw).Trim()
-            [IO.File]::WriteAllBytes("src/app.ico", [Convert]::FromBase64String($b64))
-          }
-
-          if (Test-Path "src/NiyazisugarUpdater") {
-            Move-Item "src/NiyazisugarUpdater" "updater-src"
-          }
-
-          $version = "${{ steps.manifest.outputs.version }}"
-
-          $csproj = Get-Content "src/NiyazisugarItemci.csproj" -Raw
-          $csproj = [regex]::Replace(
-            $csproj,
-            '<Version>[^<]+</Version>',
-            "<Version>$version</Version>",
-            1
-          )
-          Set-Content "src/NiyazisugarItemci.csproj" $csproj -Encoding utf8
-
-          $updateService = Get-Content "src/UpdateService.cs" -Raw
-          $updateService = [regex]::Replace(
-            $updateService,
-            'public const string CurrentVersion = "[^"]+";',
-            "public const string CurrentVersion = `"$version`";",
-            1
-          )
-          Set-Content "src/UpdateService.cs" $updateService -Encoding utf8
-
-          $mainForm = Get-Content "src/MainForm.cs" -Raw
-          $mainForm = [regex]::Replace(
-            $mainForm,
-            '_sidebarVersion\.Text = "[^"]*";',
-            "_sidebarVersion.Text = `"Desktop V$version`";"
-          )
-
-          # Network reklam filtresini genişletilmiş, güvenli kurallara bağla.
-          $adPattern = '(?ms)^    private static bool IsBlockedAdUrl\(string\? value\)\r?\n    \{.*?^    \}\r?\n\r?\n    private async Task InstallAdBlockDomAsync'
-          $adReplacement = "    private static bool IsBlockedAdUrl(string? value)`r`n    {`r`n        return AdBlockRules.ShouldBlock(value);`r`n    }`r`n`r`n    private async Task InstallAdBlockDomAsync"
-          $mainForm = [regex]::Replace(
-            $mainForm,
-            $adPattern,
-            $adReplacement,
-            1
-          )
-
-          $mainForm = $mainForm.Replace('Color.FromArgb(255, 173, 10)', 'Color.FromArgb(225, 193, 136)')
-          $mainForm = $mainForm.Replace('Color.FromArgb(12, 14, 18)', 'Color.FromArgb(17, 19, 24)')
-          $mainForm = $mainForm.Replace('Color.FromArgb(24, 28, 35)', 'Color.FromArgb(26, 29, 36)')
-          # Apply native rounded controls after the UI has been built.
-          $mainForm = $mainForm.Replace("        BuildUi();", "        BuildUi();`r`n        PremiumTheme.Apply(this);")
-          $borderPattern = '(?ms)^    private static void DrawBorder\(Graphics g, Rectangle rect\)\r?\n    \{.*?^    \}'
-          $mainForm = [regex]::Replace($mainForm, $borderPattern, "    private static void DrawBorder(Graphics g, Rectangle rect)`r`n    {`r`n        PremiumTheme.DrawBorder(g, rect);`r`n    }", 1)
-
-          $mainForm = $mainForm.Replace('public sealed class MainForm : Form', 'public sealed partial class MainForm : Form')
-          # Keep one inbox renderer and prevent overlapping polling callbacks.
-          $start = $mainForm.IndexOf('    private async Task MonitorItemciAsync()')
-          $end = $mainForm.IndexOf('    private static bool UrlsEquivalent', $start)
-          if ($start -lt 0 -or $end -lt 0) { throw 'Message monitor hook missing' }
-          $monitor = $mainForm.Substring($start, $end - $start)
-          $monitor = $monitor.Replace('MonitorItemciAsync()', 'LegacyMonitorItemciAsync(WebView2 monitorView, bool sharedMonitor)')
-          $monitor = $monitor.Replace('_messageMonitorWebView', 'monitorView').Replace('_messageMonitorReady', 'monitorReady')
-          $monitor = $monitor.Replace('        if (!_webReady', '        bool monitorReady=sharedMonitor||_messageMonitorReady;' + "`r`n" + '        if (!_webReady')
-          $monitor = $monitor.Replace('if (monitorView.CoreWebView2 is not null &&', 'if (!sharedMonitor && monitorView.CoreWebView2 is not null &&')
-          $monitor = $monitor.Replace('if ((inboxState.Note', 'if (!sharedMonitor && (inboxState.Note')
-          $mainForm = $mainForm.Substring(0,$start) + $monitor + $mainForm.Substring($end)
-          $mainForm = $mainForm.Replace('Interval = 4000', 'Interval = 10000')
-
-          # Keep tray transitions from recreating the parent HWND of live WebViews.
-          $mainForm = $mainForm.Replace('private void HideToTray(bool showInfo)', 'private void LegacyHideToTray(bool showInfo)')
-          $mainForm = $mainForm.Replace('private void RestoreFromTray()', 'private void LegacyRestoreFromTray()')
-          $mainForm = $mainForm.Replace('private void OnFormClosing(object? sender, FormClosingEventArgs e)', 'private void LegacyOnFormClosing(object? sender, FormClosingEventArgs e)')
-          $mainForm = $mainForm.Replace('            await InitializeWebViewAsync();', "            await InitializeWebViewAsync();`r`n            if (IsDisposed || Disposing || _allowExit) return;")
-          $mainForm = $mainForm.Replace('            await Task.Delay(1800);', "            await Task.Delay(1800);`r`n            if (IsDisposed || Disposing || _allowExit) return;")
-          $mainForm = $mainForm.Replace('BuildSalesPanel();', 'BuildSoldSalesPanel();')
-          $mainForm = $mainForm.Replace('RefreshSalesAsync(', 'RefreshSoldListingsAsync(')
-          # Keep the obsolete notification reader unused; all callers use sold orders.
-          $mainForm = $mainForm.Replace('private async Task RefreshSoldListingsAsync(', 'private async Task LegacyRefreshSalesAsync(')
-          $mainForm = $mainForm.Replace('RenderSalesPanel();', 'RenderSoldSalesPanel();')
-          $mainForm = $mainForm.Replace('public string OrderId { get; set; } = "";', 'public string OrderId { get; set; } = ""; public string ListingId { get; set; } = "";')
-          $mainForm = $mainForm.Replace('GrossAmount * 0.10m', 'decimal.Round(GrossAmount * 0.10m, 2, MidpointRounding.AwayFromZero)')
-          $mainForm = $mainForm.Replace('sales_history.json', 'sold-sales-history-v2.json')
-          $mainForm = $mainForm.Replace('private void RebuildSidebarNavigation()', 'private void LegacyRebuildSidebarNavigation()')
-          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallTopNavigation();`r`n        PremiumTheme.Apply(this);")
-          $mainForm = $mainForm.Replace('        panel.BringToFront();', "        panel.BringToFront();`r`n        SelectTopSection(panel);")
-          $mainForm = $mainForm.Replace('private async Task<BrowserTabState?> OpenOrActivateBrowserTabAsync(', 'private async Task<BrowserTabState?> LegacyOpenOrActivateBrowserTabAsync(')
-          $mainForm = $mainForm.Replace('OpenBrowserTabAsync(', 'OpenSmartBrowserTabAsync(')
-          $mainForm = $mainForm.Replace('private async Task<BrowserTabState?> OpenSmartBrowserTabAsync(', 'private async Task<BrowserTabState?> CreateBrowserTabAsync(')
-          $mainForm = [regex]::Replace($mainForm, '(private sealed class BrowserTabState\s*\{)', '$1' + "`r`n        public string RequestedUrl { get; set; } = string.Empty;", 1)
-          # Only the explicit + action is allowed to force an extra tab.
-          $mainForm = [regex]::Replace($mainForm, '("Yeni Sekme",\s*activate: true)(\s*\);)', '$1, forceNew: true$2', 1)
-          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallBrowserWorkspace();`r`n        PremiumTheme.Apply(this);")
-          $mainForm = $mainForm.Replace('            item.WebView.Visible = false;', "            item.WebView.Visible = false;`r`n            if (!ReferenceEquals(item, tab)) _ = SuspendHiddenTabAsync(item);")
-          $mainForm = $mainForm.Replace('        tab.WebView.Visible = true;', "        tab.WebView.Visible = true;`r`n        try { tab.WebView.CoreWebView2?.Resume(); } catch { }")
-          $mainForm = $mainForm.Replace('        tab.WebView.Dispose();', "        tab.TabPanel?.Dispose();`r`n        tab.WebView.Dispose();")
-          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallLiveMarket();`r`n        PremiumTheme.Apply(this);")
-          # Itemci itself checks this cookie before showing its full-screen welcome ad.
-          $cookieHook = "        InstallSiteTrafficGuard(view);`r`n        if (_settings.AdBlockEnabled)`r`n        {`r`n            var adCookie = view.CoreWebView2.CookieManager.CreateCookie(`"site_login_advert`", `"1`", `"itemci.com`", `"/`");`r`n            adCookie.Expires = DateTime.Now.AddYears(1);`r`n            adCookie.IsSecure = true;`r`n            view.CoreWebView2.CookieManager.AddOrUpdateCookie(adCookie);`r`n        }`r`n"
-          $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`r`n    {", "    private void ConfigureAdBlocking(WebView2 view)`r`n    {`r`n" + $cookieHook)
-          $mainForm = $mainForm.Replace("    private void ConfigureAdBlocking(WebView2 view)`n    {", "    private void ConfigureAdBlocking(WebView2 view)`n    {`n" + $cookieHook)
-          $mainForm = $mainForm.Replace('                e.Handled = true;', "                e.Handled = true;`r`n                if (_settings.AdBlockEnabled && !e.IsUserInitiated) return;")
-          $mainForm = $mainForm.Replace('                await InstallAdBlockDomAsync(view);', "                await InstallAdBlockDomAsync(view);`r`n                PositionLiveMarket();")
-          $mainForm = $mainForm.Replace('        PremiumTheme.Apply(this);', "        InstallListingComposer();`r`n        PremiumTheme.Apply(this);")
-          $mainForm = $mainForm.Replace('        InstallListingComposer();', "        InstallListingComposer();`r`n        InstallResourceManagement();`r`n        InstallAutoBump();")
-          # Resume the shared market worker before explicitly reading or editing its data.
-          foreach ($method in @('RefreshMarketServersAsync()', 'OpenEmbeddedMarketAnalyzerAsync()', 'OpenMarketAddServerAsync()', 'RunMarketServerAsync(', 'EditMarketServerAsync(', 'DeleteMarketServerAsync(')) {
-            $escaped = [regex]::Escape($method)
-            $pattern = '(private async Task[^\r\n]*' + $escaped + '[^\{]*\{)'
-            $mainForm = [regex]::Replace($mainForm, $pattern, '$1' + "`r`n        _marketWebView.CoreWebView2?.Resume();", 1)
-          }
-          $mainForm = $mainForm.Replace('private Button BrowserToolButton(string text, string tooltip)', 'private Button LegacyBrowserToolButton(string text, string tooltip)')
-          $mainForm = $mainForm.Replace('private Panel CreateBrowserTabControl(', 'private Panel LegacyCreateBrowserTabControl(')
-          $mainForm = $mainForm.Replace('var newTab = new Button', 'var newTab = new ReferenceButton')
-          $mainForm = $mainForm.Replace('private void BuildListingsPanel()', 'private void LegacyBuildListingsPanel()')
-          $mainForm = $mainForm.Replace('private void RenderCurrentListings(List<ListingInfo> listings)', 'private void LegacyRenderCurrentListings(List<ListingInfo> listings)')
-          $mainForm = $mainForm.Replace('public string Status { get; set; } = "AKTİF";', 'public string Status { get; set; } = "AKTİF"; public string ImageUrl { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu";')
-          $mainForm = $mainForm.Replace('Status = "AKTİF"', 'Status = "AKTİF", ImageUrl = ReadListingImage(link), Server = ReadListingServer(container)')
-          $mainForm = $mainForm.Replace('public string ItemTitle { get; set; } = "";', 'public string ItemTitle { get; set; } = ""; public string Server { get; set; } = "Bilinmeyen sunucu"; public string ImageUrl { get; set; } = "";')
-          $mainForm = $mainForm.Replace('await _marketWebView.CoreWebView2.ExecuteScriptAsync(script);', 'await _marketWebView.CoreWebView2.ExecuteScriptAsync(script); if (!string.IsNullOrWhiteSpace(_settings.OwnStoreUrl)) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(_settings.OwnStoreUrl));')
-          $mainForm = $mainForm.Replace('_settings.OwnStoreUrl = url;', '_settings.OwnStoreUrl = url; if (_marketWebView.CoreWebView2 is not null) await _marketWebView.CoreWebView2.ExecuteScriptAsync("window.__niyaziVerifiedOwnStoreUrl=" + JsonSerializer.Serialize(url));')
-          $mainForm = $mainForm.Replace('        _webView = tab.WebView;', '        _webView = tab.WebView; SelectTopSection(_activeTopPanel ?? _browserPanel);')
-          $mainForm = $mainForm.Replace('                PositionLiveMarket();', '                PositionLiveMarket(); SelectTopSection(_activeTopPanel ?? _browserPanel);')
-          $mainForm = $mainForm.Replace("        BuildUi();", "        AutoScaleMode = AutoScaleMode.Dpi;`r`n        BuildUi();")
-          $mainForm = $mainForm.Replace('NIYAZISUGAR', 'NiyaziSUGAR').Replace('Niyazisugar Itemci', 'NiyaziSUGAR · Itemci')
-          $mainForm = $mainForm.Replace('FormClosing += OnFormClosing;', 'Shown += (_, _) => { var area=Screen.FromControl(this).WorkingArea; MinimumSize=new Size(Math.Min(MinimumSize.Width,area.Width),Math.Min(MinimumSize.Height,area.Height)); if (Width>area.Width || Height>area.Height) Size=new Size(Math.Min(Width,area.Width),Math.Min(Height,area.Height)); }; FormClosing += OnFormClosing;')
-          Set-Content "src/MainForm.cs" $mainForm -Encoding utf8
-
       - name: Test bump scheduling and restart protection
         run: dotnet run --project tests/AutoBumpScheduleTests.csproj -c Release
 
@@ -269,10 +90,12 @@ jobs:
         timeout-minutes: 8
         shell: pwsh
         run: |
-          Copy-Item src ui-test-src -Recurse
-          $testSource = Get-Content "ui-test-src/MainForm.cs" -Raw
+          # Test kopyasi: oturum acmadan, tarama ve guncelleme yapmadan yalnizca arayuz.
+          Copy-Item src/NiyazisugarItemci ui-test-src -Recurse
+          $testSource = Get-Content "ui-test-src/App/MainForm.cs" -Raw
+          if (-not $testSource.Contains('await InitializeWebViewAsync();')) { throw 'UI test hook missing' }
           $testSource = $testSource.Replace('await InitializeWebViewAsync();', 'return; // Isolated UI test: do not log in, scan, update or publish.')
-          Set-Content "ui-test-src/MainForm.cs" $testSource -Encoding utf8
+          Set-Content "ui-test-src/App/MainForm.cs" $testSource -Encoding utf8
           dotnet run --project tests/DesignWindowsTests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Windows interface checks failed.' }
 
@@ -283,12 +106,13 @@ jobs:
           path: test-results/design-*.png
 
       - name: Restore main app
-        run: dotnet restore src/NiyazisugarItemci.csproj
+        run: dotnet restore src/NiyazisugarItemci/NiyazisugarItemci.csproj
 
       - name: Publish main app
         run: >-
-          dotnet publish src/NiyazisugarItemci.csproj
+          dotnet publish src/NiyazisugarItemci/NiyazisugarItemci.csproj
           -c Release
+          -p:Version=${{ steps.manifest.outputs.version }}
           -r win-x64
           --self-contained true
           -p:PublishSingleFile=false
@@ -296,11 +120,11 @@ jobs:
           -o publish-main
 
       - name: Restore updater
-        run: dotnet restore updater-src/NiyazisugarUpdater.csproj
+        run: dotnet restore src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
 
       - name: Publish updater
         run: >-
-          dotnet publish updater-src/NiyazisugarUpdater.csproj
+          dotnet publish src/NiyazisugarUpdater/NiyazisugarUpdater.csproj
           -c Release
           -r win-x64
           --self-contained true
