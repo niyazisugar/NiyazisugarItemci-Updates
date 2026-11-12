@@ -1,4 +1,4 @@
 {
-  "version": "2.23.0",
-  "notes": "Piyasa Analizi tablosu sadeleşti: sütunlar sıkı, Git/Kopyala küçük simge düğmeler. Analiz daha hızlı: 36 saatten eski sayfalar okunmuyor ve analiz sırasında arka plan takibi bekliyor."
+  "version": "2.24.0",
+  "notes": "Piyasa analizi artık son 2 günü kapsıyor (\"2 gün önce\" dahil). Tarama daha hızlı ve yeni ilanları kaçırmadan daha geniş."
 }
