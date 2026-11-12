@@ -3849,7 +3849,8 @@ public sealed partial class MainForm : Form
                     ShowDesktopNotification(
                         $"Yeni sürüm: V{manifest.Version}",
                         "Ayarlar > Güncellemeler bölümünden tek tıkla kurabilirsin.",
-                        ToolTipIcon.Info
+                        ToolTipIcon.Info,
+                        onClick: () => { RestoreFromTray(); ShowPanel(_settingsPanel); }
                     );
                 }
             }
@@ -5130,7 +5131,10 @@ public sealed partial class MainForm : Form
         return clean[..102] + "...";
     }
 
-    private void ShowDesktopNotification(string title, string message, ToolTipIcon icon, string? targetUrl = null)
+    private (string title, string message, bool warning, Action click)? _pendingToast;
+    private System.Windows.Forms.Timer? _pendingToastTimer;
+
+    private void ShowDesktopNotification(string title, string message, ToolTipIcon icon, string? targetUrl = null, Action? onClick = null)
     {
         if (!_settings.NotificationsEnabled)
             return;
@@ -5147,29 +5151,43 @@ public sealed partial class MainForm : Form
             catch { }
         }
 
-        // Windows 11'de eski NotifyIcon balonları bazen görünmüyor.
-        // Bu yüzden kendi masaüstü popup'ımızı gösteriyoruz.
+        Action click = onClick ?? (() =>
+        {
+            RestoreFromTray();
+            ShowPanel(_browserPanel);
+
+            var target = NormalizeItemciUrl(targetUrl) ?? _messageUrl;
+
+            if (_webReady && target is not null)
+                _webView.Source = new Uri(target);
+        });
+
         try
         {
             BeginInvoke(() =>
             {
-                var popup = new ToastForm(
-                    title,
-                    message,
-                    warning: icon == ToolTipIcon.Warning,
-                    onClick: () =>
+                // Tam ekran oyun/sunum sırasında pencere açılmaz; bitince son bildirim gösterilir.
+                if (!ToastForm.UserAcceptsPopups())
+                {
+                    _pendingToast = (title, message, icon == ToolTipIcon.Warning, click);
+                    if (_pendingToastTimer is null)
                     {
-                        RestoreFromTray();
-                        ShowPanel(_browserPanel);
-
-                        var target = NormalizeItemciUrl(targetUrl) ?? _messageUrl;
-
-                        if (_webReady && target is not null)
-                            _webView.Source = new Uri(target);
+                        _pendingToastTimer = new System.Windows.Forms.Timer { Interval = 3000 };
+                        _pendingToastTimer.Tick += (_, _) =>
+                        {
+                            if (_pendingToast is null || !ToastForm.UserAcceptsPopups()) return;
+                            var pending = _pendingToast.Value;
+                            _pendingToast = null;
+                            _pendingToastTimer.Stop();
+                            ToastForm.ShowToast(pending.title, pending.message, pending.warning, pending.click);
+                        };
+                        FormClosed += (_, _) => _pendingToastTimer?.Dispose();
                     }
-                );
+                    _pendingToastTimer.Start();
+                    return;
+                }
 
-                popup.Show();
+                ToastForm.ShowToast(title, message, icon == ToolTipIcon.Warning, click);
             });
         }
         catch
