@@ -44,7 +44,7 @@
     const owner=p.owner_of;
     if(path===expected.pathname.replace(/\/$/,'')&&owner?.id&&typeof p.is_available==='boolean'){
      const count=owner.total_sales??owner.successful_sales??owner.sales_count;
-     if(Number.isSafeInteger(count)&&count>=0)found={url:expected.href,available:p.is_available,sellerId:owner.id,seller:owner.username||'',salesCount:count,title:p.name||'',price:Number(p.price)||0,expiresAt:p.expires_at||'',createdAt:p.created_at||'',updatedAt:p.updated_at||''};
+     if(Number.isSafeInteger(count)&&count>=0)found={url:expected.href,available:p.is_available,sellerId:owner.id,seller:owner.username||'',salesCount:count,title:p.name||'',price:Number(p.price)||0,stock:Number.isSafeInteger(p.stock)?p.stock:null,expiresAt:p.expires_at||'',createdAt:p.created_at||'',updatedAt:p.updated_at||''};
     }
    }
    for(const value of Object.values(node))if(value&&typeof value==='object')visit(value,depth+1);
@@ -82,7 +82,8 @@
  }
  window.__NiyaziSellerSnapshot=sellerSnapshot;
  // Plan checks using durable measurements, not overlapping URL offsets.
- function watchQueue(activeRows,known,measurements,complete,attempts={}){
+ // slots: bir turda açılacak ürün sayfası sayısı (varsayılan 3; takip artık daha fazlasını kullanır).
+ function watchQueue(activeRows,known,measurements,complete,attempts={},slots=3){
   const measured=new Map((measurements||[]).map(o=>[o.url,o]));
   const active=new Set(activeRows.map(r=>r.url));
   const validBaseline=o=>!!o&&(Date.parse(o.lastAvailableAtUtc||'')>0||o.categoryOnly&&Date.parse(o.categorySeenAtUtc||'')>0);
@@ -95,10 +96,11 @@
   // During initial coverage keep two baseline slots. Once every current
   // listing is measured, spend the same budget on the disappearance backlog.
   const newRows=normal.filter(r=>!measured.has(r.url));
-  const missingSlots=newRows.length?1:normal.length?2:3;
+  // Kaybolan ilanlar en değerli kontrollerdir: büyük bütçede yarısı onlara ayrılır.
+  const missingSlots=newRows.length?(slots<=3?1:Math.ceil(slots/2)):normal.length?slots-1:slots;
   for(const row of missing){if(queue.length>=missingSlots)break;queue.push(row);}
-  for(const row of normal){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
-  for(const row of missing){if(queue.length>=3)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
+  for(const row of normal){if(queue.length>=slots)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
+  for(const row of missing){if(queue.length>=slots)break;if(!queue.some(q=>q.url===row.url))queue.push(row);}
   return queue;
  }
  // Price repairs may use spare capacity, never the last live-sale slot.

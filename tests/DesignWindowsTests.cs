@@ -241,6 +241,22 @@ public sealed partial class MainForm
         if(!WatchSaleStrong(pushed.sales[0])||pushed.sales[0].baselineAgeMinutes is <170 or >181)throw new Exception("Three-hour baseline should still be a strong signal.");
         UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true,rows=new(){new(){url=priceUrl}}},stamp.AddHours(3).AddMinutes(1));
         if(pushed.known.ContainsKey(priceUrl)||pushed.pending.ContainsKey(priceUrl))throw new Exception("Recorded sale was reintroduced into the live check queue.");
+        // Kısmi satış: ilan açık kalır, stok 5 -> 3 ve sayaç +2 => 2 adetlik satış (birim fiyat x adet).
+        var stockUrl="https://itemci.com/product/test/stock";var stockWatch=new ServerWatch();stockWatch.known[stockUrl]=new LiveListing {url=stockUrl,title="Stoklu ilan",price=50m,seller="StockSeller"};
+        ProductObservation StockObs(int stock,int count)=>new(){url=stockUrl,sellerId="stock-owner",seller="StockSeller",available=true,salesCount=count,stock=stock,price=50m,expiresAt=stamp.AddDays(1).ToString("O")};
+        ApplyWatchObservations(stockWatch,new[]{StockObs(5,100)},stamp);ApplyWatchObservations(stockWatch,new[]{StockObs(3,102)},stamp.AddMinutes(5));
+        if(stockWatch.sales.Count!=1||stockWatch.sales[0].evidence!="stock"||stockWatch.sales[0].listing.price!=100m||!WatchSaleStrong(stockWatch.sales[0])||!stockWatch.known.ContainsKey(stockUrl))throw new Exception("Partial stock sale was not detected correctly.");
+        ApplyWatchObservations(stockWatch,new[]{StockObs(3,103)},stamp.AddMinutes(6));if(stockWatch.sales.Count!=1)throw new Exception("Counter rise without stock change became a partial sale.");
+        // Satıcı sayacı paylaşımı: bir ürün sayfası, aynı satıcının kategoride görünen diğer ilanına taze ölçüm verir;
+        // o ilan sonra kaybolup kapalı görünürse sayaç artışı satış sayılır.
+        var shared=new ServerWatch {threePageWindow=true};var otherUrl="https://itemci.com/product/test/other";
+        shared.known[otherUrl]=new LiveListing {url=otherUrl,title="Diğer ilan",price=300m,seller="SharedSeller"};shared.known["https://itemci.com/product/test/checked"]=new LiveListing {url="https://itemci.com/product/test/checked",seller="SharedSeller",price=10m};
+        var checkedObs=new ProductObservation {url="https://itemci.com/product/test/checked",sellerId="shared-owner",seller="SharedSeller",available=true,salesCount=40,price=10m,expiresAt=stamp.AddDays(1).ToString("O")};
+        ApplyWatchObservations(shared,new[]{checkedObs},stamp);
+        RefreshVisibleBaselines(shared,new WatchScan {complete=true,rows=new(){new(){url=otherUrl,seller="SharedSeller",price=300m},new(){url=checkedObs.url,seller="SharedSeller",price=10m}},observations=new(){checkedObs}},stamp);
+        if(!shared.observations.TryGetValue(otherUrl,out var sharedBase)||sharedBase.lastAvailableCount!=40||sharedBase.lastAvailableAtUtc!=stamp||shared.sellers["sharedseller"].salesCount!=40)throw new Exception("Seller counter did not refresh visible listing baselines.");
+        ApplyWatchObservations(shared,new[]{new ProductObservation {url=otherUrl,sellerId="shared-owner",seller="SharedSeller",available=false,salesCount=41,price=300m,expiresAt=stamp.AddDays(1).ToString("O")}},stamp.AddMinutes(20));
+        if(shared.sales.Count!=1||shared.sales[0].listing.url!=otherUrl||!WatchSaleStrong(shared.sales[0]))throw new Exception("Shared seller baseline did not produce a strong sale.");
         Console.WriteLine("PASS: departed active listings retain baselines and later sales; recorded sales do not re-enter live queues.");
         // Current real 2T page metadata, with a synthetic prior seller counter:
         // no fabricated historical baseline is inferred from the current page.
