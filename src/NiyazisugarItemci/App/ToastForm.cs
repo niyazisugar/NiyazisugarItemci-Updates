@@ -1,151 +1,208 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
 namespace NiyazisugarItemci;
 
+// Küçük, yuvarlak köşeli bildirim. Hiçbir zaman odak almaz: tam ekran oyunu
+// küçültmez, yazılan mesajı kesmez. Aynı anda yalnızca bir bildirim görünür.
 internal sealed class ToastForm : Form
 {
-    private static readonly Color Bg = Color.FromArgb(20, 24, 31);
-    private static readonly Color Border = Color.FromArgb(255, 173, 10);
-    private static readonly Color TextMain = Color.FromArgb(244, 246, 249);
-    private static readonly Color TextMuted = Color.FromArgb(167, 176, 189);
+    private static readonly Color Surface = Color.FromArgb(22, 23, 26);
+    private static readonly Color Line = Color.FromArgb(44, 45, 51);
+    private static readonly Color TextColor = Color.FromArgb(231, 231, 234);
+    private static readonly Color Muted = Color.FromArgb(140, 142, 150);
+    private static readonly Color Gold = Color.FromArgb(212, 176, 98);
+    private static readonly Color Coral = Color.FromArgb(229, 154, 122);
 
-    private readonly System.Windows.Forms.Timer _timer = new();
+    private const int WS_EX_TOPMOST = 0x00000008;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_NOACTIVATE = 0x08000000;
+    private const int WM_MOUSEACTIVATE = 0x0021;
+    private const int MA_NOACTIVATE = 3;
+
+    private static ToastForm? _current;
+
+    private readonly string _title;
+    private readonly string _message;
+    private readonly Color _accent;
     private readonly Action? _onClick;
+    private readonly System.Windows.Forms.Timer _timer = new();
+    private readonly Font _titleFont = new("Segoe UI Semibold", 9.5F);
+    private readonly Font _messageFont = new("Segoe UI", 8.75F);
+    private Rectangle _closeBox;
+    private bool _closeHover;
+    private bool _hover;
 
-    public ToastForm(string title, string message, bool warning, Action? onClick = null)
+    private ToastForm(string title, string message, bool warning, Action? onClick)
     {
+        _title = title;
+        _message = message;
+        _accent = warning ? Coral : Gold;
         _onClick = onClick;
 
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
-        TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        BackColor = Bg;
-        ForeColor = TextMain;
-        Size = new Size(430, 158);
+        BackColor = Surface;
+        DoubleBuffered = true;
+        Size = new Size(LogicalToDeviceUnits(330), LogicalToDeviceUnits(66));
+        Cursor = onClick is null ? Cursors.Default : Cursors.Hand;
 
-        var accent = warning
-            ? Color.FromArgb(255, 108, 108)
-            : Border;
-
-        var outer = new Panel
+        _timer.Interval = warning ? 9000 : 6000;
+        _timer.Tick += (_, _) => { _timer.Stop(); Close(); };
+        FormClosed += (_, _) =>
         {
-            Dock = DockStyle.Fill,
-            BackColor = Bg,
-            Padding = new Padding(1)
+            _timer.Dispose();
+            _titleFont.Dispose();
+            _messageFont.Dispose();
+            if (ReferenceEquals(_current, this)) _current = null;
         };
+    }
 
-        outer.Paint += (_, e) =>
-        {
-            using var pen = new Pen(accent, 1);
-            var r = outer.ClientRectangle;
-            r.Width -= 1;
-            r.Height -= 1;
-            e.Graphics.DrawRectangle(pen, r);
-        };
+    // Bildirimi göster; öncekini kapatır, üst üste yığılmaz.
+    internal static void ShowToast(string title, string message, bool warning, Action? onClick = null)
+    {
+        try { _current?.Close(); } catch { }
+        var toast = new ToastForm(title, message, warning, onClick);
+        var area = Screen.FromPoint(Cursor.Position).WorkingArea;
+        int margin = toast.LogicalToDeviceUnits(14);
+        toast.Location = new Point(area.Right - toast.Width - margin, area.Bottom - toast.Height - margin);
+        _current = toast;
+        toast.Show();
+        toast._timer.Start();
+    }
 
-        var icon = new Label
+    // Pencere oluşturulurken en üstte ve odaksız olarak işaretlenir; TopMost özelliği
+    // kullanılmaz çünkü o yol pencereyi etkinleştirip tam ekran oyunları küçültüyor.
+    protected override CreateParams CreateParams
+    {
+        get
         {
-            Text = warning ? "!" : "N",
-            AutoSize = false,
-            Size = new Size(46, 46),
-            Location = new Point(16, 18),
-            BackColor = Color.FromArgb(34, 39, 49),
-            ForeColor = accent,
-            Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleCenter,
-            Cursor = Cursors.Hand
-        };
-
-        var titleLabel = new Label
-        {
-            Text = title,
-            AutoSize = false,
-            Location = new Point(76, 16),
-            Size = new Size(270, 26),
-            ForeColor = TextMain,
-            Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-            Cursor = Cursors.Hand
-        };
-
-        var messageLabel = new Label
-        {
-            Text = message,
-            AutoSize = false,
-            Location = new Point(76, 45),
-            Size = new Size(326, 76),
-            ForeColor = TextMuted,
-            Font = new Font("Segoe UI", 9F),
-            Cursor = Cursors.Hand
-        };
-
-        var close = new Button
-        {
-            Text = "×",
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.Transparent,
-            ForeColor = TextMuted,
-            Location = new Point(392, 8),
-            Size = new Size(28, 28),
-            Cursor = Cursors.Hand,
-            TabStop = false
-        };
-        close.FlatAppearance.BorderSize = 0;
-        close.Click += (_, _) => Close();
-
-        var hint = new Label
-        {
-            Text = onClick is null ? "Niyazisugar Itemci" : "Tıklayınca mesajlara gider",
-            AutoSize = false,
-            Location = new Point(76, 130),
-            Size = new Size(310, 18),
-            ForeColor = Color.FromArgb(108, 118, 132),
-            Font = new Font("Segoe UI", 7.5F),
-            Cursor = onClick is null ? Cursors.Default : Cursors.Hand
-        };
-
-        void InvokeClick(object? sender, EventArgs e)
-        {
-            if (_onClick is null) return;
-            Close();
-            _onClick();
+            var cp = base.CreateParams;
+            cp.ExStyle |= WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+            return cp;
         }
-
-        if (_onClick is not null)
-        {
-            icon.Click += InvokeClick;
-            titleLabel.Click += InvokeClick;
-            messageLabel.Click += InvokeClick;
-            hint.Click += InvokeClick;
-            outer.Cursor = Cursors.Hand;
-            outer.Click += InvokeClick;
-        }
-
-        outer.Controls.Add(icon);
-        outer.Controls.Add(titleLabel);
-        outer.Controls.Add(messageLabel);
-        outer.Controls.Add(hint);
-        outer.Controls.Add(close);
-        Controls.Add(outer);
-
-        _timer.Interval = warning ? 10000 : 6500;
-        _timer.Tick += (_, _) =>
-        {
-            _timer.Stop();
-            Close();
-        };
-
-        Shown += (_, _) =>
-        {
-            var area = Screen.FromPoint(Cursor.Position).WorkingArea;
-            Location = new Point(
-                area.Right - Width - 18,
-                area.Bottom - Height - 18
-            );
-
-            _timer.Start();
-        };
-
-        FormClosed += (_, _) => _timer.Dispose();
     }
 
     protected override bool ShowWithoutActivation => true;
+
+    protected override void WndProc(ref Message m)
+    {
+        // Tıklamak bile bildirimi etkinleştirmesin; tıklama yine işlenir.
+        if (m.Msg == WM_MOUSEACTIVATE) { m.Result = (IntPtr)MA_NOACTIVATE; return; }
+        base.WndProc(ref m);
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        UpdateShape();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        UpdateShape();
+        Invalidate();
+    }
+
+    private void UpdateShape()
+    {
+        if (Width <= 0 || Height <= 0) return;
+        using var path = RoundRect(new RectangleF(0, 0, Width, Height), LogicalToDeviceUnits(12));
+        var old = Region;
+        Region = new Region(path);
+        old?.Dispose();
+    }
+
+    private static GraphicsPath RoundRect(RectangleF r, float radius)
+    {
+        float d = radius * 2;
+        var path = new GraphicsPath();
+        path.AddArc(r.X, r.Y, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+        int pad = LogicalToDeviceUnits(14);
+
+        using (var bg = new SolidBrush(_hover ? Color.FromArgb(27, 28, 32) : Surface)) g.FillRectangle(bg, ClientRectangle);
+        using (var path = RoundRect(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), LogicalToDeviceUnits(12)))
+        using (var pen = new Pen(Line)) g.DrawPath(pen, path);
+
+        // Sol: küçük vurgu noktası.
+        int dot = LogicalToDeviceUnits(8);
+        using (var b = new SolidBrush(_accent))
+            g.FillEllipse(b, pad, LogicalToDeviceUnits(18), dot, dot);
+
+        int closeSize = LogicalToDeviceUnits(22);
+        _closeBox = new Rectangle(Width - closeSize - LogicalToDeviceUnits(8), LogicalToDeviceUnits(8), closeSize, closeSize);
+        int textLeft = pad + dot + LogicalToDeviceUnits(10);
+        int textWidth = _closeBox.Left - textLeft - LogicalToDeviceUnits(6);
+
+        var flags = TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix;
+        TextRenderer.DrawText(g, _title, _titleFont, new Rectangle(textLeft, LogicalToDeviceUnits(11), textWidth, LogicalToDeviceUnits(20)), TextColor, flags);
+        TextRenderer.DrawText(g, _message, _messageFont,
+            new Rectangle(textLeft, LogicalToDeviceUnits(31), _closeBox.Right - textLeft, Height - LogicalToDeviceUnits(36)),
+            Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+        if (_closeHover)
+            using (var hb = new SolidBrush(Color.FromArgb(38, 39, 44)))
+            using (var hp = RoundRect(_closeBox, LogicalToDeviceUnits(6))) g.FillPath(hb, hp);
+        int c = LogicalToDeviceUnits(4);
+        var mid = new Point(_closeBox.Left + _closeBox.Width / 2, _closeBox.Top + _closeBox.Height / 2);
+        using (var xp = new Pen(_closeHover ? TextColor : Muted, Math.Max(1f, LogicalToDeviceUnits(1) * 1.2f)))
+        {
+            g.DrawLine(xp, mid.X - c, mid.Y - c, mid.X + c, mid.Y + c);
+            g.DrawLine(xp, mid.X + c, mid.Y - c, mid.X - c, mid.Y + c);
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        bool overClose = _closeBox.Contains(e.Location);
+        if (overClose != _closeHover || !_hover) { _closeHover = overClose; _hover = true; Invalidate(); }
+        Cursor = overClose || _onClick is not null ? Cursors.Hand : Cursors.Default;
+        _timer.Stop(); // Üzerindeyken kaybolmasın.
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        _hover = false; _closeHover = false; Invalidate();
+        if (!IsDisposed) _timer.Start();
+    }
+
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        base.OnMouseClick(e);
+        if (e.Button != MouseButtons.Left) return;
+        var click = _closeBox.Contains(e.Location) ? null : _onClick;
+        Close();
+        click?.Invoke();
+    }
+
+    // Tam ekran oyun, sunum veya "rahatsız etme" açıkken bildirim penceresi gösterilmez.
+    [DllImport("shell32.dll")]
+    private static extern int SHQueryUserNotificationState(out int state);
+
+    internal static bool UserAcceptsPopups()
+    {
+        try
+        {
+            // 5 = QUNS_ACCEPTS_NOTIFICATIONS; diğerleri meşgul, tam ekran, sunum veya sessiz saat.
+            if (SHQueryUserNotificationState(out var state) == 0) return state == 5;
+        }
+        catch { }
+        return true;
+    }
 }

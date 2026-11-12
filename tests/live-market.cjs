@@ -9,24 +9,26 @@ const assert = require('assert/strict');
  await page.evaluate(()=>localStorage.setItem('itemci_v15_servers',JSON.stringify([
  {id:'msp2-global-yeni',name:'MSP2 Global - Yeni',url:'https://itemci.com/categories/msp2-global-yeni-itemyang'},
  {id:'custom-sezar',name:'Sezar 2',url:'https://itemci.com/categories/sezar2'},
- {id:'keep',name:'Diğer',url:'https://itemci.com/categories/other',categories:[]}
+ {id:'keep',name:'Diğer',url:'https://itemci.com/categories/other',categories:[]},
+ {id:'barbaros2',name:'Barbaros2',url:'https://itemci.com/categories/barbaros2',categories:[{id:'barbaros-yang',name:'Yang',mode:'magnitude',keywords:['yang'],tokens:[],unitLabel:'M'}]},
+ {id:'yang-m',name:'Yang M',url:'https://itemci.com/categories/yang-m',categories:[{id:'yang-m',name:'Yang',mode:'magnitude',keywords:['yang'],tokens:[],unitLabel:'M',quantityStyle:'yang-m'}]}
  ])));
  await page.addScriptTag({content:source});
  const exposed=await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()));assert(exposed.every(s=>typeof s.url==='string'&&s.url.startsWith('https://itemci.com/categories/')),'desktop server export must retain real category URLs');
- assert.deepEqual(exposed.map(s=>s.id),['osi2','keep','barbaros2']);
+ assert.deepEqual(exposed.map(s=>s.id),['osi2','keep','yang-m']);
  assert.equal(exposed[0].name,'OSİ2');assert.equal(exposed[0].url,'https://itemci.com/categories/osi2');
  const mitril=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('osi2',['100 mitril','100 Mitril','100 mıtrıl','100 MİTRİL','Mıtrıl 100 adet','100 soluk kır otu','100 ot'].map(title=>({title,price:200}))));
  assert.deepEqual(mitril.map(r=>r.quantity),[100,100,100,100,100,null,null]);assert.equal(mitril[0].unitPrice,2);assert.equal(mitril[0].unitLabel,'MİTRİL');
- const persisted=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')));assert.deepEqual(persisted.map(s=>s.id),['osi2','keep','barbaros2']);
+ const persisted=await page.evaluate(()=>JSON.parse(localStorage.getItem('itemci_v15_servers')));assert.deepEqual(persisted.map(s=>s.id),['osi2','keep','yang-m']);
  console.log('PASS: persisted MSP/Sezar migration, unrelated servers retained, Mitril Turkish spelling variants and per-item pricing.');
- const barbaros=exposed.find(s=>s.id==='barbaros2');assert.equal(barbaros.url,'https://itemci.com/categories/barbaros2');assert.equal(barbaros.categoryCount,1);
- const barbarosUnits=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('barbaros2',['500M YANG','1,5M yang','Yang 500K','100 mitril','100KT YANG'].map(title=>({title,price:1000}))));
+ assert.equal(exposed.some(s=>s.id==='barbaros2'),false,'Barbaros2 is removed');
+ const barbarosUnits=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('yang-m',['500M YANG','1,5M yang','Yang 500K','100 mitril','100KT YANG'].map(title=>({title,price:1000}))));
  assert.deepEqual(barbarosUnits.map(r=>r.quantity),[500,1.5,0.5,null,null]);assert.equal(barbarosUnits[0].unitLabel,'M');assert.equal(barbarosUnits[0].unitPrice,2);
- assert.equal((await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()))).filter(s=>s.id==='barbaros2').length,1);
- const tUnits=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('barbaros2',['1T yang','2t YANG','1,5T yang','1T 300M yang','1t300m yang','1.000M yang','500K yang','1T veya 500M yang','1T / 2T yang','1 tane yang','1M Derece Meyvesi'].map(title=>({title,price:2600}))));
+ assert.equal((await page.evaluate(()=>JSON.parse(window.__NiyazisugarGetServersJson()))).filter(s=>s.id==='barbaros2').length,0);
+ const tUnits=await page.evaluate(()=>window.__NiyazisugarWatchUnitRows('yang-m',['1T yang','2t YANG','1,5T yang','1T 300M yang','1t300m yang','1.000M yang','500K yang','1T veya 500M yang','1T / 2T yang','1 tane yang','1M Derece Meyvesi'].map(title=>({title,price:2600}))));
  assert.deepEqual(tUnits.map(r=>r.quantity),[1000,2000,1500,1300,1300,1000,0.5,null,null,null,null]);assert.equal(tUnits[3].unitPrice,2);assert.equal(tUnits[3].unitLabel,'M');
- console.log('PASS: Barbaros2 legacy stored category supports 1T=1000M, compound/decimal amounts and common market/watch pricing.');
- console.log('PASS: Barbaros2 added once with Yang-only magnitude pricing, no OSI KT/Mitril profile leakage.');
+ console.log('PASS: Yang magnitude category supports 1T=1000M, compound/decimal amounts and common market/watch pricing.');
+ console.log('PASS: Barbaros2 is removed from saved servers and not re-added.');
  const result=await page.evaluate(()=>{
  const server={id:'test',name:'Test',url:'https://itemci.com/categories/test',categories:[
  {id:'yang',name:'Yang',mode:'token',tokens:['KT'],keywords:[],unitLabel:'KT'},

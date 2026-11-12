@@ -34,13 +34,6 @@
         ]
     };
 
-    const BARBAROS_SERVER = {
-        id: 'barbaros2', name: 'Barbaros2',
-        url: 'https://itemci.com/categories/barbaros2',
-        categories: [{id:'barbaros-yang', name:'Yang', mode:'magnitude',
-            keywords:['yang'], tokens:[], unitLabel:'M'}]
-    };
-
     const SERVER_LIST_KEY = 'itemci_v15_servers';
     const ACTIVE_SERVER_KEY = 'itemci_v15_active_server';
 
@@ -388,10 +381,12 @@
             });
         }
 
-        const barbarosMigration = 'itemci_barbaros2_added_v1';
-        const addBarbaros = storageGet(barbarosMigration, '') !== 'done';
-        if (addBarbaros && !saved.some(x => x.id === BARBAROS_SERVER.id || /\/categories\/barbaros2(?:-itemyang)?\/?$/.test(x.url))) {
-            saved.push({...BARBAROS_SERVER, categories:BARBAROS_SERVER.categories.map(normalizeCategory)});
+        // Barbaros2 artık kullanılmıyor: daha önce otomatik eklendiyse bir kez kaldırılır.
+        const barbarosRemoval = 'itemci_barbaros2_removed_v1';
+        const removeBarbaros = storageGet(barbarosRemoval, '') !== 'done';
+        if (removeBarbaros) {
+            saved = saved.filter(x => !(x.id === 'barbaros2' || /\/categories\/barbaros2(?:-itemyang)?\/?$/i.test(x.url)));
+            if (normalizeSearchText(storageGet(ACTIVE_SERVER_KEY, '')) === 'barbaros2') storageSet(ACTIVE_SERVER_KEY, DEFAULT_SERVER.id);
         }
 
         // Aynı URL iki kere kayıtlıysa tekini tut.
@@ -403,10 +398,10 @@
             return true;
         });
 
-        if (migrate || addBarbaros) {
+        if (migrate || removeBarbaros) {
             storageSet(SERVER_LIST_KEY, JSON.stringify(saved));
             if (migrate) storageSet(migrationKey, 'done');
-            if (addBarbaros) storageSet(barbarosMigration, 'done');
+            if (removeBarbaros) storageSet(barbarosRemoval, 'done');
         }
         return saved;
     }

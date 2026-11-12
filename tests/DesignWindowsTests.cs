@@ -51,6 +51,9 @@ public sealed partial class MainForm
         Location=new Point(10,10);
         ClientSize=new Size(Math.Min(1440,Screen.PrimaryScreen!.Bounds.Width-40),Math.Min(900,Screen.PrimaryScreen.Bounds.Height-80));
         await Task.Delay(500);ShowPanel(_browserPanel);await Task.Delay(300);await CaptureAsync("main");
+        // Bildirim: küçük, odak almaz; görüntüsü ayrı kaydedilir.
+        ToastForm.ShowToast("Yeni sürüm: V2.25.0","Ayarlar > Güncellemeler bölümünden tek tıkla kurabilirsin.",false);await Task.Delay(400);
+        {var toastWin=Application.OpenForms.OfType<Form>().FirstOrDefault(f=>f.GetType().Name=="ToastForm");if(toastWin is null)throw new Exception("Toast did not appear.");if(Form.ActiveForm==toastWin)throw new Exception("Toast took focus.");var toastRect=toastWin.Bounds;toastRect.Inflate(24,24);using var toastBitmap=new Bitmap(toastRect.Width,toastRect.Height);using(var toastGraphics=Graphics.FromImage(toastBitmap))toastGraphics.CopyFromScreen(toastRect.Location,Point.Empty,toastRect.Size);toastBitmap.Save(Path.Combine(output,"design-toast.png"),ImageFormat.Png);toastWin.Close();}
         // Exercise actual WinForms dropdown close/selection and repeated reopen.
         using(var model=new ComboBox())using(var select=new ReferenceSelect(model) {Size=new Size(220,44),Location=new Point(20,110)}) {
             model.Items.AddRange(new object[]{"MSP2","Sezar2"});model.SelectedIndex=0;Controls.Add(select);select.BringToFront();
