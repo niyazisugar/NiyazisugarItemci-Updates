@@ -67,7 +67,7 @@ public sealed partial class MainForm
         _salesPeriodLabel=new Label {Text="Kayıtlı tüm satışlar · sunucu ve arama filtreleri uygulanır"};
         foreach(var label in new[]{_salesGrossLabel,_salesCommissionLabel,_salesNetLabel})label.Text="0,00 TL";_salesCountLabel.Text="0";
         _salesStatusLabel.Text="Satış geçmişi yüklenmeyi bekliyor";
-        _salesDate.Value=TurkeyToday;_salesRangeEnd=TurkeyToday;_salesDate.ValueChanged+=(_,_)=>{if(!_salesSettingRange)SetSalesPeriod(false);};
+        _salesDate.Value=TurkeyToday;_salesRangeEnd=TurkeyToday;_salesDate.ValueChanged+=(_,_)=>{if(_salesSettingRange)return;_salesRangeEnd=_salesDate.Value.Date;SetSalesPeriod(false);};
         _salesPeriodModel.Items.AddRange(new object[]{"Tümü","Bugün","Tarih seç"});_salesPeriodModel.SelectedIndex=0;
         var period=new ReferenceSegmented(_salesPeriodModel);
         _salesPeriodModel.SelectedIndexChanged+=(_,_)=>{if(_salesPeriodSync)return;switch(_salesPeriodModel.SelectedIndex){case 0:SetSalesPeriod(true);break;case 1:_salesRangeEnd=TurkeyToday;_salesSettingRange=true;_salesDate.Value=TurkeyToday;_salesSettingRange=false;SetSalesPeriod(false);break;case 2:OpenSalesCalendar(period);break;}};
