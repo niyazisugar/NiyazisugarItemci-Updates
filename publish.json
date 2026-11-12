@@ -1,4 +1,4 @@
 {
-  "version": "2.25.0",
-  "notes": "Hızlı ilan yeniden Itemciye gönderiliyor; Itemci formundaki yeni resim sınırı tanınıyor. Hızlı İlan penceresi arka planda hazırlanıyor ve anında açılıyor."
+  "version": "2.26.0",
+  "notes": "Bildirimler küçük ve sade; odak almıyor, tam ekran oyunda çıkmıyor. İlanlarım aktif ilanları Itemci panelinden okuyor. Hızlı ilanda link bulma ve kopyalama. Barbaros2 sunucusu kaldırıldı."
 }
