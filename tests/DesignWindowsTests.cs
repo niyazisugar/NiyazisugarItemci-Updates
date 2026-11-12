@@ -263,6 +263,7 @@ public sealed partial class MainForm
         if(_salesGrid.Rows.Count!=3||_salesGrossLabel.Text!=FormatTl(595.60m)||_salesNetLabel.Text!=FormatTl(536.03m)||_salesCommissionLabel.Text!=FormatTl(59.57m))throw new Exception("All-time totals exclude older sales or round incorrectly.");
         SetSalesPeriod(false);if(_salesGrid.Rows.Count!=1)throw new Exception("Today filter failed when date was unchanged.");
         _salesDate.Value=TurkeyToday.AddDays(-1);if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(175.55m))throw new Exception("Selected day totals failed.");
+        _salesRangeEnd=TurkeyToday;_salesSettingRange=true;_salesDate.Value=TurkeyToday.AddDays(-1);_salesSettingRange=false;SetSalesPeriod(false);if(_salesGrid.Rows.Count!=2||_salesGrossLabel.Text!=FormatTl(275.60m))throw new Exception("Date range totals failed.");
         SetSalesPeriod(true);_salesServerFilter.SelectedItem="Test Sunucusu A";if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(320m))throw new Exception("All-time server totals failed.");
         _salesServerFilter.SelectedIndex=0;_salesSearch.Text="02";if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(175.55m))throw new Exception("All-time search totals failed.");_salesSearch.Clear();
         RenderSoldSalesPanel();for(int i=0;i<_salesGrid.Rows.Count;i++)_salesGrid.Rows[i].Cells["Cover"].Value=TestThumbnail(i+1);
