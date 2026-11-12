@@ -33,7 +33,133 @@ public sealed partial class MainForm
         catch { }
         _composerCooldownTimer.Tick+=(_,_)=>UpdateComposerPublishAvailability();
 
-        FormClosed+=(_,_)=>_composerCooldownTimer.Dispose();
+        FormClosed+=(_,_)=>{_composerCooldownTimer.Dispose();_composerPrewarmTimer.Dispose();DisposeComposerHost();};
+        // Pencere ilk tıklamada sıfırdan kurulmasın: uygulama açıldıktan kısa süre sonra arka planda hazırlanır.
+        _composerPrewarmTimer.Tick+=async(_,_)=>
+        {
+            if(_browserEnvironment is null||!_webReady){if(++_composerPrewarmAttempts>=12)_composerPrewarmTimer.Stop();return;}
+            _composerPrewarmTimer.Stop();
+            await PrewarmComposerHostAsync();
+        };
+        _composerPrewarmTimer.Start();
+    }
+
+    // Tek, yeniden kullanılan pencere. Kapatınca gizlenir; WebView2 ve sayfa hazır kalır.
+    private sealed class ComposerHostForm : Form
+    {
+        internal bool Quiet;
+        protected override bool ShowWithoutActivation=>Quiet;
+    }
+    private ComposerHostForm? _composerHost;
+    private WebView2? _composerHostView;
+    private ComposerSurface? _composerSurface;
+    private Panel? _composerLoadingPanel;
+    private Label? _composerLoadingText;
+    private Button? _composerRetry,_composerCopyError;
+    private CancellationTokenSource? _composerLifetime;
+    private bool _composerSurfaceLoaded,_composerSurfaceStarting;
+    private Task? _composerPrewarmTask;
+    private int _composerPrewarmAttempts;
+    private readonly System.Windows.Forms.Timer _composerPrewarmTimer=new(){Interval=5000};
+
+    private void EnsureComposerHost()
+    {
+        if(_composerHost is not null&&!_composerHost.IsDisposed)return;
+        var area=Screen.FromControl(this).WorkingArea;
+        var host=new ComposerHostForm
+        {
+            Text="Hızlı İlan Ekle",Size=new Size(Math.Min(1120,area.Width-32),Math.Min(850,area.Height-32)),
+            MinimumSize=new Size(Math.Min(440,area.Width),Math.Min(400,area.Height)),
+            StartPosition=FormStartPosition.Manual,BackColor=ReferenceUi.Surface,
+            ShowInTaskbar=false,MinimizeBox=false,MaximizeBox=true,Padding=Padding.Empty
+        };
+        var view=new WebView2{Dock=DockStyle.Fill,DefaultBackgroundColor=ReferenceUi.Surface,AllowExternalDrop=false};
+        host.Controls.Add(view);
+        host.FormClosing+=(_,e)=>
+        {
+            if(e.CloseReason==CloseReason.UserClosing&&(_composerBusy||_composerAddingServer)){e.Cancel=true;_composerStatus.Text="İşlem devam ediyor. Sonuç geldikten sonra pencereyi kapatabilirsin.";_=PushComposerStateAsync();}
+        };
+        var loading=new Panel{Dock=DockStyle.Fill,BackColor=ReferenceUi.Surface,Padding=new Padding(36)};
+        var loadingText=new Label{Dock=DockStyle.Top,Height=160,ForeColor=Color.FromArgb(217,231,238),Font=new Font("Segoe UI",12),Text="Hızlı İlan Ekle hazırlanıyor…"};
+        var retry=new Button{Text="Yeniden Dene",Width=150,Height=42,Top=210,Left=36,Visible=false,BackColor=Color.FromArgb(46,219,211),ForeColor=Color.FromArgb(9,39,42),FlatStyle=FlatStyle.Flat};
+        var copyError=new Button{Text="Hata Bilgisini Kopyala",Width=200,Height=42,Top=264,Left=36,Visible=false,BackColor=Card,ForeColor=TextMain,FlatStyle=FlatStyle.Flat};
+        copyError.Click+=(_,_)=>Clipboard.SetText(loadingText.Text);
+        loading.Controls.Add(loadingText);loading.Controls.Add(retry);loading.Controls.Add(copyError);
+        host.Controls.Add(loading);loading.BringToFront();
+        _composerLifetime=new CancellationTokenSource();
+        _composerHost=host;_composerHostView=view;_composerLoadingPanel=loading;_composerLoadingText=loadingText;_composerRetry=retry;_composerCopyError=copyError;
+        _composerSurface=new ComposerSurface(view,async text=>
+        {
+            using var json=JsonDocument.Parse(text);
+            await HandleComposerMessageAsync(json.RootElement.Clone());
+        },ComposerSurfaceFailed);
+        retry.Click+=async(_,_)=>await LoadComposerSurfaceAsync();
+        // İlk gösterimde ya da önceki yükleme başarısız olduysa açılınca yükle.
+        host.VisibleChanged+=async(_,_)=>{if(host.Visible&&!host.Quiet&&!_composerSurfaceLoaded)await LoadComposerSurfaceAsync();};
+        PremiumTheme.Apply(host);
+    }
+
+    private void ComposerSurfaceFailed(string message)
+    {
+        if(_composerHost is null||_composerHost.IsDisposed||_composerLifetime?.IsCancellationRequested==true)return;
+        _composerSurfaceLoaded=false;_composerViewReady=false;
+        _composerLoadingText!.Text="Hızlı İlan Ekle açılamadı.\r\n\r\n"+message;
+        _composerRetry!.Visible=true;_composerCopyError!.Visible=true;_composerLoadingPanel!.Visible=true;_composerLoadingPanel.BringToFront();
+        try{File.AppendAllText(Path.Combine(Path.GetDirectoryName(ComposerPopupStatePath)!,"composer-view.log"),DateTime.UtcNow.ToString("O")+" "+message+Environment.NewLine);}catch{}
+    }
+
+    private async Task LoadComposerSurfaceAsync()
+    {
+        if(_composerSurfaceStarting||_composerSurface is null||_composerLifetime is null||_composerLifetime.IsCancellationRequested)return;
+        _composerSurfaceStarting=true;_composerRetry!.Visible=false;_composerCopyError!.Visible=false;
+        _composerLoadingText!.Text="Hızlı İlan Ekle hazırlanıyor…";_composerLoadingPanel!.Visible=true;_composerLoadingPanel.BringToFront();
+        try
+        {
+            await _composerSurface.LoadAsync(_browserEnvironment,AppContext.BaseDirectory,ComposerImagesFolder,_composerLifetime.Token);
+            _composerSurfaceLoaded=true;
+            _composerHostView!.Visible=true;_composerLoadingPanel.Visible=false;_composerHostView.BringToFront();
+            if(_composerPopup is not null){_composerViewReady=true;await PushComposerStateAsync(true);}
+            else _composerViewReady=false;
+        }
+        catch(OperationCanceledException)when(_composerLifetime.IsCancellationRequested){}
+        catch(TimeoutException){ComposerSurfaceFailed("Arayüz zamanında yüklenemedi. Yeniden Dene ile tekrar açabilirsin.");}
+        catch(Exception ex){ComposerSurfaceFailed(ex.Message);}
+        finally{_composerSurfaceStarting=false;}
+    }
+
+    // Ekran dışında, odağı çalmadan bir kez göster, sayfayı yükle ve gizle.
+    private Task PrewarmComposerHostAsync()
+    {
+        if(_composerPrewarmTask is not null)return _composerPrewarmTask;
+        return _composerPrewarmTask=PrewarmCoreAsync();
+        async Task PrewarmCoreAsync()
+        {
+            try
+            {
+                if(IsDisposed||Disposing||_composerPopup is not null||_composerPopupOpening)return;
+                Directory.CreateDirectory(ComposerImagesFolder);
+                EnsureComposerHost();
+                var host=_composerHost!;
+                if(_composerSurfaceLoaded||host.Visible)return;
+                host.Quiet=true;host.Location=new Point(-32000,-32000);
+                host.Show();
+                await LoadComposerSurfaceAsync();
+            }
+            catch(Exception ex){try{File.AppendAllText(Path.Combine(Path.GetDirectoryName(ComposerPopupStatePath)!,"composer-view.log"),DateTime.UtcNow.ToString("O")+" ön hazırlık: "+ex.Message+Environment.NewLine);}catch{}}
+            finally
+            {
+                if(_composerHost is not null&&!_composerHost.IsDisposed&&_composerHost.Quiet){_composerHost.Hide();_composerHost.Quiet=false;}
+                if(_composerPopup is null)_composerViewReady=false;
+            }
+        }
+    }
+
+    private void DisposeComposerHost()
+    {
+        try{_composerLifetime?.Cancel();}catch{}
+        _composerSurface?.Dispose();_composerSurface=null;
+        if(_composerHost is not null&&!_composerHost.IsDisposed)_composerHost.Dispose();
+        _composerHost=null;_composerHostView=null;_composerSurfaceLoaded=false;
     }
 
     private async Task ShowListingComposerPopupAsync()
@@ -43,66 +169,30 @@ public sealed partial class MainForm
         _composerPopupOpening=true;
         try
         {
+            // Arka plandaki ön hazırlık sürüyorsa onu bekle; ikinci bir pencere kurma.
+            if(_composerPrewarmTask is not null&&!_composerPrewarmTask.IsCompleted){try{await _composerPrewarmTask;}catch{}}
             // Use the already synchronized server list. A background market scan
             // must never delay opening the local composer.
             RefreshComposerServerChoices();
             _composerCooldownTimer.Start();
             Directory.CreateDirectory(ComposerImagesFolder);
+            EnsureComposerHost();
+            var popup=_composerHost!;
             var area=Screen.FromControl(this).WorkingArea;
-            using var popup=new Form
+            popup.Quiet=false;
+            popup.MinimumSize=new Size(Math.Min(440,area.Width),Math.Min(400,area.Height));
+            if(popup.Width>area.Width-32||popup.Height>area.Height-32)popup.Size=new Size(Math.Min(popup.Width,area.Width-32),Math.Min(popup.Height,area.Height-32));
+            var owner=Bounds;
+            popup.Location=new Point(
+                Math.Clamp(owner.Left+(owner.Width-popup.Width)/2,area.Left,Math.Max(area.Left,area.Right-popup.Width)),
+                Math.Clamp(owner.Top+(owner.Height-popup.Height)/2,area.Top,Math.Max(area.Top,area.Bottom-popup.Height)));
+            _composerPopup=popup;_composerView=_composerHostView;
+            if(_composerSurfaceLoaded)
             {
-                Text="Hızlı İlan Ekle",Size=new Size(Math.Min(1120,area.Width-32),Math.Min(850,area.Height-32)),
-                MinimumSize=new Size(Math.Min(440,area.Width),Math.Min(400,area.Height)),
-                StartPosition=FormStartPosition.CenterParent,BackColor=ReferenceUi.Surface,
-                ShowInTaskbar=false,MinimizeBox=false,MaximizeBox=true,Padding=Padding.Empty
-            };
-            using var view=new WebView2{Dock=DockStyle.Fill,DefaultBackgroundColor=ReferenceUi.Surface,AllowExternalDrop=false};
-            _composerPopup=popup;_composerView=view;_composerViewReady=false;
-            popup.Controls.Add(view);
-            popup.FormClosing+=(_,e)=>
-            {
-                if(_composerBusy||_composerAddingServer){e.Cancel=true;_composerStatus.Text="İşlem devam ediyor. Sonuç geldikten sonra pencereyi kapatabilirsin.";_=PushComposerStateAsync();}
-            };
-            var loading=new Panel{Dock=DockStyle.Fill,BackColor=ReferenceUi.Surface,Padding=new Padding(36)};
-            var loadingText=new Label{Dock=DockStyle.Top,Height=160,ForeColor=Color.FromArgb(217,231,238),Font=new Font("Segoe UI",12),Text="Hızlı İlan Ekle hazırlanıyor…"};
-            var retry=new Button{Text="Yeniden Dene",Width=150,Height=42,Top=210,Left=36,Visible=false,BackColor=Color.FromArgb(46,219,211),ForeColor=Color.FromArgb(9,39,42),FlatStyle=FlatStyle.Flat};
-            var copyError=new Button{Text="Hata Bilgisini Kopyala",Width=200,Height=42,Top=264,Left=36,Visible=false,BackColor=Card,ForeColor=TextMain,FlatStyle=FlatStyle.Flat};
-            copyError.Click+=(_,_)=>Clipboard.SetText(loadingText.Text);
-            loading.Controls.Add(loadingText);loading.Controls.Add(retry);loading.Controls.Add(copyError);
-            popup.Controls.Add(loading);loading.BringToFront();
-            using var lifetime=new CancellationTokenSource();
-            popup.FormClosed+=(_,_)=>lifetime.Cancel();
-            void Failed(string message)
-            {
-                if(popup.IsDisposed||lifetime.IsCancellationRequested)return;
-                _composerViewReady=false;loadingText.Text="Hızlı İlan Ekle açılamadı.\r\n\r\n"+message;
-                retry.Visible=true;copyError.Visible=true;loading.Visible=true;loading.BringToFront();
-                try{File.AppendAllText(Path.Combine(Path.GetDirectoryName(ComposerPopupStatePath)!,"composer-view.log"),DateTime.UtcNow.ToString("O")+" "+message+Environment.NewLine);}catch{}
+                // Hazır sayfa: yalnızca güncel taslağı ve sunucu listesini gönder.
+                _composerViewReady=true;_composerLoadingPanel!.Visible=false;_composerHostView!.BringToFront();
+                await PushComposerStateAsync(true);
             }
-            using var surface=new ComposerSurface(view,async text=>
-            {
-                using var json=JsonDocument.Parse(text);
-                await HandleComposerMessageAsync(json.RootElement.Clone());
-            },Failed);
-            var starting=false;
-            async Task LoadSurfaceAsync()
-            {
-                if(starting||lifetime.IsCancellationRequested)return;
-                starting=true;_composerViewReady=false;retry.Visible=false;copyError.Visible=false;
-                loadingText.Text="Hızlı İlan Ekle hazırlanıyor…";loading.Visible=true;loading.BringToFront();
-                try
-                {
-                    await surface.LoadAsync(_browserEnvironment,AppContext.BaseDirectory,ComposerImagesFolder,lifetime.Token);
-                    if(!lifetime.IsCancellationRequested){view.Visible=true;loading.Visible=false;view.BringToFront();await PushComposerStateAsync(true);}
-                }
-                catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}
-                catch(TimeoutException){Failed("Arayüz zamanında yüklenemedi. Yeniden Dene ile tekrar açabilirsin.");}
-                catch(Exception ex){Failed(ex.Message);}
-                finally{starting=false;}
-            }
-            retry.Click+=async(_,_)=>await LoadSurfaceAsync();
-            popup.Shown+=async(_,_)=>await LoadSurfaceAsync();
-            PremiumTheme.Apply(popup);
             await ComposerModal.ShowAsync(this,popup);
         }
         catch(Exception ex){_composerStatus.Text="Hızlı ilan penceresi açılamadı: "+ex.Message;MessageBox.Show(this,_composerStatus.Text,"Hızlı İlan Ekle",MessageBoxButtons.OK,MessageBoxIcon.Information);}
