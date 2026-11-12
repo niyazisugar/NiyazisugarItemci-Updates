@@ -162,6 +162,13 @@ public sealed partial class MainForm
             for(int n=0;n<24;n++)sample.sales.Add(new WatchSale {listing=new LiveListing {title="Test takip ilanı "+(n+1)+" · 500 KT anında teslim",seller="Test satıcı "+(n%5+1),price=250+n*10,quantity=500,unitLabel="KT",url="https://itemci.com/product/test/"+n},detectedAt=TurkeyToday.AddHours(15).AddMinutes(-n*9),evidence=n%3==0?"category-counter":"counter",sellerIncrease=1+n%4});
             var previous=_serverWatch.TryGetValue(trackServer.Id,out var keep)?keep:null;_serverWatch[trackServer.Id]=sample;_serverWatchRenderedKey="";
             ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking");
+            // Satış hacmi: kesin/güçlü ve olası tespitler ayrı toplanır; satıcıya tıklayınca satışları üste gelir.
+            var tr=System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+            var strongSum=sample.sales.Where(x=>x.evidence!="category-counter").Sum(x=>x.listing.price);var possibleSum=sample.sales.Where(x=>x.evidence=="category-counter").Sum(x=>x.listing.price);
+            if(_liveVolume.Text!=strongSum.ToString("N2",tr)+" TL"||_livePossible.Text!=possibleSum.ToString("N2",tr)+" TL"||_liveCount.Text!="24")throw new Exception("Tracking volume totals are wrong.");
+            ToggleWatchSeller("Test satıcı 3");await Task.Delay(150);await CaptureAsync("tracking-seller");
+            if(_watchPinnedSeller!="Test satıcı 3")throw new Exception("Seller pin was not applied.");
+            ToggleWatchSeller("Test satıcı 3");if(_watchPinnedSeller.Length!=0)throw new Exception("Seller pin did not toggle off.");
             if(previous is null)_serverWatch.Remove(trackServer.Id);else _serverWatch[trackServer.Id]=previous;_serverWatchRenderedKey="";
         }
         ShowPanel(_serverSalesPanel);RenderServerSalesWatch();await Task.Delay(150);await CaptureAsync("tracking-empty");
@@ -172,7 +179,7 @@ public sealed partial class MainForm
         ApplyWatchObservations(watch,new[]{Observation(true,10)},stamp);
         ApplyWatchObservations(watch,new[]{Observation(true,14)},stamp.AddMinutes(1));if(watch.sales.Count!=0)throw new Exception("Seller count alone was classified as a sale.");
         watch=System.Text.Json.JsonSerializer.Deserialize<ServerWatch>(System.Text.Json.JsonSerializer.Serialize(watch))!;
-        ApplyWatchObservations(watch,new[]{Observation(false,14)},stamp.AddMinutes(2));if(watch.sales.Count!=1||watch.sales[0].sellerIncrease!=4)throw new Exception("Counter-before-availability ordering lost the sale signal.");
+        ApplyWatchObservations(watch,new[]{Observation(false,14)},stamp.AddMinutes(2));if(watch.sales.Count!=1||watch.sales[0].sellerIncrease!=4)throw new Exception("Counter-before-availability ordering lost the sale signal.");if(!WatchSaleStrong(watch.sales[0]))throw new Exception("Fresh counter signal was not strong.");
         ApplyWatchObservations(watch,new[]{Observation(false,16)},stamp.AddMinutes(4));if(watch.sales.Count!=1)throw new Exception("Counter signal duplicated a listing.");
         var delayed=new ServerWatch();delayed.known["https://itemci.com/product/test/test"]=new LiveListing {url="https://itemci.com/product/test/test"};
         ApplyWatchObservations(delayed,new[]{Observation(true,10)},stamp);
@@ -231,6 +238,7 @@ public sealed partial class MainForm
         if(!pushed.pending.ContainsKey(priceUrl))throw new Exception("Pending listing expired before a bounded checker could revisit it.");
         var pushedSale=Observation(false,11);pushedSale.price=160m;ApplyWatchObservations(pushed,new[]{pushedSale},stamp.AddHours(3));
         if(pushed.sales.Count!=1||pushed.sales[0].listing.price!=160m)throw new Exception("Later sale of a listing beyond the latest three pages was lost.");
+        if(!WatchSaleStrong(pushed.sales[0])||pushed.sales[0].baselineAgeMinutes is <170 or >181)throw new Exception("Three-hour baseline should still be a strong signal.");
         UpdateThreePageWatchWindow(pushed,new WatchScan {complete=true,rows=new(){new(){url=priceUrl}}},stamp.AddHours(3).AddMinutes(1));
         if(pushed.known.ContainsKey(priceUrl)||pushed.pending.ContainsKey(priceUrl))throw new Exception("Recorded sale was reintroduced into the live check queue.");
         Console.WriteLine("PASS: departed active listings retain baselines and later sales; recorded sales do not re-enter live queues.");

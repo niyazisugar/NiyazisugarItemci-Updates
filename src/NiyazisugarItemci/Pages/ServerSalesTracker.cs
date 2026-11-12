@@ -32,27 +32,67 @@ public sealed partial class MainForm
         File.WriteAllText(temporary, JsonSerializer.Serialize(_serverWatch));
         File.Move(temporary, WatchPath, true);
     }
+    // Kesin: ürün sayfasında "satıldı" işareti. Güçlü: ilan satışa kapandı ve satıcı sayacı arttı,
+    // son açık ölçüm en fazla 6 saat önce. Diğerleri (eski ölçüm, yalnızca kategori görüntüsü) olasıdır.
+    private static bool WatchSaleStrong(WatchSale sale)=>sale.evidence=="explicit"||(sale.evidence=="counter"&&sale.baselineAgeMinutes<=360);
+    private static string WatchSaleSignal(WatchSale sale)=>sale.evidence switch
+    {
+        "explicit"=>"Kesin · satıldı",
+        "counter" when sale.baselineAgeMinutes<=360=>$"Güçlü · sayaç +{sale.sellerIncrease}",
+        "counter"=>$"Olası · eski ölçüm +{sale.sellerIncrease}",
+        _=>$"Olası · sayaç +{sale.sellerIncrease}"
+    };
+    private DateTime WatchPeriodStart=>_watchPeriod.SelectedIndex switch {1=>TurkeyToday.AddDays(-6),2=>TurkeyToday.AddDays(-29),_=>TurkeyToday};
     private void RenderServerSalesWatch()
     {
         if (_liveMarket is null || _liveServer.SelectedItem is not MarketServerInfo server) return;
         _serverWatch.TryGetValue(server.Id, out var state);
-        var rows = state?.sales.Where(s => s.detectedAt.Date == TurkeyToday).OrderByDescending(s => s.detectedAt).ToList() ?? new();
+        var from=WatchPeriodStart;bool today=_watchPeriod.SelectedIndex<=0;
+        var all = state?.sales.Where(s => s.detectedAt.Date >= from).OrderByDescending(s => s.detectedAt).ToList() ?? new();
         if(_serverWatchRenderedServer!=server.Id){_serverWatchVisibleCount=50;_serverWatchRenderedServer=server.Id;}
-        _liveCount.Text=rows.Count.ToString(); _liveLast.Text=(rows.FirstOrDefault()?.detectedAt.ToString("HH:mm:ss")??"—");
-        _liveStatus.Text = $"Bugün tespit: {rows.Count} · Son tam liste kontrolü: {(state is not null&&state.lastSuccessUtc!=DateTime.MinValue?state.lastSuccessUtc.ToLocalTime().ToString("HH:mm:ss"):"henüz yok")} · {state?.status ?? "Takip hazırlanıyor"}";
-        _=RefreshWatchUnitsLocalAsync(server,rows);
-        var key=server.Id+":"+_serverWatchVisibleCount+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller+":"+s.listing.quantity+":"+s.listing.unitLabel));
+        var culture=System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+        string Tl(decimal value)=>value.ToString("N2",culture)+" TL";
+        var strongTotal=all.Where(WatchSaleStrong).Sum(s=>s.listing.price);
+        var possibleTotal=all.Where(s=>!WatchSaleStrong(s)).Sum(s=>s.listing.price);
+        _liveCount.Text=all.Count.ToString();
+        _liveVolume.Text=Tl(strongTotal);
+        _livePossible.Text=Tl(possibleTotal);
+        _liveLast.Text=all.FirstOrDefault() is WatchSale latest?(latest.detectedAt.Date==TurkeyToday?latest.detectedAt.ToString("HH:mm:ss"):latest.detectedAt.ToString("dd.MM HH:mm")):"—";
+        var lastCheck=state is not null&&state.lastSuccessUtc!=DateTime.MinValue?state.lastSuccessUtc.ToLocalTime().ToString("HH:mm"):"henüz yok";
+        var problem=state?.status is string st&&(st.StartsWith("Kontrol başarısız")||st.StartsWith("Site işlem sınırı"))?" · "+st:"";
+        _liveStatus.Text=$"Son kontrol {lastCheck} · {_marketServers.Count} sunucu sırayla, her birinde ilk 3 sayfa"+problem;
+        // Satıcı sıralaması: kesin + olası tüm tespitlerin ilan fiyatı toplamı.
+        var sellers=all.Where(s=>!string.IsNullOrWhiteSpace(s.listing.seller)).GroupBy(s=>s.listing.seller,StringComparer.OrdinalIgnoreCase)
+            .Select(g=>new SellerBoardItem(g.First().listing.seller,g.Count(),g.Sum(s=>s.listing.price),Tl(g.Sum(s=>s.listing.price))))
+            .OrderByDescending(x=>x.Total).ThenByDescending(x=>x.Count).ToList();
+        if(_watchPinnedSeller.Length>0&&!sellers.Any(x=>string.Equals(x.Seller,_watchPinnedSeller,StringComparison.OrdinalIgnoreCase)))_watchPinnedSeller="";
+        _sellerBoard?.SetItems(sellers,_watchPinnedSeller);
+        if(_sellerBoardTitle is not null)
+        {
+            var pinned=sellers.FirstOrDefault(x=>string.Equals(x.Seller,_watchPinnedSeller,StringComparison.OrdinalIgnoreCase));
+            _sellerBoardTitle.Text=pinned is null?$"{sellers.Count} satıcı · tıkla, üste al":$"{pinned.Seller} · {pinned.Count} satış · {pinned.TotalText}";
+            _sellerBoardTitle.ForeColor=pinned is null?ReferenceUi.Muted:ReferenceUi.Gold;
+        }
+        // Seçili satıcının satışları üste alınır, kalanlar zaman sırasıyla devam eder.
+        var rows=_watchPinnedSeller.Length==0?all:all.OrderByDescending(s=>string.Equals(s.listing.seller,_watchPinnedSeller,StringComparison.OrdinalIgnoreCase)).ThenByDescending(s=>s.detectedAt).ToList();
+        _=RefreshWatchUnitsLocalAsync(server,all.Where(s=>s.detectedAt.Date==TurkeyToday).ToList());
+        var key=server.Id+":"+_watchPeriod.SelectedIndex+":"+_watchPinnedSeller+":"+string.Join("|",rows.Select(s=>s.listing.url+s.detectedAt.Ticks+":"+s.listing.price.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+s.priceFromDetail+":"+s.listing.title+":"+s.listing.seller+":"+s.listing.quantity+":"+s.listing.unitLabel+":"+s.evidence));
         if(key==_serverWatchRenderedKey)return;
         _serverWatchRenderedKey=key;
-        var culture=System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
         var items=rows.Select(sale=>
         {
             var row=sale.listing;
             var unit=WatchUnitPrice(row);
-            var strong=sale.evidence!="category-counter";
-            var signal=sale.evidence=="category-counter"?$"Olası · sayaç +{sale.sellerIncrease}":sale.evidence=="counter"?$"Güçlü · sayaç +{sale.sellerIncrease}":"Satıldı işareti";
-            var tip=$"{row.title}\nSatıcı: {row.seller}\nSon görülen ilan fiyatı: {row.price.ToString("N2",culture)} TL\nSinyal tespit zamanı: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{(sale.evidence=="category-counter"?"İlan listede görüldükten sonra güncellendi, satışa kapandı ve satıcı sayacı arttı. İlanın açık olduğu ayrı bir ürün ölçümü yok; satış kesinleşmedi.":sale.evidence=="counter"?"İlan satıştan kalktı ve satıcının satış sayacı arttı; başka ürün satışı olabilir.":"Sitede açık satış işareti görüldü.")}\nKesin işlem fiyatı ve satış saati site tarafından doğrulanmadı.";
-            return new WatchRowItem(row.title,row.seller,row.price.ToString("N2",culture)+" TL",sale.detectedAt.ToString("HH:mm:ss"),signal,strong,tip+"\nBirim fiyat: "+unit,()=>_=OpenOrActivateBrowserTabAsync(row.url,row.title),unit);
+            var strong=WatchSaleStrong(sale);
+            var why=sale.evidence switch
+            {
+                "explicit"=>"Ürün sayfasında satıldı işareti görüldü.",
+                "counter"=>$"İlan satışa kapandı ve satıcının toplam satış sayacı {sale.sellerIncrease} arttı."+(strong?"":" İlanın açık görüldüğü son ölçüm 6 saatten eski; sayaç artışı başka bir ilana ait olabilir."),
+                _=>"İlan listede görüldükten sonra satışa kapandı ve satıcı sayacı arttı. İlanın tek başına açık ölçümü yok; satış kesinleşmedi."
+            };
+            var tip=$"{row.title}\nSatıcı: {row.seller}\nİlan fiyatı: {Tl(row.price)}{(sale.priceFromDetail?"":" (liste fiyatı)")}\nTespit: {sale.detectedAt:dd.MM.yyyy HH:mm:ss}\n{why}\nBirim fiyat: {unit}\nTıkla: ilanı aç";
+            var pinned=_watchPinnedSeller.Length>0&&string.Equals(row.seller,_watchPinnedSeller,StringComparison.OrdinalIgnoreCase);
+            return new WatchRowItem(row.title,row.seller,Tl(row.price),today?sale.detectedAt.ToString("HH:mm:ss"):sale.detectedAt.ToString("dd.MM HH:mm"),WatchSaleSignal(sale),strong,tip,()=>_=OpenOrActivateBrowserTabAsync(row.url,row.title),unit,pinned);
         }).ToList();
         _liveList?.SetItems(items);
         PositionLiveMarket();
@@ -125,8 +165,9 @@ public sealed partial class MainForm
         if(IsDisposed||Disposing)return;
         string wait=SiteAutomationBlocked?SitePauseMessage:_soldScanBusy?"Kişisel satış taramasının kısa bölümü tamamlanıyor":
             _autoBumpBusy||AutoBumpDue?"İlan yükseltme sırası bekleniyor":_composerPopup is not null||_composerBusy?"İlan penceresinin kapanması bekleniyor":
-            _marketPanel.Visible?"Piyasa analizi açık":_liveBusy?"Tarama sürüyor":
+            _marketPanel.Visible?"Piyasa analizi açık":
             !_marketWebReady||_marketWebView.CoreWebView2 is null?"Itemci bağlantısı hazırlanıyor":"";
+        if(_liveBusy)return;
         if(wait.Length>0){_liveStatus.Text="Takip bekliyor · "+wait;return;}
         var next=_serverWatchRetryUtc>_serverWatchNextTurnUtc?_serverWatchRetryUtc:_serverWatchNextTurnUtc;
         if(DateTime.UtcNow<next)return;
@@ -258,7 +299,7 @@ public sealed partial class MainForm
                 DateTimeOffset.TryParse(current.updatedAt,out var updated)&&updated.UtcDateTime>current.categorySeenAtUtc&&updated.UtcDateTime<=nowUtc.AddMinutes(1);
             if(!current.fromStore&&previous is not null&&!current.available&&!expired&&sameSeller&&(directSignal||categorySignal)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
-                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence=directSignal?"counter":"category-counter",sellerIncrease=directSignal?counterDelta:categoryDelta,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
+                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence=directSignal?"counter":"category-counter",sellerIncrease=directSignal?counterDelta:categoryDelta,baselineAgeMinutes=directSignal?(int)Math.Max(0,(nowUtc-current.lastAvailableAtUtc).TotalMinutes):0,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
                 state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
@@ -353,6 +394,7 @@ public sealed partial class MainForm
         public DateTime detectedAt {get;set;}
         public string evidence {get;set;}="explicit";
         public int sellerIncrease {get;set;}
+        public int baselineAgeMinutes {get;set;}
         public bool priceFromDetail {get;set;}
         public DateTime priceCheckAttemptUtc {get;set;}
     }
