@@ -10,6 +10,10 @@ const row=(id,title,server)=>`<tr><td><input type="checkbox"></td><td><div><a hr
  const result=await page.evaluate(()=>window.__niyaziScanSoldListings(['921927118390','134123915965'],0,{}));
  assert.equal(result.Sales.length,0);
  assert.deepEqual(result.ListingServers,{'921927118390':'Osi2','134123915965':'Mitril2'});
+ // Hızlı tamamlama: ayrıntı açmadan ilan no + başlık + sunucu okunur.
+ const quick=await page.evaluate(()=>window.__niyaziReadSoldServers());
+ assert.equal(quick.Empty,false);
+ assert.deepEqual(quick.Rows,[{Id:'921927118390',Title:'45KT + 275 MİTRİL',Server:'Osi2'},{Id:'134123915965',Title:'4M DERECE MEYVESİ',Server:'Mitril2'}]);
  await browser.close();
  console.log('PASS: sold listing server read from the Kategori column (first value), returned for every row so older sales are filled in.');
 })().catch(e=>{console.error(e);process.exit(1)});
