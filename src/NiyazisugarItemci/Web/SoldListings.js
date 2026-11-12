@@ -64,6 +64,14 @@
         const headings=[...row.closest('table')?.querySelectorAll('thead th') || []];
         const index=headings.findIndex(el=>/(?:^|[\s/])(sunucu|server)(?:$|[\s/])/.test(norm(el.textContent)));
         if(index>=0&&row.cells?.[index])return clean(row.cells[index].textContent)||'Bilinmeyen sunucu';
+        // Itemci "Kategori" sütununda önce sunucuyu, sonra kategoriyi yazar: "Osi2" / "Osi2 Item&Yang".
+        const categoryIndex=headings.findIndex(el=>/^kategori$/.test(norm(el.textContent)));
+        const categoryCell=(categoryIndex>=0?row.cells?.[categoryIndex]:null)||[...(row.cells||[])].find(td=>!td.querySelector('a,input')&&/item\s*&\s*yang|karakter|hesap/i.test(td.textContent));
+        if(categoryCell){
+            const leaves=[...categoryCell.querySelectorAll('*')].filter(el=>!el.children.length).map(el=>clean(el.textContent)).filter(Boolean);
+            const value=leaves[0]||clean(categoryCell.textContent).replace(/\s*(item\s*&\s*yang|karakter|hesap)$/i,'');
+            if(value&&value.length<60)return value;
+        }
         for(const label of row.querySelectorAll('span,dt,label')) {
             if(/^(sunucu|server)\s*:?$/.test(norm(label.textContent))) {
                 const value=clean(label.nextElementSibling?.textContent);if(value&&value.length<100)return value;
@@ -129,7 +137,9 @@
                     processed.push(row.id);
                 }
             }
-            return {Sales:sales, Errors:errors, ProcessedIds:processed, PageComplete:pageComplete, ListingIds:found.map(row => row.id), Empty:found.length === 0};
+            const listingServers = {};
+            for (const row of found) { const server = serverFromRow(row.el); if (server !== 'Bilinmeyen sunucu') listingServers[row.id] = server; }
+            return {Sales:sales, Errors:errors, ProcessedIds:processed, PageComplete:pageComplete, ListingIds:found.map(row => row.id), Empty:found.length === 0, ListingServers:listingServers};
         } finally { window.__niyaziSoldScanRunning = false; }
     }
     window.__niyaziScanSoldListings = scan;
