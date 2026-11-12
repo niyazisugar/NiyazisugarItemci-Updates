@@ -312,7 +312,7 @@ internal sealed class ReferenceEmptyState : Control
 }
 
 /// <summary>Satış takibi akışındaki tek satır: ürün, satıcı, fiyat, zaman ve sinyal.</summary>
-internal sealed record WatchRowItem(string Title, string Seller, string Price, string Time, string Signal, bool Strong, string Tooltip, System.Action Open, string UnitPrice="—");
+internal sealed record WatchRowItem(string Title, string Seller, string Price, string Time, string Signal, bool Strong, string Tooltip, System.Action Open, string UnitPrice="—", bool Pinned=false);
 
 /// <summary>Tek kontrolde çizilen, sanal kaydırmalı yoğun liste: başlık satırı, 40 px satırlar,
 /// üzerine gelince vurgulanan satır, sağda ince koyu kaydırma çubuğu (tekerlek + sürükleme).</summary>
@@ -322,8 +322,12 @@ internal sealed class ReferenceWatchList : Control
     private int _offset, _hover = -1, _dragStart = -1, _dragOffset;
     private bool _thumbHover;
     private readonly ToolTip _tips;
-    private static readonly string[] Heads = { "Ürün", "Satıcı", "Son fiyat", "Birim fiyat", "Tespit", "Sinyal" };
-    private static readonly float[] Cols = { .30f, .16f, .105f, .17f, .09f, .175f };
+    private static readonly string[] Heads = { "Ürün", "Satıcı", "Fiyat", "Birim fiyat", "Saat", "Sinyal" };
+    private static readonly float[] Cols = { .35f, .15f, .11f, .15f, .09f, .15f };
+    private int[] _x = new int[7];
+    private bool _sellerHover;
+    /// <summary>Satıcı hücresine tıklanınca çağrılır (aynı satıcının satışları üste alınır).</summary>
+    internal System.Action<string>? SellerClicked { get; set; }
     internal string EmptyTitle { get; set; } = "Henüz satış tespit edilmedi";
     internal string EmptyText { get; set; } = "Seçili sunucuda tespit edilen satışlar burada listelenecek.";
     internal ReferenceWatchList(ToolTip tips)
@@ -358,14 +362,16 @@ internal sealed class ReferenceWatchList : Control
         if (thumb.Contains(e.Location)) { _dragStart = e.Y; _dragOffset = _offset; Capture = true; return; }
         if (Track.Contains(e.Location) && !thumb.IsEmpty) { ScrollTo(_offset + (e.Y < thumb.Y ? -ViewH : ViewH)); }
     }
-    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); if (_dragStart >= 0) { _dragStart = -1; Capture = false; return; } int i = RowAt(e.Location); if (i >= 0 && e.Button == MouseButtons.Left) _items[i].Open(); }
+    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); if (_dragStart >= 0) { _dragStart = -1; Capture = false; return; } int i = RowAt(e.Location); if (i < 0 || e.Button != MouseButtons.Left) return; if (OnSeller(e.Location) && SellerClicked is not null && _items[i].Seller.Length > 0) SellerClicked(_items[i].Seller); else _items[i].Open(); }
+    private bool OnSeller(Point p) => p.X >= _x[1] && p.X < _x[2] - LogicalToDeviceUnits(8);
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
         if (_dragStart >= 0) { var t = Track; var th = Thumb; float range = Math.Max(1, t.Height - th.Height); ScrollTo(_dragOffset + (int)((e.Y - _dragStart) / range * MaxOffset)); return; }
         bool onThumb = Thumb.Contains(e.Location); if (onThumb != _thumbHover) { _thumbHover = onThumb; Invalidate(); }
         int i = onThumb ? -1 : RowAt(e.Location);
-        if (i != _hover) { _hover = i; Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; _tips.SetToolTip(this, i >= 0 ? _items[i].Tooltip : ""); Invalidate(); }
+        bool seller = i >= 0 && OnSeller(e.Location);
+        if (i != _hover || seller != _sellerHover) { _hover = i; _sellerHover = seller; Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; _tips.SetToolTip(this, i < 0 ? "" : seller ? $"{_items[i].Seller} satışlarını üste al (tekrar tıklayınca kaldırılır)" : _items[i].Tooltip); Invalidate(); }
     }
     protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; _thumbHover = false; _tips.Hide(this); Invalidate(); }
     protected override void OnKeyDown(KeyEventArgs e)
@@ -378,8 +384,9 @@ internal sealed class ReferenceWatchList : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics; g.Clear(BackColor); float s = DeviceDpi / 96f;
-        int pad = LogicalToDeviceUnits(20), right = LogicalToDeviceUnits(22), usable = Math.Max(10, Math.Min(Width - pad - right, LogicalToDeviceUnits(1050)));
+        int pad = LogicalToDeviceUnits(20), right = LogicalToDeviceUnits(22), usable = Math.Max(10, Width - pad - right);
         var x = new int[Cols.Length + 1]; x[0] = pad; for (int c = 0; c < Cols.Length; c++) x[c + 1] = x[c] + (int)(usable * Cols[c]);
+        _x = x;
         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
         for (int c = 0; c < Heads.Length; c++)
             TextRenderer.DrawText(g, Heads[c], ReferenceUi.Font(8.5f), new Rectangle(x[c], 0, x[c + 1] - x[c] - LogicalToDeviceUnits(12), HeadH), ReferenceUi.Muted, flags | (c == 2 ? TextFormatFlags.Right : TextFormatFlags.Default));
@@ -400,11 +407,14 @@ internal sealed class ReferenceWatchList : Control
         for (int i = first; i <= last; i++)
         {
             var it = _items[i]; int top = HeadH + i * RowH - _offset; var row = new Rectangle(0, top, Width - LogicalToDeviceUnits(16), RowH);
-            if (i == _hover) { using var hb = new SolidBrush(Color.FromArgb(29, 30, 34)); g.FillRectangle(hb, row); }
+            if (it.Pinned) { using var pb = new SolidBrush(i == _hover ? Color.FromArgb(40, 36, 27) : Color.FromArgb(33, 30, 24)); g.FillRectangle(pb, row); using var bar = new SolidBrush(ReferenceUi.Gold); g.FillRectangle(bar, 0, top + LogicalToDeviceUnits(6), LogicalToDeviceUnits(3), RowH - LogicalToDeviceUnits(12)); }
+            else if (i == _hover) { using var hb = new SolidBrush(Color.FromArgb(29, 30, 34)); g.FillRectangle(hb, row); }
             g.DrawLine(sep, pad, row.Bottom - 1, Width - right, row.Bottom - 1);
             int gap = LogicalToDeviceUnits(12);
             TextRenderer.DrawText(g, it.Title, ReferenceUi.Semibold(9), new Rectangle(x[0], top, x[1] - x[0] - gap, RowH), ReferenceUi.Text, flags);
-            TextRenderer.DrawText(g, it.Seller, ReferenceUi.Font(9), new Rectangle(x[1], top, x[2] - x[1] - gap, RowH), ReferenceUi.Gold, flags);
+            var sellerFont = i == _hover && _sellerHover ? new Font(ReferenceUi.Font(9), FontStyle.Underline) : ReferenceUi.Font(9);
+            TextRenderer.DrawText(g, it.Seller, sellerFont, new Rectangle(x[1], top, x[2] - x[1] - gap, RowH), ReferenceUi.Gold, flags);
+            if (!ReferenceEquals(sellerFont, ReferenceUi.Font(9))) sellerFont.Dispose();
             TextRenderer.DrawText(g, it.Price, ReferenceUi.Semibold(9), new Rectangle(x[2], top, x[3] - x[2] - gap, RowH), ReferenceUi.Text, flags | TextFormatFlags.Right);
             TextRenderer.DrawText(g, it.UnitPrice, ReferenceUi.Font(9), new Rectangle(x[3], top, x[4] - x[3] - gap, RowH), ReferenceUi.Aqua, flags);
             TextRenderer.DrawText(g, it.Time, ReferenceUi.Font(9), new Rectangle(x[4], top, x[5] - x[4] - gap, RowH), ReferenceUi.Muted, flags);
@@ -425,6 +435,66 @@ internal sealed class ReferenceWatchList : Control
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (var tp = ReferenceUi.Shape(Track, Track.Width / 2f)) { using var tb = new SolidBrush(Color.FromArgb(26, 27, 31)); g.FillPath(tb, tp); }
             using var path = ReferenceUi.Shape(thumb, thumb.Width / 2f); using var fill = new SolidBrush(_thumbHover || _dragStart >= 0 ? Color.FromArgb(86, 88, 96) : Color.FromArgb(58, 59, 66)); g.FillPath(fill, path);
+        }
+    }
+}
+
+/// <summary>Satıcı sıralaması satırı: satıcı, tespit sayısı ve tahmini satış hacmi.</summary>
+internal sealed record SellerBoardItem(string Seller, int Count, decimal Total, string TotalText);
+
+/// <summary>Satış takibinde satıcıları tahmini satış hacmine göre sıralayan dar liste.
+/// Satıra tıklayınca o satıcı seçilir (akışta üste alınır); tekrar tıklayınca kaldırılır.</summary>
+internal sealed class ReferenceSellerBoard : Control
+{
+    private List<SellerBoardItem> _items = new();
+    private int _offset, _hover = -1;
+    internal string Selected { get; set; } = "";
+    internal System.Action<string>? Clicked { get; set; }
+    internal ReferenceSellerBoard()
+    {
+        BackColor = ReferenceUi.Surface; Dock = DockStyle.Fill;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+    }
+    private int RowH => LogicalToDeviceUnits(50);
+    private int MaxOffset => Math.Max(0, _items.Count * RowH - Height);
+    internal void SetItems(List<SellerBoardItem> items, string selected) { _items = items; Selected = selected; _offset = Math.Clamp(_offset, 0, MaxOffset); _hover = -1; Invalidate(); }
+    private int RowAt(Point p) { int i = (p.Y + _offset) / RowH; return p.Y >= 0 && i >= 0 && i < _items.Count ? i : -1; }
+    protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); var v = Math.Clamp(_offset - Math.Sign(e.Delta) * RowH * 2, 0, MaxOffset); if (v != _offset) { _offset = v; Invalidate(); } }
+    protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); int i = RowAt(e.Location); if (i != _hover) { _hover = i; Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; Invalidate(); } }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; Invalidate(); }
+    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); int i = RowAt(e.Location); if (i >= 0 && e.Button == MouseButtons.Left) Clicked?.Invoke(_items[i].Seller); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics; g.Clear(BackColor); float s = DeviceDpi / 96f;
+        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+        if (_items.Count == 0)
+        {
+            TextRenderer.DrawText(g, "Bu dönemde satıcı yok", ReferenceUi.Font(9), new Rectangle(0, LogicalToDeviceUnits(24), Width, LogicalToDeviceUnits(20)), ReferenceUi.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
+            return;
+        }
+        decimal max = Math.Max(1, _items.Max(i => i.Total));
+        int pad = LogicalToDeviceUnits(16), first = _offset / RowH, last = Math.Min(_items.Count - 1, (_offset + Height) / RowH);
+        using var sep = new Pen(Color.FromArgb(30, 31, 35));
+        for (int i = first; i <= last; i++)
+        {
+            var it = _items[i]; int top = i * RowH - _offset; var row = new Rectangle(0, top, Width, RowH);
+            bool selected = string.Equals(it.Seller, Selected, StringComparison.OrdinalIgnoreCase);
+            if (selected || i == _hover) { using var hb = new SolidBrush(selected ? Color.FromArgb(36, 32, 24) : Color.FromArgb(29, 30, 34)); g.FillRectangle(hb, row); }
+            if (selected) { using var bar = new SolidBrush(ReferenceUi.Gold); g.FillRectangle(bar, 0, top + LogicalToDeviceUnits(8), LogicalToDeviceUnits(3), RowH - LogicalToDeviceUnits(16)); }
+            int rankW = LogicalToDeviceUnits(24), amountW = LogicalToDeviceUnits(96);
+            TextRenderer.DrawText(g, (i + 1).ToString(), ReferenceUi.Semibold(9), new Rectangle(pad, top + LogicalToDeviceUnits(6), rankW, LogicalToDeviceUnits(22)), i < 3 ? ReferenceUi.Gold : ReferenceUi.Muted, flags);
+            int nameX = pad + rankW, nameW = Width - nameX - amountW - pad;
+            TextRenderer.DrawText(g, it.Seller, ReferenceUi.Semibold(9), new Rectangle(nameX, top + LogicalToDeviceUnits(6), nameW, LogicalToDeviceUnits(22)), selected ? ReferenceUi.Gold : ReferenceUi.Text, flags);
+            TextRenderer.DrawText(g, it.TotalText, ReferenceUi.Semibold(9), new Rectangle(Width - pad - amountW, top + LogicalToDeviceUnits(6), amountW, LogicalToDeviceUnits(22)), ReferenceUi.Text, flags | TextFormatFlags.Right);
+            TextRenderer.DrawText(g, it.Count + " satış", ReferenceUi.Font(8), new Rectangle(nameX, top + LogicalToDeviceUnits(27), nameW, LogicalToDeviceUnits(16)), ReferenceUi.Muted, flags);
+            // Hacim çubuğu: en yüksek satıcıya göre oransal.
+            var track = new RectangleF(Width - pad - amountW, top + LogicalToDeviceUnits(33), amountW, 4 * s);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var tp = ReferenceUi.Shape(track, 2 * s)) { using var tb = new SolidBrush(ReferenceUi.Field); g.FillPath(tb, tp); }
+            var fillW = Math.Max(4 * s, (float)(track.Width * (double)(it.Total / max)));
+            using (var fp = ReferenceUi.Shape(new RectangleF(track.X + track.Width - fillW, track.Y, fillW, track.Height), 2 * s)) { using var fb = new SolidBrush(selected ? ReferenceUi.Gold : Color.FromArgb(150, 126, 74)); g.FillPath(fb, fp); }
+            g.SmoothingMode = SmoothingMode.None;
+            g.DrawLine(sep, pad, row.Bottom - 1, Width - pad, row.Bottom - 1);
         }
     }
 }
