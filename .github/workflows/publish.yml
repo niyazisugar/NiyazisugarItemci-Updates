@@ -26,6 +26,7 @@ jobs:
       - run: node --check src/NiyazisugarItemci/Web/AdBlock.js
       - run: node tests/adblock.cjs
       - run: node tests/sales.cjs
+      - run: node tests/sales-server.cjs
       - run: node tests/live-market.cjs
       - run: node tests/server-sales.cjs
       - run: node tests/quick-listing.cjs
