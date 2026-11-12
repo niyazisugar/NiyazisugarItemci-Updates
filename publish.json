@@ -1,4 +1,4 @@
 {
-  "version": "2.29.0",
-  "notes": "Satış takibi yenilendi: tahmini satış hacmi, Bugün / 7 gün / 30 gün seçimi, satıcı sıralaması ve satıcıya tıklayınca satışları üste alma. Sinyal gücü daha doğru."
+  "version": "2.30.0",
+  "notes": "Satış takibi daha az satış kaçırıyor: her turda 8 ilan kontrol ediliyor, satıcı sayacı ilanlar arasında paylaşılıyor ve kısmi stok satışları da yakalanıyor."
 }
