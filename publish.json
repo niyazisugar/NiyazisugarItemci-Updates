@@ -1,4 +1,4 @@
 {
-  "version": "2.27.0",
-  "notes": "Satışlarda gerçek sunucu adı gösteriliyor. Tarih aralığı seçilebiliyor, yeni koyu tarih seçici ve kısayollar. Tarih ve fiyat sütunları doğru sıralanıyor."
+  "version": "2.28.0",
+  "notes": "Satışlarda eksik kalan sunucu adları Itemci satılanlar listesinden hızlıca tamamlanıyor."
 }
