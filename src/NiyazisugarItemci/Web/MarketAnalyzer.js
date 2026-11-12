@@ -3140,11 +3140,15 @@ ${categorySectionsHtml}
         }
         return [...rows.values()].sort((a,b) => (a.ageHours ?? 99999) - (b.ageHours ?? 99999)).slice(0, 6);
     };
-    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = [], unitRows = []) => {
+    window.__NiyazisugarServerSalesScan = async (serverId, known, cursor, pageCursor = 1, measurements = [], attempts = {}, priceRepairs = [], sellerSnapshots = [], recordedUrls = [], unitRows = [], options = {}) => {
+        // options.detailBudget: bu turda açılacak ürün sayfası sayısı. options.stores=false: satıcı mağaza
+        // sayfası okunmaz (Itemci mağaza sayfası artık tarayıcıda çiziliyor; ham HTML'de sayaç ve ilan yok).
+        const detailBudget=Math.max(1,Math.min(12,Number(options?.detailBudget)||3));
+        const useStores=options?.stores!==false;
         const server = loadServers().find(s => s.id === serverId);
         if (!server) throw new Error('Sunucu bulunamadı.');
         if (analysisBusy) throw new Error('Piyasa analizi sürüyor; takip birazdan devam eder.');
-        const deadline = Date.now() + 30000;
+        const deadline = Date.now() + (detailBudget>3?48000:30000);
         let rateLimited = false, failed = 0, checked = 0, complete = false;
         let lastRequestAt=0;
         const read = async url => {
@@ -3211,7 +3215,7 @@ ${categorySectionsHtml}
         const sellerResults=[],sellerAttempts=[],suspects=[];
         const knownUrls=new Set([...(known||[]),...trackingRows].map(r=>r.url));
         let storeRequests=0;
-        for(const [key,store] of storeQueue.slice(0,initial?2:1)){
+        for(const [key,store] of (useStores?storeQueue.slice(0,initial?2:1):[])){
             if(Date.now()>=deadline||rateLimited)break;
             storeRequests++;sellerAttempts.push(store.seller);
             try{
@@ -3225,11 +3229,11 @@ ${categorySectionsHtml}
                 }
             }catch{failed++;}
         }
-        let queue=window.__NiyaziSelectWatchQueue(trackingRows,known,measurements,complete,attempts);
+        let queue=window.__NiyaziSelectWatchQueue(trackingRows,known,measurements,complete,attempts,detailBudget);
         const repair=(priceRepairs||[]).find(row=>{try{const u=new URL(row.url);return u.origin==='https://itemci.com'&&u.pathname.startsWith('/product/');}catch{return false;}});
-        queue=window.__NiyaziPlanWatchDetails(queue,suspects,repair?[repair]:[],Math.max(0,3-storeRequests),cursor,attempts);
+        queue=window.__NiyaziPlanWatchDetails(queue,suspects,repair?[repair]:[],Math.max(0,detailBudget-storeRequests),cursor,attempts);
         const sold=[],observations=[],attemptedUrls=[];let attempted=0;
-        for(let i=0;i<Math.min(3,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
+        for(let i=0;i<Math.min(detailBudget,queue.length)&&Date.now()<deadline&&!rateLimited;i++){
             const row=queue[i];attempted++;attemptedUrls.push(row.url);
             try{
                 const url=new URL(row.url);
