@@ -1,4 +1,4 @@
 {
-  "version": "2.26.0",
-  "notes": "Bildirimler küçük ve sade; odak almıyor, tam ekran oyunda çıkmıyor. İlanlarım aktif ilanları Itemci panelinden okuyor. Hızlı ilanda link bulma ve kopyalama. Barbaros2 sunucusu kaldırıldı."
+  "version": "2.27.0",
+  "notes": "Satışlarda gerçek sunucu adı gösteriliyor. Tarih aralığı seçilebiliyor, yeni koyu tarih seçici ve kısayollar. Tarih ve fiyat sütunları doğru sıralanıyor."
 }
