@@ -267,6 +267,8 @@ public sealed partial class MainForm
         _salesServerFilter.SelectedIndex=0;_salesSearch.Text="02";if(_salesGrid.Rows.Count!=1||_salesGrossLabel.Text!=FormatTl(175.55m))throw new Exception("All-time search totals failed.");_salesSearch.Clear();
         RenderSoldSalesPanel();for(int i=0;i<_salesGrid.Rows.Count;i++)_salesGrid.Rows[i].Cells["Cover"].Value=TestThumbnail(i+1);
         ShowPanel(_salesPanel);await Task.Delay(100);await CaptureAsync("sales");
+        // Tarih aralığı seçici: 9–15 gibi bir aralık işaretli halde görüntülenir.
+        {using var rangePicker=new ReferenceRangePicker(TurkeyToday,TurkeyToday.AddDays(-6),TurkeyToday);rangePicker.Location=PointToScreen(new Point(LogicalToDeviceUnits(120),LogicalToDeviceUnits(120)));rangePicker.Show(this);await Task.Delay(400);var pickerRect=rangePicker.Bounds;pickerRect.Inflate(16,16);using var pickerBitmap=new Bitmap(pickerRect.Width,pickerRect.Height);using(var pickerGraphics=Graphics.FromImage(pickerBitmap))pickerGraphics.CopyFromScreen(pickerRect.Location,Point.Empty,pickerRect.Size);pickerBitmap.Save(Path.Combine(output,"design-date-range.png"),ImageFormat.Png);rangePicker.Close();}
         foreach(var size in new[]{new Size(1050,680),new Size(1280,720),new Size(1440,900)}) {
             ClientSize=size;await Task.Delay(100);
             foreach(var panel in new[]{_listingsPanel,_salesPanel,_browserPanel,_serverSalesPanel}) {
