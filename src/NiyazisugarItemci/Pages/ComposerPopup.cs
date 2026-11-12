@@ -246,6 +246,14 @@ public sealed partial class MainForm
             case "importImages":SelectComposerPictures(false);await PushComposerStateAsync(true,true);break;
             case "gallery":await PushComposerStateAsync(false,true);break;
             case "addServer":await AddComposerServerFromWebAsync(message.GetProperty("name").GetString()??"",message.GetProperty("url").GetString()??"");break;
+            case "findLink":
+                if(_composerLastPublished is null||_composerResolvingLink)break;
+                _composerResolvingLink=true;await PushComposerStateAsync();
+                var found=await ResolveComposerPublishedLinkAsync(null,_composerLastPublished);
+                _composerResolvingLink=false;
+                if(IsComposerListingLink(found)){_composerLastLink=found;SaveComposerPopupState();ComposerToast("İlan linki bulundu.");}
+                else ComposerToast("Link henüz görünmüyor; biraz sonra tekrar dene ya da İlanlarım bölümüne bak.");
+                await PushComposerStateAsync();break;
             case "copyLink":if(IsComposerListingLink(_composerLastLink)){Clipboard.SetText(_composerLastLink);ComposerToast("İlan linki kopyalandı.");}break;
             case "openLink":
                 if(IsComposerListingLink(_composerLastLink))
@@ -391,20 +399,26 @@ public sealed partial class MainForm
         }
         catch{return null;}
     }
+    private ComposerDraft? _composerLastPublished;
+    // Yayından sonra mağaza sayfasında yeni ilanı bulur. Önceki liste alınamadıysa da
+    // aynı başlık ve fiyattaki en yeni ilanı kullanır (mağaza sayfası en yeniden sıralı).
     private async Task<string> ResolveComposerPublishedLinkAsync(ComposerStoreSnapshot? before,ComposerDraft draft)
     {
-        if(before is null)return "";
-        for(var attempt=0;attempt<3;attempt++)
+        var storeUrl=before?.url;
+        if(string.IsNullOrWhiteSpace(storeUrl)){try{storeUrl=await DiscoverLoggedInStoreUrlAsync();}catch{}}
+        if(string.IsNullOrWhiteSpace(storeUrl))return "";
+        for(var attempt=0;attempt<6;attempt++)
         {
             try
             {
-                var html=await FetchItemciHtmlAsync(before.url).WaitAsync(TimeSpan.FromSeconds(8));
-                var matches=ParseCurrentListings(html,before.url).Where(l=>!before.urls.Contains(l.Url)&&IsComposerListingLink(l.Url)&&
+                var html=await FetchItemciHtmlAsync(storeUrl).WaitAsync(TimeSpan.FromSeconds(8));
+                var same=ParseCurrentListings(html,storeUrl).Where(l=>IsComposerListingLink(l.Url)&&
                     NormalizeHtmlText(l.Title).Equals(NormalizeHtmlText(draft.title),StringComparison.OrdinalIgnoreCase)&&ParseTurkishMoney(Regex.Replace(l.PriceText,@"[^0-9.,]",""))==draft.price).ToList();
-                if(matches.Count==1)return matches[0].Url;
+                var fresh=before is null?same:same.Where(l=>!before.urls.Contains(l.Url)).ToList();
+                if(fresh.Count>=1)return fresh[0].Url;
             }
             catch{ }
-            if(attempt<2)await Task.Delay(1200);
+            if(attempt<5)await Task.Delay(2000);
         }
         return "";
     }

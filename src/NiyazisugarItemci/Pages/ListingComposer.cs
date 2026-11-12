@@ -150,7 +150,7 @@ public sealed partial class MainForm
             if(result.ok)
             {
                 _composerStatusKind="success";_composerStatus.Text="İlan yayınlandı. Yeni ilan için geri sayım başladı.";
-                _composerUncertain=false;_composerCooldownUntilUtc=DateTime.UtcNow.AddSeconds(60);NudgeAutoBumpDiscovery();
+                _composerUncertain=false;_composerCooldownUntilUtc=DateTime.UtcNow.AddSeconds(60);NudgeAutoBumpDiscovery();_composerLastPublished=draft;
                 _composerLastLink=IsComposerListingLink(result.url)?result.url:"";SaveComposerPopupState();SaveComposerDrafts();
                 if(_composerLastLink.Length==0)
                 {
