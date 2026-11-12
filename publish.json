@@ -1,4 +1,4 @@
 {
-  "version": "2.24.0",
-  "notes": "Piyasa analizi artık son 2 günü kapsıyor; 2 gün önce yazan ilanlar dahil. Tarama daha hızlı ve yeni ilanları kaçırmadan daha geniş."
+  "version": "2.25.0",
+  "notes": "Hızlı ilan yeniden Itemciye gönderiliyor; Itemci formundaki yeni resim sınırı tanınıyor. Hızlı İlan penceresi arka planda hazırlanıyor ve anında açılıyor."
 }
