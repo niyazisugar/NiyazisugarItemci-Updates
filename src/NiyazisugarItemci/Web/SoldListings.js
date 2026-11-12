@@ -143,4 +143,17 @@
         } finally { window.__niyaziSoldScanRunning = false; }
     }
     window.__niyaziScanSoldListings = scan;
+    // Yalnızca liste satırlarını okur (ayrıntı penceresi açmaz): ilan no, başlık, sunucu.
+    // Eski satışlarda eksik kalan sunucu adlarını hızlıca tamamlamak için kullanılır.
+    window.__niyaziReadSoldServers = async () => {
+        if (location.pathname.includes('/user/login')) throw new Error('Itemci hesabına giriş yapman gerekiyor.');
+        const found = await waitFor(() => {
+            const list = rows();
+            if (list.length) return list;
+            if (/ilan bulunamad|ilaniniz bulun|sonuc bulunamadi|ilaniniz yok|ilan yok|kayit bulunamadi/.test(norm(document.body.innerText))) return [];
+            return null;
+        }, 15000);
+        if (!found) throw new Error('Satılan ilan listesi okunamadı.');
+        return {Empty: found.length === 0, Rows: found.map(row => ({Id: row.id, Title: clean(row.el.querySelector('h3,h4,h2,a[href*="/product/"]')?.innerText || ''), Server: serverFromRow(row.el)}))};
+    };
 })();
