@@ -10,9 +10,10 @@
  // image URL that also appears in this form's preview.
  function imageCount(form){
   const text=norm(form.innerText);
-  const count=text.match(/(?:yuklenen|eklenen)\s*(?:resim(?:ler)?|gorsel(?:ler)?|fotograf(?:lar)?)\s*[:(]?\s*(\d+)\s*\/\s*4\b/)||
-   text.match(/(?:uploaded|selected)\s*(?:images|photos)\s*[:(]?\s*(\d+)\s*\/\s*4\b/);
-  return count&&Number(count[1])<=4?Number(count[1]):null;
+  // Itemci üst sınırı değiştirebilir (önce 4, şimdi 8): "Yüklenen Resimler (1/8)".
+  const count=text.match(/(?:yuklenen|eklenen)\s*(?:resim(?:ler)?|gorsel(?:ler)?|fotograf(?:lar)?)\s*[:(]?\s*(\d+)\s*\/\s*(\d+)\b/)||
+   text.match(/(?:uploaded|selected)\s*(?:images|photos)\s*[:(]?\s*(\d+)\s*\/\s*(\d+)\b/);
+  return count&&Number(count[1])<=Number(count[2])?Number(count[1]):null;
  }
  function imageKey(value){
   try{const url=new URL(value,location.href);return /^https?:$/.test(url.protocol)?url.origin+url.pathname:'';}catch{return '';}
