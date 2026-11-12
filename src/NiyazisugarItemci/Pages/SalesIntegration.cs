@@ -340,6 +340,7 @@ public sealed partial class MainForm
                 _salesStatusLabel.Text=$"{_salesHistory.Count} kayıt kaydedildi · Sıradaki bölüm: sayfa {_salesResumePage} · Sunucu takibine sıra verildi; tarama otomatik devam edecek.";
             HandleNewSalesNotifications(_salesHistory.Values.Where(s => s.Timestamp.Date == TurkeyToday).ToList());
             _salesInitialized = true;
+            if(!interrupted){try{await BackfillSalesServersAsync(fullHistory);}catch(Exception backfillError){_salesStatusLabel.Text="Eksik sunucu adları şu an tamamlanamadı; sonraki taramada tekrar denenecek. "+backfillError.Message;_salesStatusLabel.ForeColor=Color.Orange;_salesServerBackfillUtc=DateTime.UtcNow.AddMinutes(5);}}
         }
         catch (Exception ex)
         {
@@ -351,6 +352,82 @@ public sealed partial class MainForm
         }
         finally { if(_soldScanView is not null){Controls.Remove(_soldScanView);_soldScanView.Dispose();_soldScanView=null;}_soldScanBusy = false; if(_salesPanel.Visible&&!IsDisposed)RenderSoldSalesPanel();
             if(!IsDisposed&&!Disposing)await ScanAllServerSalesAsync(); }
+    }
+
+    private DateTime _salesServerBackfillUtc;
+    private sealed class SoldServerRow { public string Id { get; set; } = ""; public string Title { get; set; } = ""; public string Server { get; set; } = ""; }
+    private sealed class SoldServerPage { public bool Empty { get; set; } public List<SoldServerRow> Rows { get; set; } = new(); }
+    private static string SalesTitleKey(string text)=>new string((text??"").ToLowerInvariant().Replace('ı','i').Replace('İ','i').Normalize(System.Text.NormalizationForm.FormD).Where(char.IsLetterOrDigit).ToArray());
+
+    // Sunucusu "Bilinmeyen sunucu" kalan eski satışlar için Satılanlar listesini ayrıntı
+    // açmadan hızlıca sayfa sayfa okur; ilan numarasıyla (yoksa aynı başlıkla) sunucuyu tamamlar.
+    private async Task BackfillSalesServersAsync(bool force)
+    {
+        bool Missing(SaleRecord s)=>string.IsNullOrWhiteSpace(s.Server)||s.Server=="Bilinmeyen sunucu";
+        if(!_salesHistory.Values.Any(Missing))return;
+        if(!force&&DateTime.UtcNow<_salesServerBackfillUtc)return;
+        _salesServerBackfillUtc=DateTime.UtcNow.AddMinutes(30);
+        var byId=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+        var byTitle=new Dictionary<string,HashSet<string>>();
+        var script=await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory,"SoldListings.js"));
+        var core=_soldScanView!.CoreWebView2;
+        string previous="";int fixedCount=0;
+        for(int page=1;page<=60;page++)
+        {
+            if(SiteAutomationBlocked||_composerPopup is not null||_composerBusy||IsDisposed)break;
+            _salesStatusLabel.Text=$"Eksik sunucu adları tamamlanıyor · Sayfa {page}";_salesStatusLabel.ForeColor=TextMuted;
+            await Task.Delay(1200);
+            await NavigateSoldPageAsync(page);
+            await core.ExecuteScriptAsync(script);
+            var data=await ReadSoldServerPageAsync(core);
+            var fingerprint=string.Join("|",data.Rows.Select(r=>r.Id));
+            if(data.Empty||data.Rows.Count==0||fingerprint==previous)break;
+            previous=fingerprint;
+            foreach(var row in data.Rows)
+            {
+                var server=DisplaySalesServer(row.Server);
+                if(server=="Bilinmeyen sunucu")continue;
+                if(row.Id.Length>0)byId[row.Id]=server;
+                var key=SalesTitleKey(row.Title);
+                if(key.Length>0){if(!byTitle.TryGetValue(key,out var set))byTitle[key]=set=new();set.Add(server);}
+            }
+            foreach(var record in _salesHistory.Values.Where(Missing))
+            {
+                string? server=null;
+                if(!string.IsNullOrWhiteSpace(record.ListingId)&&byId.TryGetValue(record.ListingId,out var s1))server=s1;
+                else if(byTitle.TryGetValue(SalesTitleKey(record.ItemTitle),out var set)&&set.Count==1)server=set.First();
+                if(server is not null){record.Server=server;fixedCount++;}
+            }
+            if(fixedCount>0){SaveSalesHistory();RenderSoldSalesPanel();}
+            if(!_salesHistory.Values.Any(Missing))break;
+        }
+        var left=_salesHistory.Values.Count(Missing);
+        _salesStatusLabel.Text=left==0?$"Sunucu adları tamamlandı · {fixedCount} satış güncellendi.":$"{fixedCount} satışın sunucusu tamamlandı · {left} satışın sunucusu Itemci listesinde bulunamadı.";
+        _salesStatusLabel.ForeColor=left==0?Green:TextMuted;
+    }
+
+    private static async Task<SoldServerPage> ReadSoldServerPageAsync(CoreWebView2 core)
+    {
+        var token=Guid.NewGuid().ToString("N");
+        var completion=new TaskCompletionSource<SoldServerPage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Received(object? sender,CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            try
+            {
+                using var json=JsonDocument.Parse(args.WebMessageAsJson);var root=json.RootElement;
+                if(!root.TryGetProperty("serversToken",out var id)||id.GetString()!=token)return;
+                if(root.TryGetProperty("error",out var error)){completion.TrySetException(new InvalidOperationException(error.GetString()));return;}
+                completion.TrySetResult(root.GetProperty("result").Deserialize<SoldServerPage>()??new SoldServerPage());
+            }
+            catch(Exception ex){completion.TrySetException(ex);}
+        }
+        core.WebMessageReceived+=Received;
+        try
+        {
+            await core.ExecuteScriptAsync($"window.__niyaziReadSoldServers().then(result => window.chrome.webview.postMessage({{serversToken:'{token}',result}})).catch(e => window.chrome.webview.postMessage({{serversToken:'{token}',error:String(e.message || e)}}));");
+            return await completion.Task.WaitAsync(TimeSpan.FromSeconds(25));
+        }
+        finally{core.WebMessageReceived-=Received;}
     }
 
     private sealed class SoldScanResult
