@@ -1911,6 +1911,18 @@ public sealed partial class MainForm : Form
             _listingsStatusLabel.Text = "Aktif ilanların yükleniyor...";
             _listingsStatusLabel.ForeColor = TextMuted;
 
+            // Önce Itemci > İlanlarım (Satışta) sayfası: mağaza linki gerekmez, en güncel kaynak.
+            var panelListings = await ReadPanelActiveListingsAsync();
+            if (panelListings is not null)
+            {
+                RenderCurrentListings(panelListings);
+                _listingsStatusLabel.Text = panelListings.Count > 0
+                    ? $"{panelListings.Count} aktif ilan bulundu. ⧉ = linki kopyala · ↗ = ilana git"
+                    : "Şu anda satışta ilanın yok.";
+                _listingsStatusLabel.ForeColor = panelListings.Count > 0 ? Green : TextMuted;
+                return;
+            }
+
             // En sağlam kaynak: satıcının herkese açık mağaza/profil sayfası.
             // Bu sayfada aktif ilanların product linkleri doğrudan bulunuyor.
             var storeUrl = await DiscoverLoggedInStoreUrlAsync();
