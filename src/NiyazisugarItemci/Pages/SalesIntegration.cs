@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
@@ -13,6 +14,8 @@ public sealed partial class MainForm
     private readonly Label _salesTotals = new() { Dock = DockStyle.Bottom, Height = 54, ForeColor = PremiumTheme.Gold, TextAlign = ContentAlignment.MiddleRight };
     private bool _salesFiltering;
     private bool _salesAllTime = true;
+    // Seçili tarih aralığı: _salesDate başlangıç, _salesRangeEnd bitiş (ikisi de dahil).
+    private DateTime _salesRangeEnd = DateTime.Today;
     private ReferenceButton? _salesAllTimeButton;
     private Label? _salesPeriodLabel;
     private WebView2? _soldScanView;
@@ -45,23 +48,29 @@ public sealed partial class MainForm
     private bool _salesPeriodSync;
     private void OpenSalesCalendar(Control anchor)
     {
-        using var picker=new Form {Text="Satış günü",FormBorderStyle=FormBorderStyle.FixedToolWindow,StartPosition=FormStartPosition.Manual,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,BackColor=ReferenceUi.Surface,Padding=new Padding(8),ShowInTaskbar=false};
-        var calendar=new MonthCalendar {MaxSelectionCount=1,SelectionStart=_salesDate.Value,SelectionEnd=_salesDate.Value};
-        calendar.DateSelected+=(_,e)=>{_salesDate.Value=e.Start;SetSalesPeriod(false);picker.Close();};picker.Controls.Add(calendar);
-        var point=anchor.PointToScreen(new Point(0,anchor.Height));var area=Screen.FromControl(anchor).WorkingArea;picker.Location=new Point(Math.Min(point.X,area.Right-270),Math.Min(point.Y,area.Bottom-240));
-        picker.ShowDialog(this);
-        RenderSoldSalesPanel();
+        DateTime? start=_salesAllTime?null:_salesDate.Value.Date, end=_salesAllTime?null:_salesRangeEnd.Date;
+        using var picker=new ReferenceRangePicker(TurkeyToday,start,end);
+        var point=anchor.PointToScreen(new Point(0,anchor.Height+LogicalToDeviceUnits(6)));var area=Screen.FromControl(anchor).WorkingArea;
+        picker.Location=new Point(Math.Max(area.Left,Math.Min(point.X,area.Right-picker.Width)),Math.Max(area.Top,Math.Min(point.Y,area.Bottom-picker.Height)));
+        if(picker.ShowDialog(this)==DialogResult.OK&&picker.ResultStart is DateTime from)
+        {
+            _salesRangeEnd=(picker.ResultEnd??from).Date;
+            _salesSettingRange=true;_salesDate.Value=from.Date;_salesSettingRange=false;
+            SetSalesPeriod(false);
+        }
+        else RenderSoldSalesPanel();
     }
+    private bool _salesSettingRange;
     private void BuildSoldSalesPanel()
     {
         _salesPanel.Dock=DockStyle.Fill;_salesPanel.BackColor=ReferenceUi.Background;_salesPanel.Padding=PageLayout.PagePadding(this);
         _salesPeriodLabel=new Label {Text="Kayıtlı tüm satışlar · sunucu ve arama filtreleri uygulanır"};
         foreach(var label in new[]{_salesGrossLabel,_salesCommissionLabel,_salesNetLabel})label.Text="0,00 TL";_salesCountLabel.Text="0";
         _salesStatusLabel.Text="Satış geçmişi yüklenmeyi bekliyor";
-        _salesDate.Value=TurkeyToday;_salesDate.ValueChanged+=(_,_)=>SetSalesPeriod(false);
+        _salesDate.Value=TurkeyToday;_salesRangeEnd=TurkeyToday;_salesDate.ValueChanged+=(_,_)=>{if(!_salesSettingRange)SetSalesPeriod(false);};
         _salesPeriodModel.Items.AddRange(new object[]{"Tümü","Bugün","Tarih seç"});_salesPeriodModel.SelectedIndex=0;
         var period=new ReferenceSegmented(_salesPeriodModel);
-        _salesPeriodModel.SelectedIndexChanged+=(_,_)=>{if(_salesPeriodSync)return;switch(_salesPeriodModel.SelectedIndex){case 0:SetSalesPeriod(true);break;case 1:_salesDate.Value=TurkeyToday;SetSalesPeriod(false);break;case 2:OpenSalesCalendar(period);break;}};
+        _salesPeriodModel.SelectedIndexChanged+=(_,_)=>{if(_salesPeriodSync)return;switch(_salesPeriodModel.SelectedIndex){case 0:SetSalesPeriod(true);break;case 1:_salesRangeEnd=TurkeyToday;_salesSettingRange=true;_salesDate.Value=TurkeyToday;_salesSettingRange=false;SetSalesPeriod(false);break;case 2:OpenSalesCalendar(period);break;}};
         period.Reselected+=i=>{if(i==2)OpenSalesCalendar(period);};
         period.Width=period.PreferredWidthFor()+LogicalToDeviceUnits(40);
         _salesServerFilter.Items.Add("Tüm sunucular");_salesServerFilter.SelectedIndex=0;_salesServerFilter.SelectedIndexChanged+=(_,_)=>{if(!_salesFiltering)RenderSoldSalesPanel();};_salesSearch.TextChanged+=(_,_)=>RenderSoldSalesPanel();
@@ -81,6 +90,20 @@ public sealed partial class MainForm
             e.PaintBackground(e.ClipBounds,true);var row=_salesGrid.Rows[e.RowIndex];var first=Convert.ToString(e.FormattedValue)??"";var second=Convert.ToString(row.Cells[name=="Date"?"Time":"Server"].Value)??"";
             var bounds=e.CellBounds;bounds.Inflate(-10,-6);var bold=ReferenceUi.Bold(9.5f);TextRenderer.DrawText(e.Graphics,first,name=="Item"?bold:ReferenceUi.Font(9.5f),new Rectangle(bounds.X,bounds.Y+6,bounds.Width,bounds.Height/2),ReferenceUi.Text,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.SingleLine);TextRenderer.DrawText(e.Graphics,second,ReferenceUi.Font(8.5f),new Rectangle(bounds.X,bounds.Y+bounds.Height/2,bounds.Width,bounds.Height/2),ReferenceUi.Muted,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.SingleLine);using var line=new Pen(ReferenceUi.Line);e.Graphics.DrawLine(line,e.CellBounds.Left,e.CellBounds.Bottom-1,e.CellBounds.Right,e.CellBounds.Bottom-1);e.Handled=true;
         };
+        // Sütun başlığına basınca metin değil gerçek değer sıralanır: tarih/saat ve tutarlar.
+        _salesGrid.SortCompare+=(_,e)=>{
+            if(_salesGrid.Rows[e.RowIndex1].Tag is not SaleRecord a||_salesGrid.Rows[e.RowIndex2].Tag is not SaleRecord b)return;
+            int result=e.Column.Name switch
+            {
+                "Date"=>a.Timestamp.CompareTo(b.Timestamp),
+                "Gross"=>a.GrossAmount.CompareTo(b.GrossAmount),
+                "Commission"=>a.CommissionAmount.CompareTo(b.CommissionAmount),
+                "Net"=>a.NetAmount.CompareTo(b.NetAmount),
+                "Item"=>string.Compare(a.ItemTitle,b.ItemTitle,StringComparison.CurrentCultureIgnoreCase),
+                _=>0
+            };
+            e.SortResult=result!=0?result:a.Timestamp.CompareTo(b.Timestamp);e.Handled=true;
+        };
         var table=new ReferencePanel {Dock=DockStyle.Fill,Padding=new Padding(1)};
         var cardHeader=PageLayout.CardHeader(this,"Satış detayları",search,260);
         var totals=new ReferenceSalesFooter(_salesGrid,_salesGrossLabel,_salesCommissionLabel,_salesNetLabel,_salesTotals) {Dock=DockStyle.Bottom,Height=LogicalToDeviceUnits(44)};
@@ -98,9 +121,11 @@ public sealed partial class MainForm
     private void RenderSoldSalesPanel()
     {
         var selected = _salesDate.Value.Date;
-        _salesPeriodSync=true;if(_salesPeriodModel.Items.Count==3){var today=selected==TurkeyToday;_salesPeriodModel.Items[2]=_salesAllTime||today?"Tarih seç":selected.ToString("dd MMM yyyy",CultureInfo.GetCultureInfo("tr-TR"));_salesPeriodModel.SelectedIndex=_salesAllTime?0:today?1:2;}_salesPeriodSync=false;
+        var rangeEnd = _salesRangeEnd.Date<selected?selected:_salesRangeEnd.Date;
+        var single = rangeEnd==selected;
+        _salesPeriodSync=true;if(_salesPeriodModel.Items.Count==3){var today=single&&selected==TurkeyToday;_salesPeriodModel.Items[2]=_salesAllTime||today?"Tarih seç":ReferenceRangePicker.RangeText(selected,rangeEnd);_salesPeriodModel.SelectedIndex=_salesAllTime?0:today?1:2;}_salesPeriodSync=false;
         if(_salesAllTimeButton is not null){_salesAllTimeButton.GoldOutline=_salesAllTime;_salesAllTimeButton.Selected=_salesAllTime;_salesAllTimeButton.Invalidate();}
-        if(_salesPeriodLabel is not null)_salesPeriodLabel.Text=_salesAllTime?"Kayıtlı tüm satışlar · sunucu ve arama filtreleri uygulanır":selected.ToString("dd MMMM yyyy",CultureInfo.GetCultureInfo("tr-TR"))+" · seçili günün satışları ve net kazancı";
+        if(_salesPeriodLabel is not null)_salesPeriodLabel.Text=_salesAllTime?"Kayıtlı tüm satışlar · sunucu ve arama filtreleri uygulanır":ReferenceRangePicker.RangeText(selected,rangeEnd)+(single?" · seçili günün satışları ve net kazancı":" · seçili tarih aralığındaki satışlar ve net kazanç");
         var chosenServer=_salesServerFilter.SelectedItem?.ToString();
         var names=_salesHistory.Values.Select(x=>x.Server).Distinct().OrderBy(x=>x).ToArray();
         if(!names.SequenceEqual(_salesServerFilter.Items.Cast<string>().Skip(1))) {
@@ -108,7 +133,7 @@ public sealed partial class MainForm
             _salesServerFilter.SelectedItem=chosenServer;if(_salesServerFilter.SelectedIndex<0)_salesServerFilter.SelectedIndex=0;_salesFiltering=false;
         }
         var query=_salesSearch.Text.Trim();
-        var sales = _salesHistory.Values.Where(s => (_salesAllTime || s.Timestamp.Date == selected) && (chosenServer is null or "Tüm sunucular" || s.Server==chosenServer) && (query.Length==0 || s.ItemTitle.Contains(query,StringComparison.CurrentCultureIgnoreCase))).OrderByDescending(s => s.Timestamp).ToList();
+        var sales = _salesHistory.Values.Where(s => (_salesAllTime || (s.Timestamp.Date >= selected && s.Timestamp.Date <= rangeEnd)) && (chosenServer is null or "Tüm sunucular" || s.Server==chosenServer) && (query.Length==0 || s.ItemTitle.Contains(query,StringComparison.CurrentCultureIgnoreCase))).OrderByDescending(s => s.Timestamp).ToList();
         var gross = sales.Sum(s => s.GrossAmount);
         var net = sales.Sum(s => s.NetAmount);
         _salesGrossLabel.Text = FormatTl(gross);
@@ -116,12 +141,14 @@ public sealed partial class MainForm
         _salesNetLabel.Text = FormatTl(net);
         _salesCountLabel.Text = sales.Count.ToString();
         _salesTotals.Text = $"TOPLAM   ·   {sales.Count} satış\nSatış: {FormatTl(gross)}   ·   Komisyon: {FormatTl(gross-net)}   ·   Net: {FormatTl(net)}";
+        var sortColumn=_salesGrid.SortedColumn;var sortOrder=_salesGrid.SortOrder;
         foreach(DataGridViewRow old in _salesGrid.Rows) (old.Cells["Cover"].Value as Image)?.Dispose();
         _salesGrid.Rows.Clear();
         foreach (var sale in sales)
         {
             int row = _salesGrid.Rows.Add(null, sale.ItemTitle, sale.Server, sale.Timestamp.ToString("dd.MM.yyyy"), sale.Timestamp.ToString("HH:mm"), FormatTl(sale.GrossAmount), FormatTl(sale.CommissionAmount), FormatTl(sale.NetAmount));
             _salesGrid.Rows[row].Height = LogicalToDeviceUnits(56);
+            _salesGrid.Rows[row].Tag = sale;
             if(row<30 && !_soldScanBusy) _=LoadSaleThumbnailAsync(_salesGrid.Rows[row],sale.ImageUrl);
             _salesGrid.Rows[row].Cells["Commission"].Style.ForeColor = ReferenceUi.Muted;
             _salesGrid.Rows[row].Cells["Gross"].Style.ForeColor = ReferenceUi.Text;
@@ -129,6 +156,18 @@ public sealed partial class MainForm
             _salesGrid.Rows[row].Cells["Net"].Style.SelectionForeColor=ReferenceUi.Gold;
             _salesGrid.Rows[row].Cells["Net"].Style.Font=ReferenceUi.Bold(9.5f);
         }
+        // Yenilemeden sonra kullanıcının seçtiği sıralama korunur.
+        if(sortColumn is not null&&sortOrder!=SortOrder.None)_salesGrid.Sort(sortColumn,sortOrder==SortOrder.Ascending?ListSortDirection.Ascending:ListSortDirection.Descending);
+    }
+
+    // Itemci "Osi2" yazar; uygulamadaki sunucu adı ("OSİ2") varsa o gösterilir.
+    private string DisplaySalesServer(string raw)
+    {
+        var value=(raw??"").Trim();
+        if(value.Length==0||value=="Bilinmeyen sunucu")return "Bilinmeyen sunucu";
+        static string Key(string text)=>new string(text.ToLowerInvariant().Replace('ı','i').Replace('İ','i').Normalize(System.Text.NormalizationForm.FormD).Where(c=>char.IsLetterOrDigit(c)).ToArray());
+        var match=_marketServers.FirstOrDefault(s=>Key(s.Name)==Key(value));
+        return match?.Name??value;
     }
 
     private async Task LoadSaleThumbnailAsync(DataGridViewRow row,string address)
@@ -259,10 +298,15 @@ public sealed partial class MainForm
                     { failed++; continue; }
                     // Replace by order ID. Refreshes cannot double-count a sale.
                     _salesHistory.TryGetValue(data.OrderId,out var previous);
+                    data.Server=DisplaySalesServer(data.Server);
                     if(data.Server=="Bilinmeyen sunucu" && !string.IsNullOrWhiteSpace(previous?.Server)) data.Server=previous.Server;
                     if(string.IsNullOrWhiteSpace(data.ImageUrl))data.ImageUrl=previous?.ImageUrl??"";
                     _salesHistory[data.OrderId] = new SaleRecord { OrderId = data.OrderId, ListingId = data.ListingId, ItemTitle = data.ItemTitle, Server = data.Server, ImageUrl = data.ImageUrl, Timestamp = timestamp, GrossAmount = gross, IsDelivered = data.IsDelivered };
                 }
+                // Ayrıntısı daha önce okunmuş satışların sunucusu da liste satırından tamamlanır.
+                foreach(var record in _salesHistory.Values)
+                    if(record.Server=="Bilinmeyen sunucu"&&!string.IsNullOrWhiteSpace(record.ListingId)&&result.ListingServers.TryGetValue(record.ListingId,out var listingServer))
+                        record.Server=DisplaySalesServer(listingServer);
                 SaveSalesHistory();
                 AdvanceSalesScanCursor(result);
                 RenderSoldSalesPanel();
@@ -317,6 +361,7 @@ public sealed partial class MainForm
         public bool Empty { get; set; }
         public List<string> ProcessedIds { get; set; } = new();
         public bool PageComplete { get; set; }
+        public Dictionary<string,string> ListingServers { get; set; } = new();
     }
     private sealed class SoldDetail
     {
