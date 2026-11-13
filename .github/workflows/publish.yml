@@ -30,6 +30,7 @@ jobs:
       - run: node tests/live-market.cjs
       - run: node tests/server-sales.cjs
       - run: node tests/server-sales-budget.cjs
+      - run: node tests/message-unread.cjs
       - run: node tests/quick-listing.cjs
       - run: node tests/listing-composer.cjs
       - run: node tests/composer-view.cjs
