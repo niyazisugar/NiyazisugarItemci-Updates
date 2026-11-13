@@ -4536,13 +4536,23 @@ public sealed partial class MainForm : Form
                             .filter((x, i, arr) => i === 0 || x !== arr[i - 1]);
                     };
 
+                    // Okunmamış sayısı yalnızca rozetten okunur (Itemci: küçük "rounded-full" span).
+                    // Müşterinin yazdığı "25" gibi bir son mesaj önizlemesi sayı rozeti değildir.
+                    const isBadge = (n) => {
+                        const c = norm(n.className || '');
+                        if (n.tagName === 'P' || c.includes('truncate') || c.includes('line-clamp')) return false;
+                        if (/rounded-full|badge|unread|count/.test(c)) return true;
+                        const r = n.getBoundingClientRect();
+                        return r.width > 0 && r.width <= 32 && r.height <= 24;
+                    };
+
                     const getSmallNumbers = (el) => {
                         const nums = [];
 
                         for (const n of el.querySelectorAll('span,div,b,strong')) {
                             const raw = clean(n.textContent);
 
-                            if (/^\d{1,2}$/.test(raw)) {
+                            if (/^\d{1,2}$/.test(raw) && isBadge(n)) {
                                 const v = Number(raw);
                                 if (v > 0 && v <= 99)
                                     nums.push(v);
@@ -4757,6 +4767,7 @@ public sealed partial class MainForm : Form
                             nt.includes('okunmamış');
 
                         candidates.push({
+                            el,
                             name,
                             preview,
                             unread,
@@ -4783,6 +4794,8 @@ public sealed partial class MainForm : Form
                             : `name:${norm(c.name)}`;
 
                         if (seen.has(key)) continue;
+                        // Aynı satırın iç/dış kutusu ayrı konuşma sayılmasın (yüksek puanlı olan kalır).
+                        if (deduped.some(d => d.el.contains(c.el) || c.el.contains(d.el))) continue;
                         seen.add(key);
                         deduped.push(c);
                     }
@@ -4828,7 +4841,7 @@ public sealed partial class MainForm : Form
                         title: document.title,
                         globalUnread: GLOBAL_UNREAD,
                         selected: conversations,
-                        topCandidates: deduped.slice(0, 12)
+                        topCandidates: deduped.slice(0, 12).map(({ el, ...rest }) => rest)
                     }, null, 2);
 
                     return JSON.stringify({
