@@ -21,7 +21,7 @@ public sealed partial class MainForm
         {
             if (!File.Exists(WatchPath)) return;
             var saved = JsonSerializer.Deserialize<Dictionary<string, ServerWatch>>(File.ReadAllText(WatchPath));
-            foreach (var entry in saved ?? new()) _serverWatch[entry.Key] = entry.Value;
+            foreach (var entry in saved ?? new()) { entry.Value.dismissed ??= new(StringComparer.OrdinalIgnoreCase); PruneBulkWatchSales(entry.Value); _serverWatch[entry.Key] = entry.Value; }
         }
         catch { _liveStatus.Text = "Kayıtlar okunamadı; takip yeniden başlayacak."; }
     }
@@ -34,9 +34,10 @@ public sealed partial class MainForm
     }
     // Kesin: ürün sayfasında "satıldı" işareti. Güçlü: ilan satışa kapandı ve satıcı sayacı arttı,
     // son açık ölçüm en fazla 6 saat önce. Diğerleri (eski ölçüm, yalnızca kategori görüntüsü) olasıdır.
-    private static bool WatchSaleStrong(WatchSale sale)=>sale.evidence=="explicit"||sale.evidence=="stock"||(sale.evidence=="counter"&&sale.baselineAgeMinutes<=360);
+    private static bool WatchSaleStrong(WatchSale sale)=>!IsWatchPlaceholder(sale.listing.title)&&(sale.evidence=="explicit"||sale.evidence=="stock"||(sale.evidence=="counter"&&sale.baselineAgeMinutes<=360));
     private static string WatchSaleSignal(WatchSale sale)=>sale.evidence switch
     {
+        _ when IsWatchPlaceholder(sale.listing.title)=>"Olası · duyuru ilanı",
         "explicit"=>"Kesin · satıldı",
         "stock"=>$"Güçlü · kısmi satış +{sale.sellerIncrease}",
         "counter" when sale.baselineAgeMinutes<=360=>$"Güçlü · sayaç +{sale.sellerIncrease}",
@@ -338,9 +339,10 @@ public sealed partial class MainForm
                 current.categoryCounterAtUtc<=current.categorySeenAtUtc&&current.categoryCounterAtUtc>=current.categorySeenAtUtc.AddMinutes(-10)&&
                 DateTimeOffset.TryParse(current.createdAt,out var created)&&created.UtcDateTime<=current.categorySeenAtUtc&&
                 DateTimeOffset.TryParse(current.updatedAt,out var updated)&&updated.UtcDateTime>current.categorySeenAtUtc&&updated.UtcDateTime<=nowUtc.AddMinutes(1);
-            if(!current.fromStore&&previous is not null&&!current.available&&!expired&&sameSeller&&(directSignal||categorySignal)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
+            if(current.available)state.dismissed.Remove(current.url);
+            if(!current.fromStore&&previous is not null&&!current.available&&!expired&&sameSeller&&(directSignal||categorySignal)&&!state.dismissed.Contains(current.url)&&!state.sales.Any(s=>s.listing.url==current.url)&&state.known.TryGetValue(current.url,out var listing))
             {
-                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence=directSignal?"counter":"category-counter",sellerIncrease=directSignal?counterDelta:categoryDelta,baselineAgeMinutes=directSignal?(int)Math.Max(0,(nowUtc-current.lastAvailableAtUtc).TotalMinutes):0,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc});
+                state.sales.Add(new WatchSale {listing=listing,detectedAt=TimeZoneInfo.ConvertTimeFromUtc(nowUtc,TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")),evidence=directSignal?"counter":"category-counter",sellerIncrease=directSignal?counterDelta:categoryDelta,baselineAgeMinutes=directSignal?(int)Math.Max(0,(nowUtc-current.lastAvailableAtUtc).TotalMinutes):0,priceFromDetail=current.price>0,priceCheckAttemptUtc=nowUtc,sellerId=current.sellerId,sellerCount=current.salesCount,listingUpdatedAt=current.updatedAt});
                 state.known.Remove(current.url);state.pending.Remove(current.url);
             }
             state.observations[current.url]=current;
@@ -349,6 +351,40 @@ public sealed partial class MainForm
             // otherwise its later sale can never be correlated.
 
         }
+        PruneBulkWatchSales(state);
+    }
+    // Satıcı birden çok ilanını aynı anda "satışta değil" yaparsa (aynı saniyede güncellenmiş ilanlar)
+    // ve satış sayacı ilan sayısı kadar artmadıysa bu satış değil toplu düzenlemedir: kayıtlar silinir,
+    // ilanlar izlemeye geri döner ve tekrar açık görülene kadar satış sayılmaz.
+    private static void PruneBulkWatchSales(ServerWatch state)
+    {
+        static DateTime Stamp(WatchSale s)=>DateTimeOffset.TryParse(s.listingUpdatedAt,out var u)?u.UtcDateTime:s.detectedAt;
+        var candidates=state.sales.Where(s=>s.evidence is "counter" or "category-counter"&&!string.IsNullOrWhiteSpace(s.listing.seller)).GroupBy(s=>s.listing.seller,StringComparer.OrdinalIgnoreCase);
+        if(state.dismissed.Count>1000)state.dismissed.Clear();
+        var remove=new List<WatchSale>();
+        foreach(var seller in candidates)
+        {
+            var ordered=seller.OrderBy(Stamp).ToList();
+            for(int i=0;i<ordered.Count;)
+            {
+                int j=i+1;while(j<ordered.Count&&(Stamp(ordered[j])-Stamp(ordered[j-1])).TotalSeconds<=5)j++;
+                var cluster=ordered.GetRange(i,j-i);
+                if(cluster.Count>1&&cluster.Count>cluster.Max(s=>s.sellerIncrease))remove.AddRange(cluster);
+                i=j;
+            }
+        }
+        foreach(var sale in remove)
+        {
+            state.sales.Remove(sale);state.dismissed.Add(sale.listing.url);
+            if(!sale.listing.url.Contains('#'))state.known[sale.listing.url]=sale.listing;
+        }
+    }
+    // "Mesaj atın", "siparişleriniz alınır" gibi vitrin/duyuru ilanları gerçek satış ilanı değildir.
+    private static readonly System.Text.RegularExpressions.Regex WatchPlaceholderPattern=new(@"mesaj\s*at|siparisleriniz\s*alinir|fiyat\s*icin|sinirsiz\s*stok|her\s*turlu");
+    private static bool IsWatchPlaceholder(string title)
+    {
+        var text=new string((title??"").Replace('İ','i').Replace('I','ı').ToLowerInvariant().Replace('ı','i').Normalize(System.Text.NormalizationForm.FormD).Where(c=>System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)!=System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+        return WatchPlaceholderPattern.IsMatch(text);
     }
     private void ApplyWatchSellerSnapshot(ServerWatch state,SellerWatchSnapshot snapshot,DateTime nowUtc)
     {
@@ -426,6 +462,7 @@ public sealed partial class MainForm
         public Dictionary<string,ProductObservation> observations {get;set;}=new();
         public Dictionary<string,LiveListing> known {get;set;} = new();
         public List<WatchSale> sales {get;set;} = new();
+        public HashSet<string> dismissed {get;set;} = new(StringComparer.OrdinalIgnoreCase);
         public int pageCursor {get;set;} = 1;
         public int cursor {get;set;}
         public string status {get;set;} = "İzleniyor";
@@ -439,6 +476,9 @@ public sealed partial class MainForm
         public int baselineAgeMinutes {get;set;}
         public bool priceFromDetail {get;set;}
         public DateTime priceCheckAttemptUtc {get;set;}
+        public string sellerId {get;set;}="";
+        public int sellerCount {get;set;}
+        public string listingUpdatedAt {get;set;}="";
     }
     private sealed class WatchScan
     {

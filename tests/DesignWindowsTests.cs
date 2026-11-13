@@ -257,6 +257,18 @@ public sealed partial class MainForm
         if(!shared.observations.TryGetValue(otherUrl,out var sharedBase)||sharedBase.lastAvailableCount!=40||sharedBase.lastAvailableAtUtc!=stamp||shared.sellers["sharedseller"].salesCount!=40)throw new Exception("Seller counter did not refresh visible listing baselines.");
         ApplyWatchObservations(shared,new[]{new ProductObservation {url=otherUrl,sellerId="shared-owner",seller="SharedSeller",available=false,salesCount=41,price=300m,expiresAt=stamp.AddDays(1).ToString("O")}},stamp.AddMinutes(20));
         if(shared.sales.Count!=1||shared.sales[0].listing.url!=otherUrl||!WatchSaleStrong(shared.sales[0]))throw new Exception("Shared seller baseline did not produce a strong sale.");
+        // Toplu düzenleme: aynı satıcının iki ilanı aynı saniyede "satışta değil" oldu, sayaç yalnız +1 => satış değil.
+        var bulk=new ServerWatch();ProductObservation Bulk(string u,bool available,int count)=>new(){url=u,sellerId="mura",seller="MuraTrade",available=available,salesCount=count,price=5000m,updatedAt=stamp.AddMinutes(1).ToString("O"),expiresAt=stamp.AddDays(5).ToString("O")};
+        foreach(var u in new[]{"https://itemci.com/product/test/bulk-a","https://itemci.com/product/test/bulk-b"})bulk.known[u]=new LiveListing {url=u,title="Bulk "+u[^1],price=5000m,seller="MuraTrade"};
+        ApplyWatchObservations(bulk,new[]{Bulk("https://itemci.com/product/test/bulk-a",true,80),Bulk("https://itemci.com/product/test/bulk-b",true,80)},stamp);
+        ApplyWatchObservations(bulk,new[]{Bulk("https://itemci.com/product/test/bulk-a",false,81),Bulk("https://itemci.com/product/test/bulk-b",false,81)},stamp.AddMinutes(10));
+        if(bulk.sales.Count!=0||!bulk.dismissed.Contains("https://itemci.com/product/test/bulk-a")||!bulk.known.ContainsKey("https://itemci.com/product/test/bulk-b"))throw new Exception("Bulk deactivation with one counter rise was recorded as sales.");
+        ApplyWatchObservations(bulk,new[]{Bulk("https://itemci.com/product/test/bulk-a",false,81)},stamp.AddMinutes(12));if(bulk.sales.Count!=0)throw new Exception("Dismissed bulk listing re-entered as a sale.");
+        var two=new ServerWatch();foreach(var u in new[]{"https://itemci.com/product/test/two-a","https://itemci.com/product/test/two-b"})two.known[u]=new LiveListing {url=u,title="İki "+u[^1],price=100m,seller="MuraTrade"};
+        ApplyWatchObservations(two,new[]{Bulk("https://itemci.com/product/test/two-a",true,80),Bulk("https://itemci.com/product/test/two-b",true,80)},stamp);
+        ApplyWatchObservations(two,new[]{Bulk("https://itemci.com/product/test/two-a",false,82),Bulk("https://itemci.com/product/test/two-b",false,82)},stamp.AddMinutes(10));
+        if(two.sales.Count!=2)throw new Exception("Two listings with a +2 counter rise should both stay as sales.");
+        if(WatchSaleStrong(new WatchSale {evidence="counter",listing=new LiveListing {title="STOK VE FİYAT İÇİN MESAJ ATIN LÜTFEN"}}))throw new Exception("Placeholder listing was treated as a strong sale.");
         Console.WriteLine("PASS: departed active listings retain baselines and later sales; recorded sales do not re-enter live queues.");
         // Current real 2T page metadata, with a synthetic prior seller counter:
         // no fabricated historical baseline is inferred from the current page.
