@@ -1,4 +1,4 @@
 {
-  "version": "2.31.0",
-  "notes": "Satış takibi: satıcının aynı anda kapattığı ilanlar artık satış sayılmıyor; mesaj atın, siparişleriniz alınır gibi duyuru ilanları en fazla olası sayılıyor."
+  "version": "2.32.0",
+  "notes": "Mesajlar: son mesajı sayı olan konuşmalar artık okunmamış sayılmıyor; takılı kalan sayaç ve sürekli bildirim düzeldi."
 }
