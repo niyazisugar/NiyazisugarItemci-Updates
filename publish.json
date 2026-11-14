@@ -1,4 +1,4 @@
 {
-  "version": "2.32.0",
-  "notes": "Mesajlar: son mesajı sayı olan konuşmalar artık okunmamış sayılmıyor; takılı kalan sayaç ve sürekli bildirim düzeldi."
+  "version": "2.33.0",
+  "notes": "Ekranda asılı kalan gri kutu düzeltildi: Hızlı ilanda görsel sıralama artık Windows sürükleme penceresi açmıyor, Itemci sayfalarında resim ve bağlantı sürükleme kapatıldı."
 }
