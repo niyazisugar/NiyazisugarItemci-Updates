@@ -1455,6 +1455,11 @@ public sealed partial class MainForm : Form
         if (view.CoreWebView2 is null)
             return;
 
+        // Resim ve bağlantıların yerel sürüklenmesi Windows'ta ayrı bir sürükleme penceresi açar;
+        // sekme gizlenince bu pencere (gri kutu + ipucu) ekranda asılı kalabiliyordu.
+        _ = view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+            "document.addEventListener('dragstart',e=>{const t=e.target;if(t&&(t.tagName==='IMG'||(t.tagName==='A')))e.preventDefault();},true);");
+
         try
         {
             view.CoreWebView2.AddWebResourceRequestedFilter(

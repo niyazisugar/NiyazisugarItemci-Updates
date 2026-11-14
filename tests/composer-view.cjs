@@ -44,7 +44,10 @@ const description='Ürün hakkında detaylı bilgi almak için mesaj gönderebil
  assert.equal(await page.locator('#images .image-card').count(),3);
  await page.locator('#images .image-card').nth(2).locator('.cover-button').click();
  assert((await page.locator('#cover').getAttribute('src')).endsWith('/image-3.png'));
- // Native browser drag events check order and resulting cover payload.
+ // Kart sürükleme yerel (işletim sistemi) sürüklemesi açmaz ve resim adı ipucu olarak çıkmaz.
+ const native=await page.evaluate(()=>[...document.querySelectorAll('#images .image-card')].map(c=>({draggable:c.draggable,title:c.title,img:c.querySelector('img')?.draggable})));
+ assert(native.length>0&&native.every(c=>c.draggable===false&&c.title===''&&c.img===false),'Image cards must not start native OS drags or show filename tooltips.');
+ // Pointer-based reorder checks order and resulting cover payload.
  await page.locator('#images .image-card').nth(0).dragTo(page.locator('#images .image-card').nth(2));
  const ordered=await page.evaluate(()=>window.messages.filter(m=>m.action==='draft').at(-1).draft.images);assert.deepEqual(ordered,['image-1.png','image-2.png','image-3.png']);
  await page.locator('#images .image-card').nth(1).locator('.remove').click();assert.equal(await page.locator('#images .image-card').count(),2);
